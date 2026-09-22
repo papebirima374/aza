@@ -17,8 +17,16 @@ Réalisation : Kër Salaatu Tech (Birima Gueye). Référence : CDC-AZA-2026-01.
 
 Les informations à faire valider par l'institut : [`docs/POINTS-A-CONFIRMER.md`](docs/POINTS-A-CONFIRMER.md).
 
+**Moteur de réservation (prêt, pas encore branché sur le site)** — `lib/reservation/disponibilites.ts`
+- Calcule les créneaux réellement libres : durée de chaque prestation, praticienne ET poste
+  libres, temps de pose (praticienne libérée, poste occupé), massage à quatre mains,
+  prestations enchaînées, compétences, praticienne souhaitée, délai de 2 h, fermetures.
+- Règle d'acompte : au-delà d'un montant, d'une durée, ou après deux absences.
+- 14 tests, un par règle du cahier des charges : `npm test`.
+
 ## Prochaines étapes
-1. Obtenir les durées des prestations et les derniers points de `docs/POINTS-A-CONFIRMER.md`.
+1. Faire remplir à l'institut `docs/releve-durees-prestations.xlsx` (durées, équipe,
+   postes) et régler les derniers points de `docs/POINTS-A-CONFIRMER.md`.
 2. Créer le projet Firebase `anna-zen-attitude` et travailler d'abord sur les émulateurs.
 3. Vraie réservation : créneaux calculés (durée, praticienne, poste), enregistrés dans
    l'agenda, rappel WhatsApp la veille.
@@ -44,6 +52,10 @@ npx tsc --noEmit
 
 ```
 npm run build
+```
+
+```
+npm test
 ```
 
 ## Où modifier quoi

@@ -11,9 +11,12 @@ ne comptent plus.
 - Tarifs : les 146 lignes de la plaquette V2.
 
 ## Ce qui reste à obtenir
-1. **Durée de chaque prestation** — indispensable pour la vraie réservation en ligne
-   (calcul des créneaux libres). En attendant, la réservation envoie une demande sur
-   WhatsApp que l'institut confirme.
+1. **Durée de chaque prestation**, temps de pose, poste, et qui la fait ; l'équipe et ses
+   horaires ; le nombre de postes. Tout est à remplir dans la fiche
+   [`releve-durees-prestations.xlsx`](releve-durees-prestations.xlsx) (cases jaunes).
+   C'est indispensable pour la vraie réservation en ligne : le moteur de créneaux est
+   prêt et testé, il n'attend que ces informations. En attendant, la réservation envoie
+   une demande sur WhatsApp que l'institut confirme.
 2. **Extension cils volume naturel** : la plaquette la cite deux fois (30 000 F et 40 000 F).
    Le site n'affiche que 30 000 F. S'agit-il de deux prestations différentes ?
 3. **Position GPS exacte** de la villa (la carte pointe aujourd'hui le centre du Point E).
