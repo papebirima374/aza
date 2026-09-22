@@ -31,7 +31,7 @@ export function PiedDePage() {
           <ul className="mt-3 space-y-1 text-sm">
             {INSTITUT.horaires.map((h) => (
               <li key={h.jours}>
-                {h.jours} : {h.heures}
+                {h.jours} {h.heures}
               </li>
             ))}
           </ul>
@@ -39,7 +39,7 @@ export function PiedDePage() {
             {INSTITUT.telephones.map((t) => (
               <li key={t.e164}>
                 <a href={`tel:${t.e164}`} className="hover:text-white">
-                  {t.libelle} : <span className="prix font-semibold">{t.affiche}</span>
+                  <span className="prix font-semibold">{t.affiche}</span>
                 </a>
               </li>
             ))}

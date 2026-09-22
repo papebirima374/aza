@@ -146,7 +146,7 @@ export default function Accueil() {
             <ul>
               {INSTITUT.horaires.map((h) => (
                 <li key={h.jours}>
-                  <span className="font-semibold">{h.jours}</span> : {h.heures}
+                  <span className="font-semibold">{h.jours}</span> {h.heures}
                 </li>
               ))}
             </ul>
