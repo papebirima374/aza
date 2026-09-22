@@ -4,7 +4,7 @@ import { lienWhatsApp } from "@/lib/institut";
 export const metadata: Metadata = {
   title: "Boutique",
   description:
-    "Prêt-à-porter, perruques et mèches, produits capillaires et cosmétiques, cartes cadeaux : la boutique Anna Zen Attitude, Point E, Dakar.",
+    "Prêt-à-porter, perruques et mèches, produits capillaires et cosmétiques, cartes cadeaux : la boutique Anna Zen Attitude, Point-E, Dakar.",
   alternates: { canonical: "/boutique" },
 };
 

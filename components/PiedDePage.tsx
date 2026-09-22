@@ -68,7 +68,7 @@ export function PiedDePage() {
         </div>
       </div>
       <p className="border-t border-white/10 py-4 text-center text-xs text-or-clair/70">
-        © {new Date().getFullYear()} {INSTITUT.nom} — Point E, Dakar
+        © {new Date().getFullYear()} {INSTITUT.nom} — Point-E, Dakar
       </p>
     </footer>
   );

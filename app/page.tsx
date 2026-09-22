@@ -29,7 +29,7 @@ export default function Accueil() {
           className="pointer-events-none absolute -right-16 -bottom-10 w-80 opacity-10 md:w-[28rem]"
         />
         <div className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
-          <p className="text-sm font-semibold tracking-[0.2em] text-or uppercase">Point E · Dakar</p>
+          <p className="text-sm font-semibold tracking-[0.2em] text-or uppercase">Point-E · Dakar</p>
           <h1 className="mt-4 max-w-2xl font-serif text-5xl leading-tight font-semibold md:text-6xl">
             Offrez-vous une pause <span className="whitespace-nowrap">bien-être</span>
           </h1>

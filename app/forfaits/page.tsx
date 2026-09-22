@@ -6,7 +6,7 @@ import { lienWhatsApp } from "@/lib/institut";
 export const metadata: Metadata = {
   title: "Forfaits & cérémonies",
   description:
-    "Forfaits mariage et cérémonie, cures de soins et traitements capillaires chez Anna Zen Attitude, Point E, Dakar. Devis personnalisé pour les groupes.",
+    "Forfaits mariage et cérémonie, cures de soins et traitements capillaires chez Anna Zen Attitude, Point-E, Dakar. Devis personnalisé pour les groupes.",
   alternates: { canonical: "/forfaits" },
 };
 

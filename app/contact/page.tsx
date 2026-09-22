@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 export default function Contact() {
-  const carte = `https://maps.google.com/maps?q=${encodeURIComponent("Anna Zen Attitude, Point E, Dakar")}&z=16&output=embed`;
+  const carte = `https://maps.google.com/maps?q=${encodeURIComponent("Anna Zen Attitude, Point-E, Dakar")}&z=16&output=embed`;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
@@ -78,7 +78,7 @@ export default function Contact() {
         </div>
 
         <iframe
-          title="Carte : Anna Zen Attitude au Point E"
+          title="Carte : Anna Zen Attitude au Point-E"
           src={carte}
           loading="lazy"
           referrerPolicy="no-referrer-when-downgrade"

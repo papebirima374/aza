@@ -44,7 +44,7 @@ export const UNIVERS: Univers[] = [
     accroche: "Vernis, poses, manucure et pédicure",
     description:
       "Du vernis simple à la pose résine ou gel, en passant par la manucure orientale et la pédicure paraffine : des mains et des pieds soignés, jusqu'au bout des ongles.",
-    requetes: "pose d'ongles, vernis permanent, manucure au Point E",
+    requetes: "pose d'ongles, vernis permanent, manucure au Point-E",
   },
   {
     id: "epilation",
@@ -60,7 +60,7 @@ export const UNIVERS: Univers[] = [
     accroche: "Tresses, tissages, locks, soins et maquillage",
     description:
       "Tresses, knotless, micro-braids, tissages et perruques, locks, soins et traitements capillaires, coiffures et maquillage de cérémonie : toute la beauté du cheveu, pour adultes et enfants.",
-    requetes: "salon de tresses, tissage et locks au Point E",
+    requetes: "salon de tresses, tissage et locks au Point-E",
   },
 ];
 

@@ -6,7 +6,7 @@ import { INSTITUT } from "@/lib/institut";
 export const metadata: Metadata = {
   title: "L'institut",
   description:
-    "Anna Zen Attitude, institut de beauté, coiffure et bien-être au Point E, Dakar : notre philosophie, notre équipe et les marques que nous utilisons.",
+    "Anna Zen Attitude, institut de beauté, coiffure et bien-être au Point-E, Dakar : notre philosophie, notre équipe et les marques que nous utilisons.",
   alternates: { canonical: "/institut" },
 };
 

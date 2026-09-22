@@ -22,11 +22,11 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   metadataBase: new URL(INSTITUT.site),
   title: {
-    default: "Anna Zen Attitude — Institut de beauté, coiffure & bien-être au Point E, Dakar",
+    default: "Anna Zen Attitude — Institut de beauté, coiffure & bien-être au Point-E, Dakar",
     template: "%s · Anna Zen Attitude",
   },
   description:
-    "Institut de beauté au Point E, Dakar : soins du visage, massages, onglerie, épilation, tresses, tissages et locks. Plus de 130 prestations. Prenez rendez-vous en ligne.",
+    "Institut de beauté au Point-E, Dakar : soins du visage, massages, onglerie, épilation, tresses, tissages et locks. Plus de 140 prestations. Prenez rendez-vous en ligne.",
   openGraph: {
     type: "website",
     locale: "fr_SN",

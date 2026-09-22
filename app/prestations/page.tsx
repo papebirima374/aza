@@ -6,7 +6,7 @@ import { famillesDe, PRESTATIONS, UNIVERS } from "@/lib/catalogue";
 export const metadata: Metadata = {
   title: "Prestations et tarifs",
   description:
-    "Toutes les prestations d'Anna Zen Attitude au Point E, Dakar, avec leurs prix : institut, onglerie, épilation, coiffures et tresses. Réservez en ligne.",
+    "Toutes les prestations d'Anna Zen Attitude au Point-E, Dakar, avec leurs prix : institut, onglerie, épilation, coiffures et tresses. Réservez en ligne.",
   alternates: { canonical: "/prestations" },
 };
 

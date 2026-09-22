@@ -4,7 +4,7 @@ import { TunnelReservation } from "@/components/TunnelReservation";
 
 export const metadata: Metadata = {
   title: "Prendre rendez-vous",
-  description: "Réservez votre prestation chez Anna Zen Attitude, au Point E, Dakar : choisissez, indiquez votre moment, confirmez.",
+  description: "Réservez votre prestation chez Anna Zen Attitude, au Point-E, Dakar : choisissez, indiquez votre moment, confirmez.",
   alternates: { canonical: "/reservation" },
 };
 

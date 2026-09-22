@@ -12,7 +12,7 @@ export const INSTITUT = {
     ville: "Dakar",
     pays: "SN",
   },
-  // Coordonnées approximatives du Point E : à remplacer par le point exact de la villa.
+  // Coordonnées approximatives du Point-E : à remplacer par le point exact de la villa.
   gps: { lat: 14.6937, lng: -17.4589 },
   telephones: [
     { affiche: "+221 33 825 87 10", e164: "+221338258710" },
@@ -37,5 +37,5 @@ export function lienWhatsApp(message?: string): string {
 }
 
 export const LIEN_ITINERAIRE = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-  "Anna Zen Attitude, Point E, Dakar",
+  "Anna Zen Attitude, Point-E, Dakar",
 )}`;
