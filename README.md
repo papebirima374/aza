@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Anna Zen Attitude — site public et plateforme de gestion
 
-## Getting Started
+Institut de beauté, coiffure & bien-être — Point E, Dakar.
+Réalisation : Kër Salaatu Tech (Birima Gueye). Référence : CDC-AZA-2026-01.
 
-First, run the development server:
+## Où on en est
+**Lot 1 — site public, première version (en local, pas encore en ligne)**
+- Accueil, 4 univers (`/prestations/institut`, `/onglerie`, `/epilation`, `/coiffure`),
+  146 prestations avec leurs prix et un bouton « Réserver » sur chaque ligne.
+- Recherche instantanée (sans accents ni majuscules).
+- Réservation en 3 étapes, sans compte : la demande part sur WhatsApp, déjà rédigée.
+- Forfaits & cérémonies (demande de devis), Boutique (annonce), L'institut, Contact
+  (carte, itinéraire, téléphones cliquables), Mentions légales.
+- Barre fixe sur téléphone : Réserver · Appeler · WhatsApp.
+- Référencement : titres et descriptions par page, données Google (BeautySalon et prix),
+  `sitemap.xml`, `robots.txt`.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Les informations à faire valider par l'institut : [`docs/POINTS-A-CONFIRMER.md`](docs/POINTS-A-CONFIRMER.md).
+
+## Prochaines étapes
+1. Faire valider les points à confirmer (adresse, horaires, tarifs 2026, durées).
+2. Créer le projet Firebase `anna-zen-attitude` et travailler d'abord sur les émulateurs.
+3. Vraie réservation : créneaux calculés (durée, praticienne, poste), enregistrés dans
+   l'agenda, rappel WhatsApp la veille.
+4. Mise en ligne du site sur Vercel (fin de semaine 6 du planning).
+
+## Lancer le site sur l'ordinateur
+Depuis le dossier du projet :
+
+```
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+```
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Puis ouvrir http://localhost:3000
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Vérifications avant de dire « c'est fait »
+```
+npx tsc --noEmit
+```
 
-## Learn More
+```
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Où modifier quoi
+- Adresse, horaires, téléphones : `lib/institut.ts` (un seul endroit, repris partout).
+- Prestations et prix : `lib/catalogue.ts`.
+- Couleurs de la marque : `app/globals.css`.

@@ -1,26 +1,40 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* Palette de la marque (cahier des charges §4.1).
+   Dosage : 65 % neutre, 20 % rose profond, 10 % rose AZA, 5 % or.
+   Le rose vif est réservé aux boutons d'action. */
+@theme {
+  --color-aza: #f0349a;
+  --color-aza-fonce: #d81f84;
+  --color-profond: #7e0a4c;
+  --color-bordeaux: #3d1218;
+  --color-or: #c79a5b;
+  --color-or-clair: #e8cfa0;
+  --color-creme: #fdf7fa;
+  --color-bordure: #e8dce4;
+  --color-encre: #26161d;
+  --color-doux: #6b5560;
+
+  --font-serif: var(--font-cormorant), "Playfair Display", Georgia, serif;
+  --font-sans: var(--font-manrope), system-ui, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #ffffff;
+  color: var(--color-encre);
+  font-family: var(--font-sans);
+  font-size: 16px;
+}
+
+.prix {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-aza);
+  outline-offset: 2px;
 }
