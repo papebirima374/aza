@@ -1,6 +1,6 @@
-// Catalogue des prestations, repris ligne à ligne de la plaquette « Zen Attitude V2 ».
-// Les prix sont en francs CFA. Ils doivent être revus avec l'institut (tarifs 2026) :
-// voir docs/POINTS-A-CONFIRMER.md. Les durées ne sont pas encore connues : elles seront
+// Catalogue des prestations, repris ligne à ligne de la plaquette « Zen Attitude V2 »,
+// la référence tarifaire la plus récente (le catalogue 2023 ne compte plus).
+// Les prix sont en francs CFA. Les durées ne sont pas encore connues : elles seront
 // relevées sur place (étape 1 du cahier des charges) avant d'ouvrir la réservation en ligne.
 
 export type UniversId = "institut" | "onglerie" | "epilation" | "coiffure";

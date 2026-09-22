@@ -20,6 +20,11 @@ Dépôt, projet Vercel et base Firebase **propres à ce client**. Ne jamais réu
 - envoyer des messages WhatsApp ou SMS à de vraies clientes ;
 - supprimer des données.
 
+## Source des informations
+La **plaquette « Zen Attitude V2 »** fait foi : adresse (Point E, Canal 4, Villa n° 7, en face
+du complexe Hibiscus), horaires (lundi – samedi 9 h – 19 h, dimanche 10 h – 18 h),
+téléphones et tarifs. Le catalogue 2023 et l'ancien site ne comptent plus.
+
 ## Règles de fond (cahier des charges)
 - **Ne rien inventer** : prix, durées, horaires, équipe, avis et photos viennent de
   l'institut. Ce qui manque est noté dans `docs/POINTS-A-CONFIRMER.md`.

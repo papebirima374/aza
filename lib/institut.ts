@@ -1,6 +1,6 @@
 // Informations de l'institut, saisies à un seul endroit et reprises partout sur le site
-// (en-tête, pied de page, contact, données Google). Source : plaquette V2.
-// Adresse et horaires restent à confirmer par la gérante (cahier des charges §21.2).
+// (en-tête, pied de page, contact, données Google).
+// Source : plaquette V2 — la référence la plus récente. Le catalogue 2023 ne compte plus.
 
 export const INSTITUT = {
   nom: "Anna Zen Attitude",

@@ -18,7 +18,7 @@ Réalisation : Kër Salaatu Tech (Birima Gueye). Référence : CDC-AZA-2026-01.
 Les informations à faire valider par l'institut : [`docs/POINTS-A-CONFIRMER.md`](docs/POINTS-A-CONFIRMER.md).
 
 ## Prochaines étapes
-1. Faire valider les points à confirmer (adresse, horaires, tarifs 2026, durées).
+1. Obtenir les durées des prestations et les derniers points de `docs/POINTS-A-CONFIRMER.md`.
 2. Créer le projet Firebase `anna-zen-attitude` et travailler d'abord sur les émulateurs.
 3. Vraie réservation : créneaux calculés (durée, praticienne, poste), enregistrés dans
    l'agenda, rappel WhatsApp la veille.
