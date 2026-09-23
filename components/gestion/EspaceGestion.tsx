@@ -102,6 +102,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
   if (etat === "refuse") {
     return (
       <Message titre="Accès refusé" texte={raison || "Ce compte n'a pas d'accès à la gestion de l'institut."}>
+        <Diagnostic />
         <button onClick={() => signOut(firebaseClient().auth)} className="mt-6 rounded-full border border-bordure px-5 py-2.5 font-semibold">
           Se déconnecter
         </button>
@@ -233,6 +234,35 @@ function Connexion() {
         </button>
         {info && <p className="mt-3 text-center text-sm text-doux">{info}</p>}
       </form>
+    </div>
+  );
+}
+
+// Aide à la mise en service : ce que voient le navigateur et le serveur (aucun secret).
+function Diagnostic() {
+  const [lignes, setLignes] = useState<string[] | null>(null);
+  useEffect(() => {
+    const { app, auth } = firebaseClient();
+    (async () => {
+      const jeton = await auth.currentUser?.getIdToken().catch(() => undefined);
+      const r = await fetch("/api/gestion/diagnostic", { headers: jeton ? { Authorization: `Bearer ${jeton}` } : {} })
+        .then((x) => x.json())
+        .catch(() => ({ erreur: "serveur injoignable" }));
+      setLignes([
+        `Projet du navigateur : ${app.options.projectId}`,
+        ...Object.entries(r).map(([k, v]) => `${k} : ${typeof v === "object" ? JSON.stringify(v) : String(v)}`),
+      ]);
+    })();
+  }, []);
+  if (!lignes) return null;
+  return (
+    <div className="mt-8 w-full max-w-lg rounded-xl border border-bordure bg-white p-4 text-left">
+      <p className="text-xs font-bold tracking-wide text-doux uppercase">Diagnostic (à envoyer à Birima)</p>
+      <ul className="mt-2 space-y-0.5 font-mono text-xs break-all">
+        {lignes.map((l) => (
+          <li key={l}>{l}</li>
+        ))}
+      </ul>
     </div>
   );
 }
