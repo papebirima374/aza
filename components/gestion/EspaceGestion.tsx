@@ -46,14 +46,28 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
         setEtat("deconnecte");
         return;
       }
-      let snap = await getDoc(doc(db, "comptes", user.uid)).catch(() => null);
+      let lectureRefusee = false;
+      const lire = () =>
+        getDoc(doc(db, "comptes", user.uid)).catch(() => {
+          lectureRefusee = true;
+          return null;
+        });
+      let snap = await lire();
       if (!snap?.exists()) {
         // Premier démarrage : la direction déclarée dans Vercel reçoit son rôle.
         const r = await fetch("/api/gestion/demarrer", {
           method: "POST",
           headers: { Authorization: `Bearer ${await user.getIdToken()}` },
         }).catch(() => null);
-        if (r?.ok) snap = await getDoc(doc(db, "comptes", user.uid)).catch(() => null);
+        if (r?.ok) {
+          lectureRefusee = false;
+          snap = await lire();
+          if (lectureRefusee) {
+            setRaison(
+              "Votre compte existe, mais la base refuse de le lire : les règles Firestore ne sont pas publiées (coller le fichier firestore.rules ENTIER dans Firestore → Règles → Publier).",
+            );
+          }
+        }
         else if (r?.status === 503) setRaison("La clé du serveur (FIREBASE_SERVICE_ACCOUNT) n'est pas encore posée dans Vercel.");
         else if (r) setRaison((await r.json().catch(() => ({}))).erreur ?? "");
         else setRaison("Connexion au serveur impossible.");
