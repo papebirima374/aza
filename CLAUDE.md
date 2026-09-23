@@ -48,6 +48,10 @@ tant que les vraies durées ne sont pas chargées.
 émulateurs (firestore + auth) + seed + `node scripts/verifier-reservation.mjs`,
 `node scripts/verifier-agenda.mjs` et `npm run test:regles`.
 
+## Version de Node
+`package.json` impose Node **22.x** (`engines`) : firebase-admin 14 ne démarre pas en dessous.
+Sur Vercel, une version plus ancienne fait planter toutes les routes /api (HTTP 500 vide).
+
 ## Variables Vercel
 `FIREBASE_SERVICE_ACCOUNT` (secret, jamais dans la conversation) et `DIRECTION_EMAILS`
 (premier compte direction). Projet Firebase de l'institut : **`annazen-bb41e`** ; sa
