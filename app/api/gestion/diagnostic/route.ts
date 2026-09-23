@@ -17,9 +17,20 @@ export async function GET(request: Request) {
     version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local",
     node: process.version,
     cleServeur: Boolean(process.env.FIRESTORE_EMULATOR_HOST || process.env.FIREBASE_SERVICE_ACCOUNT),
-    directionEmails: (process.env.DIRECTION_EMAILS ?? "").split(",").filter((e) => e.trim()).length,
   };
   try {
+    const jeton = request.headers.get("authorization")?.replace(/^Bearer /, "");
+    // Sans connexion, seulement l'essentiel (version, clé présente ou non).
+    if (!res.cleServeur || !jeton) return Response.json(res, { headers: { "Cache-Control": "no-store" } });
+    let fb: typeof import("@/lib/serveur/firebase");
+    try {
+      fb = await import("@/lib/serveur/firebase");
+    } catch (e) {
+      res.chargementFirebase = `erreur : ${court(e)}`;
+      return Response.json(res);
+    }
+    const { auth, db } = fb;
+    res.directionEmails = (process.env.DIRECTION_EMAILS ?? "").split(",").filter((e) => e.trim()).length;
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       try {
         const cle = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
@@ -29,18 +40,8 @@ export async function GET(request: Request) {
         res.projetCle = "JSON illisible (mal copié ?)";
       }
     }
-    if (!res.cleServeur) return Response.json(res);
-    let fb: typeof import("@/lib/serveur/firebase");
-    try {
-      fb = await import("@/lib/serveur/firebase");
-    } catch (e) {
-      res.chargementFirebase = `erreur : ${court(e)}`;
-      return Response.json(res);
-    }
-    const { auth, db } = fb;
 
-    const jeton = request.headers.get("authorization")?.replace(/^Bearer /, "");
-    if (jeton) {
+    {
       try {
         const d = await avecDelai(auth().verifyIdToken(jeton), "vérification du jeton");
         res.jeton = { projet: d.aud, email: d.email };
@@ -52,6 +53,7 @@ export async function GET(request: Request) {
           .includes((d.email ?? "").toLowerCase());
       } catch (e) {
         res.jeton = `erreur : ${court(e)}`;
+        return Response.json(res, { headers: { "Cache-Control": "no-store" } });
       }
     }
     try {
