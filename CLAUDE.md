@@ -40,14 +40,14 @@ téléphones et tarifs. Le catalogue 2023 et l'ancien site ne comptent plus.
 Tout se construit et se teste **en local** sur l'émulateur, projet `demo-aza`
 (`docs/MODELE-DONNEES.md`). Les scripts refusent tout projet qui n'est pas `demo-*`.
 L'équipe et les durées de `scripts/seed-emulateur.mjs` sont FICTIVES : ne jamais les
-recopier dans la vraie base. La réservation en ligne reste éteinte (`RESERVATION_EN_LIGNE`)
-tant que les vraies durées ne sont pas chargées.
+recopier dans la vraie base. Les vraies durées se saisissent dans l'écran Réglages.
 
 ## Vérifications avant de dire « c'est fait »
 `npx tsc --noEmit`, `npm test` et `npm run build` ; pour la réservation, en plus :
 émulateurs (firestore + auth) + seed + `node scripts/verifier-reservation.mjs`,
 `node scripts/verifier-agenda.mjs`, `node scripts/verifier-comptoir.mjs`,
-`node scripts/verifier-equipe.mjs` (vide la base : reseeder après) et `npm run test:regles`.
+`node scripts/verifier-equipe.mjs` (vide la base : reseeder après), `npm run test:regles`,
+et `node scripts/verifier-reglages.mjs` (site lancé SANS `RESERVATION_EN_LIGNE`).
 
 ## Version de Node
 `package.json` demande Node **22.x** (`engines`). firebase-admin est gardé en **13.x**
@@ -58,7 +58,8 @@ routes /api (HTTP 500 vide). `/api/ping` et `/api/gestion/diagnostic` aident à 
 `FIREBASE_SERVICE_ACCOUNT` (secret, jamais dans la conversation) et `DIRECTION_EMAILS`
 (premier compte direction). Projet Firebase de l'institut : **`annazen-bb41e`** ; sa
 configuration web (pas secrète) est dans `lib/client/firebase.ts`.
-`RESERVATION_EN_LIGNE=1` seulement quand les vraies durées sont chargées.
+La réservation en ligne s'ouvre depuis l'écran Réglages (bouton de la direction) ;
+`RESERVATION_EN_LIGNE=1` ne sert plus qu'aux tests locaux.
 Guide : `docs/MISE-EN-LIGNE-FIREBASE.md`.
 
 ## Règles Firestore

@@ -119,6 +119,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
             {[
               { href: "/gestion", libelle: "Agenda", visible: true },
               { href: "/gestion/equipe", libelle: "Équipe", visible: compte?.role === "direction" || compte?.role === "manager" },
+              { href: "/gestion/reglages", libelle: "Réglages", visible: compte?.role === "direction" || compte?.role === "manager" },
             ]
               .filter((l) => l.visible)
               .map((l) => (

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { TunnelReservation } from "@/components/TunnelReservation";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
+import { etatReservationEnLigne } from "@/lib/serveur/reglages";
 
 export const metadata: Metadata = {
   title: "Prendre rendez-vous",
@@ -9,14 +10,26 @@ export const metadata: Metadata = {
   alternates: { canonical: "/reservation" },
 };
 
-export default function Reservation() {
+// L'interrupteur « Réservation en ligne » (écran Réglages) est relu au plus toutes les minutes.
+export const revalidate = 60;
+
+async function etat() {
+  if (!firebaseConfigure()) return { actif: false, ids: [] as string[] };
+  try {
+    return await etatReservationEnLigne();
+  } catch {
+    return { actif: false, ids: [] as string[] };
+  }
+}
+
+export default async function Reservation() {
+  const { actif, ids } = await etat();
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <h1 className="font-serif text-5xl font-semibold text-profond">Prendre rendez-vous</h1>
       <p className="mt-2 text-doux">Sans créer de compte, en moins de trois minutes.</p>
       <Suspense>
-        {/* Interrupteur : RESERVATION_EN_LIGNE=1, une fois les vraies durées chargées. */}
-        <TunnelReservation enLigne={process.env.RESERVATION_EN_LIGNE === "1" && firebaseConfigure()} />
+        <TunnelReservation enLigne={actif} idsEnLigne={ids} />
       </Suspense>
     </div>
   );

@@ -4,8 +4,8 @@
 Ce projet est **séparé du KSN** : ne jamais réutiliser la base `ksn-site` ni ses clés.
 
 Résultat : l'espace de gestion fonctionne sur https://aza-neon-ten.vercel.app/gestion.
-La réservation en ligne, elle, reste en mode « demande WhatsApp » tant que les vraies
-durées ne sont pas chargées (interrupteur `RESERVATION_EN_LIGNE` non posé).
+La réservation en ligne, elle, reste en mode « demande WhatsApp » jusqu'à ce que la
+direction l'ouvre dans **Gestion → Réglages** (après avoir saisi les durées).
 
 ## 1. Créer le projet — FAIT
 Projet créé le 23/09/2026 : **`annazen-bb41e`**

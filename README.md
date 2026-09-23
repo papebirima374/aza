@@ -44,6 +44,14 @@ Les informations à faire valider par l'institut : [`docs/POINTS-A-CONFIRMER.md`
 - Contrôles : `npm run test:regles` (8 tests des règles de sécurité) et
   `node scripts/verifier-agenda.mjs` (14 contrôles des changements de statut).
 
+**Réglages** (`/gestion/reglages`, direction et manager)
+- Horaires de l'institut, jours de fermeture avec motif, postes de travail, durées des 143
+  prestations (durée, temps de pose, poste, 4 mains, en ligne), règles (délai, acompte).
+- **Interrupteur « Réservation en ligne »** (direction seulement) : ouvert, les clientes
+  voient les heures libres des prestations dont la durée est renseignée ; les autres
+  restent en demande WhatsApp. La page publique relit l'interrupteur chaque minute.
+- Contrôles : `node scripts/verifier-reglages.mjs` (25 contrôles).
+
 **Rendez-vous au comptoir** — bouton « + Nouveau rendez-vous » de l'agenda
 - L'accueil choisit les prestations (durée pré-remplie si elle est paramétrée, sinon
   saisie en minutes), la praticienne ou « peu importe », le jour, puis une heure libre au

@@ -33,6 +33,7 @@ import { telephoneCanonique, telephoneValide } from "@/lib/telephone";
 import { db } from "@/lib/serveur/firebase";
 
 type Reglages = {
+  reservationEnLigne?: boolean;
   horaires: Horaires;
   fermetures: string[];
   delaiMinimumMinutes: number;
@@ -90,13 +91,14 @@ async function lireEquipe() {
     db().collection("praticiennes").where("actif", "==", true).get(),
     db().collection("postes").get(),
   ]);
-  const praticiennes: Praticienne[] = pr.docs.map((d) => ({
+  // Sans horaires propres, une praticienne suit les horaires de l'institut (voir contexte()).
+  const praticiennes: (Omit<Praticienne, "horaires"> & { horaires?: Horaires })[] = pr.docs.map((d) => ({
     id: d.id,
     nom: d.get("nom"),
     competences: d.get("competences") ?? [],
-    horaires: d.get("horaires") ?? {},
+    horaires: d.get("horaires") ?? undefined,
   }));
-  const postes: Poste[] = po.docs.map((d) => ({ id: d.id, type: d.get("type") }));
+  const postes: Poste[] = po.docs.filter((d) => d.get("actif") !== false).map((d) => ({ id: d.id, type: d.get("type") }));
   return { praticiennes, postes };
 }
 
@@ -110,10 +112,17 @@ function contexte(r: Reglages, equipe: Awaited<ReturnType<typeof lireEquipe>>, o
     fermetures: r.fermetures ?? [],
     delaiMinimumMinutes: r.delaiMinimumMinutes ?? 120,
     pasMinutes: r.pasMinutes ?? 30,
-    praticiennes: equipe.praticiennes,
+    praticiennes: equipe.praticiennes.map((p) => ({ ...p, horaires: p.horaires ?? r.horaires })),
     postes: equipe.postes,
     occupations,
   };
+}
+
+/** La réservation par les clientes n'est ouverte que si la direction l'a allumée. */
+function verifierEnLigne(r: Reglages) {
+  if (r.reservationEnLigne !== true && process.env.RESERVATION_EN_LIGNE !== "1") {
+    throw new ErreurReservation("La réservation en ligne n'est pas encore ouverte. Écrivez-nous sur WhatsApp.", 503);
+  }
 }
 
 function verifierDate(date: string) {
@@ -130,6 +139,7 @@ export async function chercherCreneaux(date: string, ids: string[], praticienneS
     lireEquipe(),
     db().collection("occupations").where("date", "==", date).get(),
   ]);
+  verifierEnLigne(reglages);
   const demande: Demande = { date, prestations, praticienneSouhaitee, maintenant: maintenantDakar() };
   const creneaux = creneauxDisponibles(demande, contexte(reglages, equipe, occ.docs.map(versOccupation)));
 
@@ -256,6 +266,7 @@ async function enregistrer(e: Enregistrement) {
 /** Réservation en ligne par la cliente (délai minimum, prestations paramétrées seulement). */
 export async function creerReservation(r: NouvelleReservation) {
   controlerCliente(r.nom, r.telephone);
+  verifierEnLigne(await lireReglages());
   return enregistrer({
     ...r,
     prestations: await prestationsDemandees(r.prestations),
@@ -280,7 +291,7 @@ export async function prestationsComptoir(lignes: LigneComptoir[]): Promise<Pres
     db().getAll(...lignes.map((l) => db().doc(`prestationsResa/${l.id}`))),
     db().collection("postes").get(),
   ]);
-  const typesPresents = new Set(postes.docs.map((d) => d.get("type") as string));
+  const typesPresents = new Set(postes.docs.filter((d) => d.get("actif") !== false).map((d) => d.get("type") as string));
   return lignes.map((l, i) => {
     const catalogue = prestationParId(l.id);
     if (!catalogue || catalogue.note === "Produit") throw new ErreurReservation("Prestation inconnue.", 400);

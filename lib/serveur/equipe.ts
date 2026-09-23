@@ -115,13 +115,12 @@ export async function creerMembre(membre: Membre, n: NouveauMembre) {
 
   let praticienne: string | undefined;
   if (intervenante) {
-    const reglages = await base.doc("reglages/institut").get();
     const ref = base.collection("praticiennes").doc();
     praticienne = ref.id;
+    // Pas d'horaires propres : elle suit ceux de l'institut, même s'ils changent ensuite.
     await ref.set({
       nom,
       competences,
-      horaires: reglages.get("horaires") ?? horairesInstitut(),
       actif: true,
       externe: n.role === "prestataire",
     });

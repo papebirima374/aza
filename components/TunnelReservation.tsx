@@ -34,11 +34,14 @@ function jourLisible(date: string): string {
   return new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 }
 
-export function TunnelReservation({ enLigne = false }: { enLigne?: boolean }) {
+export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }: { enLigne?: boolean; idsEnLigne?: string[] }) {
   const params = useSearchParams();
   const [choix, setChoix] = useState<string[]>(() =>
     params.getAll("p").filter((id) => prestationParId(id)),
   );
+  // Créneaux en direct seulement si TOUTES les prestations choisies sont paramétrées ;
+  // sinon, la demande part sur WhatsApp comme avant.
+  const enLigne = ouverte && choix.length > 0 && choix.every((id) => idsEnLigne.includes(id));
   const [etape, setEtape] = useState(0);
   const [univers, setUnivers] = useState<UniversId>(
     () => prestationParId(params.get("p") ?? "")?.univers ?? "institut",
