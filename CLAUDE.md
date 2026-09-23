@@ -48,6 +48,12 @@ tant que les vraies durées ne sont pas chargées.
 émulateurs (firestore + auth) + seed + `node scripts/verifier-reservation.mjs`,
 `node scripts/verifier-agenda.mjs` et `npm run test:regles`.
 
+## Variables Vercel
+`FIREBASE_SERVICE_ACCOUNT` (secret, jamais dans la conversation), `NEXT_PUBLIC_FIREBASE_CONFIG`
+(configuration web, pas secrète), `DIRECTION_EMAILS` (premier compte direction).
+`RESERVATION_EN_LIGNE=1` seulement quand les vraies durées sont chargées.
+Guide : `docs/MISE-EN-LIGNE-FIREBASE.md`.
+
 ## Règles Firestore
 `firestore.rules` : toujours donner à Birima le fichier ENTIER à publier, jamais « remplacez
 ces lignes ». Aucune écriture directe depuis un navigateur : tout passe par `/api`.

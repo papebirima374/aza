@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
+import { onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import type { Role } from "@/lib/agenda/statuts";
 import { firebaseClient, gestionConfiguree } from "@/lib/client/firebase";
@@ -31,6 +33,7 @@ const LIBELLE_ROLE: Record<Role, string> = {
 const INACTIVITE_MS = 20 * 60 * 1000;
 
 export function EspaceGestion({ children }: { children: React.ReactNode }) {
+  const chemin = usePathname();
   const [etat, setEtat] = useState<"chargement" | "deconnecte" | "refuse" | "connecte">("chargement");
   const [compte, setCompte] = useState<Compte | null>(null);
 
@@ -43,7 +46,15 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
         setEtat("deconnecte");
         return;
       }
-      const snap = await getDoc(doc(db, "comptes", user.uid)).catch(() => null);
+      let snap = await getDoc(doc(db, "comptes", user.uid)).catch(() => null);
+      if (!snap?.exists()) {
+        // Premier démarrage : la direction déclarée dans Vercel reçoit son rôle.
+        const r = await fetch("/api/gestion/demarrer", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${await user.getIdToken()}` },
+        }).catch(() => null);
+        if (r?.ok) snap = await getDoc(doc(db, "comptes", user.uid)).catch(() => null);
+      }
       if (!snap?.exists()) {
         setEtat("refuse");
         return;
@@ -87,7 +98,25 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
   return (
     <ContexteCompte.Provider value={compte}>
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-bordure bg-bordeaux px-4 text-or-clair">
-        <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} className="h-8 w-auto" />
+        <div className="flex items-center gap-4">
+          <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} className="h-8 w-auto" />
+          <nav className="flex gap-1 text-sm font-semibold" aria-label="Gestion">
+            {[
+              { href: "/gestion", libelle: "Agenda", visible: true },
+              { href: "/gestion/equipe", libelle: "Équipe", visible: compte?.role === "direction" || compte?.role === "manager" },
+            ]
+              .filter((l) => l.visible)
+              .map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className={`rounded-full px-3 py-1.5 ${chemin === l.href ? "bg-white/15 text-white" : "hover:text-white"}`}
+                >
+                  {l.libelle}
+                </Link>
+              ))}
+          </nav>
+        </div>
         <div className="flex items-center gap-3 text-sm">
           <span className="hidden sm:inline">
             {compte?.nom} · <span className="text-or">{compte && LIBELLE_ROLE[compte.role]}</span>
@@ -120,6 +149,18 @@ function Connexion() {
   const [motDePasse, setMotDePasse] = useState("");
   const [erreur, setErreur] = useState("");
   const [envoi, setEnvoi] = useState(false);
+  const [info, setInfo] = useState("");
+
+  async function oubli() {
+    setErreur("");
+    if (!email.includes("@")) {
+      setErreur("Écrivez d'abord votre email, puis touchez « Mot de passe oublié ».");
+      return;
+    }
+    // Même réponse que l'email existe ou non : on ne révèle pas qui a un compte.
+    await sendPasswordResetEmail(firebaseClient().auth, email.trim()).catch(() => {});
+    setInfo("Si ce compte existe, un email vient d'être envoyé pour choisir un nouveau mot de passe.");
+  }
 
   async function seConnecter(e: React.FormEvent) {
     e.preventDefault();
@@ -173,6 +214,10 @@ function Connexion() {
         >
           {envoi ? "Connexion…" : "Se connecter"}
         </button>
+        <button type="button" onClick={oubli} className="mt-4 w-full text-center text-sm font-semibold text-profond underline underline-offset-4">
+          Mot de passe oublié ?
+        </button>
+        {info && <p className="mt-3 text-center text-sm text-doux">{info}</p>}
       </form>
     </div>
   );

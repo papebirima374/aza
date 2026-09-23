@@ -44,6 +44,15 @@ Les informations à faire valider par l'institut : [`docs/POINTS-A-CONFIRMER.md`
 - Contrôles : `npm run test:regles` (8 tests des règles de sécurité) et
   `node scripts/verifier-agenda.mjs` (14 contrôles des changements de statut).
 
+**Premier démarrage et équipe**
+- La direction déclarée dans Vercel (`DIRECTION_EMAILS`) reçoit son rôle à sa première
+  connexion, une seule fois ; les réglages (horaires de la plaquette) se créent seuls.
+- Écran **Équipe** (`/gestion/equipe`) : la direction crée les comptes ; chaque personne
+  reçoit un lien pour choisir son mot de passe. « Mot de passe oublié ? » sur la connexion.
+- Contrôles : `node scripts/verifier-equipe.mjs` (14 contrôles, vide la base de test).
+
+**Brancher la vraie base :** [`docs/MISE-EN-LIGNE-FIREBASE.md`](docs/MISE-EN-LIGNE-FIREBASE.md).
+
 ## Prochaines étapes
 1. Faire remplir à l'institut `docs/releve-durees-prestations.xlsx` (durées, équipe,
    postes) et régler les derniers points de `docs/POINTS-A-CONFIRMER.md`.
