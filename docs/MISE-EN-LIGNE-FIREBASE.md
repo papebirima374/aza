@@ -3,7 +3,7 @@
 À faire par Birima, sur le PC. Durée : environ 20 minutes. Formule gratuite (Spark) suffisante.
 Ce projet est **séparé du KSN** : ne jamais réutiliser la base `ksn-site` ni ses clés.
 
-Résultat : l'espace de gestion fonctionne sur https://aza-six.vercel.app/gestion.
+Résultat : l'espace de gestion fonctionne sur https://aza-neon-ten.vercel.app/gestion.
 La réservation en ligne, elle, reste en mode « demande WhatsApp » tant que les vraies
 durées ne sont pas chargées (interrupteur `RESERVATION_EN_LIGNE` non posé).
 
@@ -30,7 +30,7 @@ Sa configuration web est déjà dans le code (`lib/client/firebase.ts`).
 3. Onglet **Paramètres** → **Actions utilisateur** → **décocher « Activer la création
    (inscription) »** → Enregistrer. Ainsi, personne ne peut se créer un compte seul : seule
    la direction en crée, depuis l'écran Équipe.
-4. Onglet **Paramètres** → **Domaines autorisés** → Ajouter : `aza-six.vercel.app`
+4. Onglet **Paramètres** → **Domaines autorisés** → Ajouter : `aza-neon-ten.vercel.app`
    (plus tard aussi `annazen-attitude.com`).
 5. Onglet **Modèles** → langue du modèle (crayon) → **Français** → Enregistrer.
 6. Onglet **Utilisateurs** → **Ajouter un utilisateur** → l'email de la direction (le vôtre
@@ -55,7 +55,7 @@ Vercel → projet **aza** → **Settings** → **Environment Variables**. Pour c
 Puis **Deployments** → le dernier → **⋯** → **Redeploy**.
 
 ## 6. Première connexion
-1. Ouvrir https://aza-six.vercel.app/gestion
+1. Ouvrir https://aza-neon-ten.vercel.app/gestion
 2. Se connecter avec l'email et le mot de passe de l'étape 3.6.
 3. Le site donne à ce compte le rôle **Direction** (une seule fois) et crée les réglages de
    l'institut (horaires de la plaquette V2).
