@@ -49,8 +49,9 @@ tant que les vraies durées ne sont pas chargées.
 `node scripts/verifier-agenda.mjs` et `npm run test:regles`.
 
 ## Version de Node
-`package.json` impose Node **22.x** (`engines`) : firebase-admin 14 ne démarre pas en dessous.
-Sur Vercel, une version plus ancienne fait planter toutes les routes /api (HTTP 500 vide).
+`package.json` demande Node **22.x** (`engines`). firebase-admin est gardé en **13.x**
+(fonctionne dès Node 18) : la 14 exige Node 22 et, sur Vercel, faisait planter toutes les
+routes /api (HTTP 500 vide). `/api/ping` et `/api/gestion/diagnostic` aident à vérifier.
 
 ## Variables Vercel
 `FIREBASE_SERVICE_ACCOUNT` (secret, jamais dans la conversation) et `DIRECTION_EMAILS`

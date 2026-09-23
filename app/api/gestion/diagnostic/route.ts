@@ -1,8 +1,7 @@
-import { auth, db, firebaseConfigure } from "@/lib/serveur/firebase";
-
 // GET /api/gestion/diagnostic — aide à la mise en service, sans aucun secret :
 // quel projet la clé serveur ouvre, si le compte connecté existe, quelle version tourne.
-// Chaque étape a un délai maximum, pour savoir laquelle bloque.
+// Chaque étape a un délai maximum, pour savoir laquelle bloque. La bibliothèque Firebase est
+// chargée à l'intérieur d'un bloc protégé : si son chargement échoue, l'erreur est affichée.
 
 function avecDelai<T>(p: Promise<T>, etape: string, ms = 7000): Promise<T> {
   return Promise.race([
@@ -17,7 +16,7 @@ export async function GET(request: Request) {
   const res: Record<string, unknown> = {
     version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? "local",
     node: process.version,
-    cleServeur: firebaseConfigure(),
+    cleServeur: Boolean(process.env.FIRESTORE_EMULATOR_HOST || process.env.FIREBASE_SERVICE_ACCOUNT),
     directionEmails: (process.env.DIRECTION_EMAILS ?? "").split(",").filter((e) => e.trim()).length,
   };
   try {
@@ -30,7 +29,15 @@ export async function GET(request: Request) {
         res.projetCle = "JSON illisible (mal copié ?)";
       }
     }
-    if (!firebaseConfigure()) return Response.json(res);
+    if (!res.cleServeur) return Response.json(res);
+    let fb: typeof import("@/lib/serveur/firebase");
+    try {
+      fb = await import("@/lib/serveur/firebase");
+    } catch (e) {
+      res.chargementFirebase = `erreur : ${court(e)}`;
+      return Response.json(res);
+    }
+    const { auth, db } = fb;
 
     const jeton = request.headers.get("authorization")?.replace(/^Bearer /, "");
     if (jeton) {
