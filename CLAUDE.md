@@ -49,8 +49,9 @@ tant que les vraies durées ne sont pas chargées.
 `node scripts/verifier-agenda.mjs` et `npm run test:regles`.
 
 ## Variables Vercel
-`FIREBASE_SERVICE_ACCOUNT` (secret, jamais dans la conversation), `NEXT_PUBLIC_FIREBASE_CONFIG`
-(configuration web, pas secrète), `DIRECTION_EMAILS` (premier compte direction).
+`FIREBASE_SERVICE_ACCOUNT` (secret, jamais dans la conversation) et `DIRECTION_EMAILS`
+(premier compte direction). Projet Firebase de l'institut : **`annazen-bb41e`** ; sa
+configuration web (pas secrète) est dans `lib/client/firebase.ts`.
 `RESERVATION_EN_LIGNE=1` seulement quand les vraies durées sont chargées.
 Guide : `docs/MISE-EN-LIGNE-FIREBASE.md`.
 

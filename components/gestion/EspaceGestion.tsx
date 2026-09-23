@@ -7,7 +7,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import type { Role } from "@/lib/agenda/statuts";
-import { firebaseClient, gestionConfiguree } from "@/lib/client/firebase";
+import { firebaseClient } from "@/lib/client/firebase";
 
 export type Compte = { uid: string; nom: string; role: Role; praticienne?: string; user: User };
 
@@ -36,9 +36,9 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
   const chemin = usePathname();
   const [etat, setEtat] = useState<"chargement" | "deconnecte" | "refuse" | "connecte">("chargement");
   const [compte, setCompte] = useState<Compte | null>(null);
+  const [raison, setRaison] = useState("");
 
   useEffect(() => {
-    if (!gestionConfiguree()) return;
     const { auth, db } = firebaseClient();
     return onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -54,6 +54,9 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
           headers: { Authorization: `Bearer ${await user.getIdToken()}` },
         }).catch(() => null);
         if (r?.ok) snap = await getDoc(doc(db, "comptes", user.uid)).catch(() => null);
+        else if (r?.status === 503) setRaison("La clé du serveur (FIREBASE_SERVICE_ACCOUNT) n'est pas encore posée dans Vercel.");
+        else if (r) setRaison((await r.json().catch(() => ({}))).erreur ?? "");
+        else setRaison("Connexion au serveur impossible.");
       }
       if (!snap?.exists()) {
         setEtat("refuse");
@@ -80,14 +83,11 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
     };
   }, [etat]);
 
-  if (!gestionConfiguree()) {
-    return <Message titre="Gestion non configurée" texte="La base de données de l'institut n'est pas encore branchée." />;
-  }
   if (etat === "chargement") return <Message titre="Chargement…" />;
   if (etat === "deconnecte") return <Connexion />;
   if (etat === "refuse") {
     return (
-      <Message titre="Accès refusé" texte="Ce compte n'a pas d'accès à la gestion de l'institut.">
+      <Message titre="Accès refusé" texte={raison || "Ce compte n'a pas d'accès à la gestion de l'institut."}>
         <button onClick={() => signOut(firebaseClient().auth)} className="mt-6 rounded-full border border-bordure px-5 py-2.5 font-semibold">
           Se déconnecter
         </button>

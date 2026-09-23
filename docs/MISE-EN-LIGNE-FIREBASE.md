@@ -7,9 +7,10 @@ Résultat : l'espace de gestion fonctionne sur https://aza-six.vercel.app/gestio
 La réservation en ligne, elle, reste en mode « demande WhatsApp » tant que les vraies
 durées ne sont pas chargées (interrupteur `RESERVATION_EN_LIGNE` non posé).
 
-## 1. Créer le projet
-1. Ouvrir https://console.firebase.google.com
-2. **Créer un projet** → nom : `Anna Zen Attitude` → Google Analytics : **désactiver** → Créer.
+## 1. Créer le projet — FAIT
+Projet créé le 23/09/2026 : **`annazen-bb41e`**
+(https://console.firebase.google.com/project/annazen-bb41e/overview).
+Sa configuration web est déjà dans le code (`lib/client/firebase.ts`).
 
 ## 2. La base de données (Firestore)
 1. Menu de gauche **Créer** (Build) → **Firestore Database** → **Créer une base de données**.
@@ -35,12 +36,9 @@ durées ne sont pas chargées (interrupteur `RESERVATION_EN_LIGNE` non posé).
 6. Onglet **Utilisateurs** → **Ajouter un utilisateur** → l'email de la direction (le vôtre
    ou celui de la gérante) et un mot de passe solide.
 
-## 4. Récupérer les deux configurations
-**a) La configuration web (pas secrète)**
-Roue ⚙ → **Paramètres du projet** → **Général** → « Vos applications » → icône **`</>`** →
-surnom `site` → ne pas cocher Hosting → Enregistrer. Copier le bloc `firebaseConfig`.
+## 4. Récupérer la clé du serveur (SECRÈTE)
+(La configuration web est déjà faite : rien à copier.)
 
-**b) La clé du serveur (SECRÈTE)**
 Roue ⚙ → **Paramètres du projet** → **Comptes de service** → **Générer une nouvelle clé
 privée** → un fichier `.json` se télécharge. Le ranger dans `Documents\aza-secrets`.
 **Jamais** dans Git, **jamais** dans la conversation, **jamais** sur WhatsApp.
@@ -52,12 +50,7 @@ Vercel → projet **aza** → **Settings** → **Environment Variables**. Pour c
 | Nom | Valeur |
 |---|---|
 | `FIREBASE_SERVICE_ACCOUNT` | le contenu **entier** du fichier `.json` (ouvrir avec le Bloc-notes, tout sélectionner, copier) |
-| `NEXT_PUBLIC_FIREBASE_CONFIG` | la configuration web, écrite en JSON sur une ligne : `{"apiKey":"…","authDomain":"…","projectId":"…","storageBucket":"…","messagingSenderId":"…","appId":"…"}` |
 | `DIRECTION_EMAILS` | l'email créé à l'étape 3.6 |
-
-Le bloc `firebaseConfig` de Firebase n'a pas de guillemets autour des noms (`apiKey:`). Il
-en faut en JSON (`"apiKey":`). Cette configuration n'est pas secrète : on peut la coller à
-Claude pour qu'il la mette en forme.
 
 Puis **Deployments** → le dernier → **⋯** → **Redeploy**.
 
@@ -70,9 +63,10 @@ Puis **Deployments** → le dernier → **⋯** → **Redeploy**.
    qu'elle choisisse son mot de passe, à envoyer par WhatsApp.
 
 ## En cas de souci
-- « Gestion non configurée » : `NEXT_PUBLIC_FIREBASE_CONFIG` manque, ou le site n'a pas été
-  redéployé après l'ajout.
-- « Accès refusé » à la première connexion : l'email ne correspond pas exactement à
-  `DIRECTION_EMAILS`, ou un compte direction existe déjà.
+- « Accès refusé » à la première connexion : l'écran dit pourquoi — clé du serveur absente
+  (étape 5, puis Redeploy), email différent de `DIRECTION_EMAILS`, ou compte direction déjà
+  existant.
+- « Email ou mot de passe incorrect » alors qu'ils sont bons : vérifier l'étape 3.2
+  (Adresse e-mail/Mot de passe activé) et le domaine autorisé (3.4).
 - Une praticienne voit « Lecture de l'agenda refusée » : l'index de l'étape 2.5 n'est pas
   encore actif (attendre quelques minutes).

@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "demo-aza"
+    "default": "demo-aza",
+    "production": "annazen-bb41e"
   }
 }
