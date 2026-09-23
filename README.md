@@ -24,6 +24,15 @@ Les informations à faire valider par l'institut : [`docs/POINTS-A-CONFIRMER.md`
 - Règle d'acompte : au-delà d'un montant, d'une durée, ou après deux absences.
 - 14 tests, un par règle du cahier des charges : `npm test`.
 
+**Réservation enregistrée pour de vrai (prête, éteinte sur le lien de test)**
+- Base Firebase testée en local (émulateur, projet `demo-aza`) : `docs/MODELE-DONNEES.md`.
+- `/api/creneaux` donne les créneaux libres ; `/api/reservations` enregistre le rendez-vous,
+  crée ou complète la fiche cliente (un numéro = une fiche).
+- Aucune double réservation possible : 10 clientes sur le même créneau au même instant,
+  seules les places libres sont données.
+- La page de réservation affiche les vraies heures libres et le choix « avec qui » quand
+  l'interrupteur `RESERVATION_EN_LIGNE=1` est posé. Sinon, elle garde la demande WhatsApp.
+
 ## Prochaines étapes
 1. Faire remplir à l'institut `docs/releve-durees-prestations.xlsx` (durées, équipe,
    postes) et régler les derniers points de `docs/POINTS-A-CONFIRMER.md`.
@@ -56,6 +65,29 @@ npm run build
 
 ```
 npm test
+```
+
+## Essayer la réservation en ligne sur l'ordinateur (base de test)
+Java est nécessaire. Trois fenêtres de terminal, toutes dans le dossier du projet.
+
+Fenêtre 1 — la base de test :
+```
+npx firebase-tools emulators:start --only firestore --project demo-aza
+```
+
+Fenêtre 2 — remplir la base (équipe et durées FICTIVES) :
+```
+node --experimental-strip-types --no-warnings scripts/seed-emulateur.mjs
+```
+
+Fenêtre 2 encore — lancer le site branché sur la base de test (PowerShell) :
+```
+$env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"; $env:RESERVATION_EN_LIGNE="1"; npm run dev
+```
+
+Fenêtre 3 — les contrôles automatiques (site lancé sur le port 3000) :
+```
+node scripts/verifier-reservation.mjs http://localhost:3000
 ```
 
 ## Où modifier quoi

@@ -36,5 +36,13 @@ téléphones et tarifs. Le catalogue 2023 et l'ancien site ne comptent plus.
 - Réservation : 3 minutes maximum, **jamais de compte obligatoire avant** de réserver.
 - Données personnelles : loi sénégalaise n° 2008-12. Aucune donnée bancaire stockée.
 
+## Base de données
+Tout se construit et se teste **en local** sur l'émulateur, projet `demo-aza`
+(`docs/MODELE-DONNEES.md`). Les scripts refusent tout projet qui n'est pas `demo-*`.
+L'équipe et les durées de `scripts/seed-emulateur.mjs` sont FICTIVES : ne jamais les
+recopier dans la vraie base. La réservation en ligne reste éteinte (`RESERVATION_EN_LIGNE`)
+tant que les vraies durées ne sont pas chargées.
+
 ## Vérifications avant de dire « c'est fait »
-`npx tsc --noEmit` et `npm run build`.
+`npx tsc --noEmit`, `npm test` et `npm run build` ; pour la réservation, en plus :
+émulateur + seed + `node scripts/verifier-reservation.mjs`.

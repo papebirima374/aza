@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { TunnelReservation } from "@/components/TunnelReservation";
+import { firebaseConfigure } from "@/lib/serveur/firebase";
 
 export const metadata: Metadata = {
   title: "Prendre rendez-vous",
@@ -14,7 +15,8 @@ export default function Reservation() {
       <h1 className="font-serif text-5xl font-semibold text-profond">Prendre rendez-vous</h1>
       <p className="mt-2 text-doux">Sans créer de compte, en moins de trois minutes.</p>
       <Suspense>
-        <TunnelReservation />
+        {/* Interrupteur : RESERVATION_EN_LIGNE=1, une fois les vraies durées chargées. */}
+        <TunnelReservation enLigne={process.env.RESERVATION_EN_LIGNE === "1" && firebaseConfigure()} />
       </Suspense>
     </div>
   );

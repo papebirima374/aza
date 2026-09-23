@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// Anna Zen Attitude — règles Firestore.
+//
+// Pour l'instant, AUCUN accès direct depuis un navigateur ou un téléphone.
+// Tout passe par le serveur du site (routes /api), qui utilise le compte de
+// service et contrôle chaque écriture : c'est ce qui garantit qu'un créneau
+// ne peut pas être réservé deux fois (verrou par jour dans une transaction).
+//
+// Le back-office (agenda, caisse…) ouvrira plus tard des accès par rôle
+// (direction, manager, accueil, praticienne, comptable) — cahier des charges §10.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
