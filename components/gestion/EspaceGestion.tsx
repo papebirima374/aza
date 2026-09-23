@@ -246,8 +246,15 @@ function Diagnostic() {
     (async () => {
       const jeton = await auth.currentUser?.getIdToken().catch(() => undefined);
       const r = await fetch("/api/gestion/diagnostic", { headers: jeton ? { Authorization: `Bearer ${jeton}` } : {} })
-        .then((x) => x.json())
-        .catch(() => ({ erreur: "serveur injoignable" }));
+        .then(async (x) => {
+          const texte = await x.text();
+          try {
+            return JSON.parse(texte);
+          } catch {
+            return { http: x.status, reponse: texte.replace(/\s+/g, " ").slice(0, 200) };
+          }
+        })
+        .catch((e) => ({ erreur: `serveur injoignable (${String(e).slice(0, 120)})` }));
       setLignes([
         `Projet du navigateur : ${app.options.projectId}`,
         ...Object.entries(r).map(([k, v]) => `${k} : ${typeof v === "object" ? JSON.stringify(v) : String(v)}`),
