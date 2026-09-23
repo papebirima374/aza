@@ -45,4 +45,9 @@ tant que les vraies durées ne sont pas chargées.
 
 ## Vérifications avant de dire « c'est fait »
 `npx tsc --noEmit`, `npm test` et `npm run build` ; pour la réservation, en plus :
-émulateur + seed + `node scripts/verifier-reservation.mjs`.
+émulateurs (firestore + auth) + seed + `node scripts/verifier-reservation.mjs`,
+`node scripts/verifier-agenda.mjs` et `npm run test:regles`.
+
+## Règles Firestore
+`firestore.rules` : toujours donner à Birima le fichier ENTIER à publier, jamais « remplacez
+ces lignes ». Aucune écriture directe depuis un navigateur : tout passe par `/api`.

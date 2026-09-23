@@ -12,7 +12,7 @@
 //   clientes/{téléphone}     une fiche par numéro : jamais de doublon
 //   jours/{date}             verrou du jour (voir creerReservation)
 
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { prestationParId } from "@/lib/catalogue";
 import {
   acompteRequis,
@@ -209,6 +209,10 @@ export async function creerReservation(r: NouvelleReservation) {
       source: "site",
       prestations: prestations.map((p) => ({ id: p.id, nom: p.nom, prix: p.prix })),
       affectations: creneau.affectations,
+      // À plat, pour que chaque praticienne ne lise que ses rendez-vous (firestore.rules).
+      praticiennesIds: [...new Set(creneau.affectations.flatMap((a) => a.praticiennes))],
+      postesIds: [...new Set(creneau.affectations.map((a) => a.poste))],
+      historique: [{ statut: "reserve", le: Timestamp.now(), par: "site" }],
       total,
       acompteRequis: acompteRequis(prestations, absences, reglages.acompte),
       cliente: { id: tel, nom, telephone: r.telephone.trim() },

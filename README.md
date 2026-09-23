@@ -33,6 +33,17 @@ Les informations à faire valider par l'institut : [`docs/POINTS-A-CONFIRMER.md`
 - La page de réservation affiche les vraies heures libres et le choix « avec qui » quand
   l'interrupteur `RESERVATION_EN_LIGNE=1` est posé. Sinon, elle garde la demande WhatsApp.
 
+**Espace de gestion — agenda (module M-01, testé en local)** — adresse `/gestion`
+- Connexion de l'équipe, droits selon le rôle ; déconnexion automatique après 20 minutes
+  sans activité.
+- Agenda du jour en colonnes par praticienne ou par poste, une couleur par univers, mis à
+  jour en temps réel sur tous les écrans ; navigation de jour en jour.
+- Fiche du rendez-vous : cliente (téléphone à toucher pour appeler), prestations, total,
+  remarque, et boutons de statut. Journal de chaque changement (qui, quand, motif).
+- Une praticienne ne voit que ses rendez-vous, sur son téléphone (critère C-08).
+- Contrôles : `npm run test:regles` (8 tests des règles de sécurité) et
+  `node scripts/verifier-agenda.mjs` (14 contrôles des changements de statut).
+
 ## Prochaines étapes
 1. Faire remplir à l'institut `docs/releve-durees-prestations.xlsx` (durées, équipe,
    postes) et régler les derniers points de `docs/POINTS-A-CONFIRMER.md`.
@@ -70,9 +81,9 @@ npm test
 ## Essayer la réservation en ligne sur l'ordinateur (base de test)
 Java est nécessaire. Trois fenêtres de terminal, toutes dans le dossier du projet.
 
-Fenêtre 1 — la base de test :
+Fenêtre 1 — la base de test et les comptes de test :
 ```
-npx firebase-tools emulators:start --only firestore --project demo-aza
+npx firebase-tools emulators:start --only firestore,auth --project demo-aza
 ```
 
 Fenêtre 2 — remplir la base (équipe et durées FICTIVES) :
@@ -82,12 +93,24 @@ node --experimental-strip-types --no-warnings scripts/seed-emulateur.mjs
 
 Fenêtre 2 encore — lancer le site branché sur la base de test (PowerShell) :
 ```
-$env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"; $env:RESERVATION_EN_LIGNE="1"; npm run dev
+$env:FIRESTORE_EMULATOR_HOST="127.0.0.1:8080"; $env:FIREBASE_AUTH_EMULATOR_HOST="127.0.0.1:9099"; $env:NEXT_PUBLIC_EMULATEURS="1"; $env:RESERVATION_EN_LIGNE="1"; npm run dev
 ```
+
+Puis ouvrir http://localhost:3000/gestion. Comptes de test (émulateur uniquement),
+mot de passe `AzaTest2026!` : `direction@test.aza`, `manager@test.aza`,
+`accueil@test.aza`, `coiffeuse1@test.aza`, `estheticienne1@test.aza`, `comptable@test.aza`.
 
 Fenêtre 3 — les contrôles automatiques (site lancé sur le port 3000) :
 ```
 node scripts/verifier-reservation.mjs http://localhost:3000
+```
+
+```
+node scripts/verifier-agenda.mjs http://localhost:3000
+```
+
+```
+npm run test:regles
 ```
 
 ## Où modifier quoi

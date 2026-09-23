@@ -21,11 +21,14 @@ ne comptent plus.
    Le site n'affiche que 30 000 F. S'agit-il de deux prestations différentes ?
 3. **Position GPS exacte** de la villa (la carte pointe aujourd'hui le centre du Point E).
 4. **Ligne WhatsApp Business** pour les confirmations et rappels (77 445 41 65 ?).
-5. **Mentions légales** : raison sociale, NINEA, registre du commerce.
-6. **Textes et photos** : l'équipe (photo et spécialité), l'histoire de l'institut, les
+5. **Comptes de l'équipe** : pour chaque personne, son email et son rôle (direction,
+   manager, accueil, praticienne, prestataire, comptable). Un compte par personne,
+   jamais de compte partagé (cahier des charges §16).
+6. **Mentions légales** : raison sociale, NINEA, registre du commerce.
+7. **Textes et photos** : l'équipe (photo et spécialité), l'histoire de l'institut, les
    réponses aux questions fréquentes (parking, annulation, moyens de paiement), le texte
    « Une hygiène stricte » de l'accueil, les prestations « les plus demandées ».
-7. **Décisions** : politique d'acompte et d'annulation, nombre de postes par univers,
+8. **Décisions** : politique d'acompte et d'annulation, nombre de postes par univers,
    formule de la plateforme de gestion (sur mesure ou pilote).
 
 ## Petites corrections faites en reprenant la plaquette

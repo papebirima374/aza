@@ -1,0 +1,179 @@
+"use client";
+
+import Image from "next/image";
+import { createContext, useContext, useEffect, useState } from "react";
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import type { Role } from "@/lib/agenda/statuts";
+import { firebaseClient, gestionConfiguree } from "@/lib/client/firebase";
+
+export type Compte = { uid: string; nom: string; role: Role; praticienne?: string; user: User };
+
+const ContexteCompte = createContext<Compte | null>(null);
+
+export function useCompte(): Compte {
+  const c = useContext(ContexteCompte);
+  if (!c) throw new Error("useCompte hors de l'espace de gestion");
+  return c;
+}
+
+const LIBELLE_ROLE: Record<Role, string> = {
+  direction: "Direction",
+  manager: "Manager",
+  accueil: "Accueil",
+  praticienne: "Praticienne",
+  prestataire: "Prestataire",
+  comptable: "Comptable",
+};
+
+// Déconnexion automatique après 20 minutes sans activité (cahier des charges §16) :
+// le poste d'accueil reste rarement sous surveillance.
+const INACTIVITE_MS = 20 * 60 * 1000;
+
+export function EspaceGestion({ children }: { children: React.ReactNode }) {
+  const [etat, setEtat] = useState<"chargement" | "deconnecte" | "refuse" | "connecte">("chargement");
+  const [compte, setCompte] = useState<Compte | null>(null);
+
+  useEffect(() => {
+    if (!gestionConfiguree()) return;
+    const { auth, db } = firebaseClient();
+    return onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        setCompte(null);
+        setEtat("deconnecte");
+        return;
+      }
+      const snap = await getDoc(doc(db, "comptes", user.uid)).catch(() => null);
+      if (!snap?.exists()) {
+        setEtat("refuse");
+        return;
+      }
+      const d = snap.data();
+      setCompte({ uid: user.uid, nom: d.nom, role: d.role, praticienne: d.praticienne, user });
+      setEtat("connecte");
+    });
+  }, []);
+
+  useEffect(() => {
+    if (etat !== "connecte") return;
+    let minuteur = setTimeout(() => signOut(firebaseClient().auth), INACTIVITE_MS);
+    const relancer = () => {
+      clearTimeout(minuteur);
+      minuteur = setTimeout(() => signOut(firebaseClient().auth), INACTIVITE_MS);
+    };
+    const evenements = ["pointerdown", "keydown", "scroll"] as const;
+    evenements.forEach((e) => window.addEventListener(e, relancer, { passive: true }));
+    return () => {
+      clearTimeout(minuteur);
+      evenements.forEach((e) => window.removeEventListener(e, relancer));
+    };
+  }, [etat]);
+
+  if (!gestionConfiguree()) {
+    return <Message titre="Gestion non configurée" texte="La base de données de l'institut n'est pas encore branchée." />;
+  }
+  if (etat === "chargement") return <Message titre="Chargement…" />;
+  if (etat === "deconnecte") return <Connexion />;
+  if (etat === "refuse") {
+    return (
+      <Message titre="Accès refusé" texte="Ce compte n'a pas d'accès à la gestion de l'institut.">
+        <button onClick={() => signOut(firebaseClient().auth)} className="mt-6 rounded-full border border-bordure px-5 py-2.5 font-semibold">
+          Se déconnecter
+        </button>
+      </Message>
+    );
+  }
+
+  return (
+    <ContexteCompte.Provider value={compte}>
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-bordure bg-bordeaux px-4 text-or-clair">
+        <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} className="h-8 w-auto" />
+        <div className="flex items-center gap-3 text-sm">
+          <span className="hidden sm:inline">
+            {compte?.nom} · <span className="text-or">{compte && LIBELLE_ROLE[compte.role]}</span>
+          </span>
+          <button
+            onClick={() => signOut(firebaseClient().auth)}
+            className="rounded-full border border-or-clair/40 px-4 py-1.5 font-semibold hover:bg-white/10"
+          >
+            Déconnexion
+          </button>
+        </div>
+      </header>
+      {children}
+    </ContexteCompte.Provider>
+  );
+}
+
+function Message({ titre, texte, children }: { titre: string; texte?: string; children?: React.ReactNode }) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-creme px-4 text-center">
+      <h1 className="font-serif text-4xl font-semibold text-profond">{titre}</h1>
+      {texte && <p className="mt-3 text-doux">{texte}</p>}
+      {children}
+    </div>
+  );
+}
+
+function Connexion() {
+  const [email, setEmail] = useState("");
+  const [motDePasse, setMotDePasse] = useState("");
+  const [erreur, setErreur] = useState("");
+  const [envoi, setEnvoi] = useState(false);
+
+  async function seConnecter(e: React.FormEvent) {
+    e.preventDefault();
+    setEnvoi(true);
+    setErreur("");
+    try {
+      await signInWithEmailAndPassword(firebaseClient().auth, email.trim(), motDePasse);
+    } catch {
+      setErreur("Email ou mot de passe incorrect.");
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-bordeaux px-4">
+      <form onSubmit={seConnecter} className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl">
+        <Image src="/images/logo-rose.png" alt="Anna Zen Attitude" width={790} height={257} className="mx-auto h-12 w-auto" />
+        <h1 className="mt-6 text-center font-serif text-3xl font-semibold text-profond">Espace de gestion</h1>
+        <label className="mt-6 block">
+          <span className="text-sm font-semibold">Email</span>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="username"
+            required
+            className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond"
+          />
+        </label>
+        <label className="mt-4 block">
+          <span className="text-sm font-semibold">Mot de passe</span>
+          <input
+            type="password"
+            value={motDePasse}
+            onChange={(e) => setMotDePasse(e.target.value)}
+            autoComplete="current-password"
+            required
+            className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond"
+          />
+        </label>
+        {erreur && (
+          <p className="mt-4 text-sm font-semibold text-aza-fonce" role="alert">
+            {erreur}
+          </p>
+        )}
+        <button
+          type="submit"
+          disabled={envoi}
+          className="mt-6 w-full rounded-full bg-aza py-3 font-bold text-white hover:bg-aza-fonce disabled:opacity-50"
+        >
+          {envoi ? "Connexion…" : "Se connecter"}
+        </button>
+      </form>
+    </div>
+  );
+}

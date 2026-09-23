@@ -2,16 +2,77 @@ rules_version = '2';
 
 // Anna Zen Attitude — règles Firestore.
 //
-// Pour l'instant, AUCUN accès direct depuis un navigateur ou un téléphone.
-// Tout passe par le serveur du site (routes /api), qui utilise le compte de
-// service et contrôle chaque écriture : c'est ce qui garantit qu'un créneau
-// ne peut pas être réservé deux fois (verrou par jour dans une transaction).
+// ÉCRITURES : aucune depuis un navigateur ou un téléphone. Réservations, changements de
+// statut et annulations passent par le serveur du site (routes /api), qui contrôle tout et
+// garde le journal. C'est aussi ce qui empêche toute double réservation.
 //
-// Le back-office (agenda, caisse…) ouvrira plus tard des accès par rôle
-// (direction, manager, accueil, praticienne, comptable) — cahier des charges §10.
+// LECTURES : seulement pour l'équipe connectée, selon son rôle (cahier des charges §10).
+// Le rôle est dans comptes/{uid} : direction, manager, accueil, praticienne, prestataire,
+// comptable. Règle sensible (critère C-08) : une praticienne ne voit QUE ses rendez-vous.
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function connecte() {
+      return request.auth != null;
+    }
+
+    function aUnCompte() {
+      return connecte() && exists(/databases/$(database)/documents/comptes/$(request.auth.uid));
+    }
+
+    function compte() {
+      return get(/databases/$(database)/documents/comptes/$(request.auth.uid)).data;
+    }
+
+    function role() {
+      return aUnCompte() ? compte().role : '';
+    }
+
+    // Direction, manager et accueil voient tout l'agenda.
+    function gereAgenda() {
+      return role() in ['direction', 'manager', 'accueil'];
+    }
+
+    // Praticienne ou prestataire externe : identifiant de sa fiche dans praticiennes/.
+    function estIntervenante() {
+      return role() in ['praticienne', 'prestataire'];
+    }
+
+    function maFiche() {
+      return compte().praticienne;
+    }
+
+    // Son propre compte ; la direction et le manager voient ceux de l'équipe.
+    match /comptes/{uid} {
+      allow read: if connecte() && (request.auth.uid == uid || role() in ['direction', 'manager']);
+      allow write: if false;
+    }
+
+    // Rendez-vous : toute l'équipe d'accueil, ou l'intervenante concernée.
+    // Une praticienne doit filtrer sa requête sur praticiennesIds (array-contains).
+    match /rendezVous/{id} {
+      allow read: if gereAgenda()
+        || (estIntervenante() && maFiche() in resource.data.praticiennesIds);
+      allow write: if false;
+    }
+
+    match /praticiennes/{id} {
+      allow read: if gereAgenda() || (estIntervenante() && maFiche() == id);
+      allow write: if false;
+    }
+
+    match /postes/{id} {
+      allow read: if gereAgenda();
+      allow write: if false;
+    }
+
+    match /reglages/{id} {
+      allow read: if role() != '';
+      allow write: if false;
+    }
+
+    // Tout le reste (clientes, occupations, verrous…) : fermé.
     match /{document=**} {
       allow read, write: if false;
     }
