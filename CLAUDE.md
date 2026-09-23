@@ -46,7 +46,8 @@ tant que les vraies durées ne sont pas chargées.
 ## Vérifications avant de dire « c'est fait »
 `npx tsc --noEmit`, `npm test` et `npm run build` ; pour la réservation, en plus :
 émulateurs (firestore + auth) + seed + `node scripts/verifier-reservation.mjs`,
-`node scripts/verifier-agenda.mjs` et `npm run test:regles`.
+`node scripts/verifier-agenda.mjs`, `node scripts/verifier-comptoir.mjs`,
+`node scripts/verifier-equipe.mjs` (vide la base : reseeder après) et `npm run test:regles`.
 
 ## Version de Node
 `package.json` demande Node **22.x** (`engines`). firebase-admin est gardé en **13.x**

@@ -221,6 +221,16 @@ test("les occupations enregistrées ne bloquent pas la praticienne pendant la po
   ]);
 });
 
+test("sans poste renseigné : seul l'agenda de la praticienne compte", () => {
+  const sansPoste: PrestationResa = { ...soin(60), typePoste: "" };
+  const c = contexte({ postes: [], occupations: [{ ressource: "esth-1", date: LUNDI, debut: h(10), fin: h(11) }] });
+  const d = debuts(demande([sansPoste]), c);
+  assert.ok(d.includes(h(9)) && !d.includes(h(10)) && d.includes(h(11)));
+  const cr = planifier(demande([sansPoste]), c, h(9));
+  assert.equal(cr?.affectations[0].poste, "");
+  assert.deepEqual(occupationsDuCreneau(cr!, [sansPoste]), [{ ressource: "esth-1", date: LUNDI, debut: h(9), fin: h(10) }]);
+});
+
 test("acompte : au-delà du montant, de la durée, ou après deux absences", () => {
   const regle = { montantMin: 30000, dureeMinMinutes: 120, absencesMax: 2 };
   const court = { ...soin(60), prix: 20000 };

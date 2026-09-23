@@ -3,6 +3,7 @@
 import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from "firebase/firestore";
 import { useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
+import { NouveauRendezVous } from "@/components/gestion/NouveauRendezVous";
 import { LIBELLES, ROLES_AGENDA, statutsPermis, type Statut } from "@/lib/agenda/statuts";
 import { formatPrix, prestationParId, UNIVERS, type UniversId } from "@/lib/catalogue";
 import { firebaseClient } from "@/lib/client/firebase";
@@ -71,6 +72,7 @@ export function Agenda() {
   const [rdvs, setRdvs] = useState<RendezVous[]>([]);
   const [erreur, setErreur] = useState("");
   const [ouvert, setOuvert] = useState<string | null>(null);
+  const [nouveau, setNouveau] = useState(false);
 
   // Équipe, postes, horaires (une fois).
   useEffect(() => {
@@ -157,7 +159,15 @@ export function Agenda() {
           {actifs.length} rendez-vous
         </span>
         {gere && (
-          <div className="ml-auto flex rounded-full border border-bordure p-1 text-sm font-semibold">
+          <button
+            onClick={() => setNouveau(true)}
+            className="ml-auto rounded-full bg-aza px-5 py-2.5 text-sm font-bold text-white hover:bg-aza-fonce"
+          >
+            + Nouveau rendez-vous
+          </button>
+        )}
+        {gere && (
+          <div className="flex rounded-full border border-bordure p-1 text-sm font-semibold">
             {(["praticiennes", "postes"] as const).map((v) => (
               <button
                 key={v}
@@ -247,6 +257,17 @@ export function Agenda() {
       )}
 
       {selection && <Detail rdv={selection} fermer={() => setOuvert(null)} />}
+      {nouveau && (
+        <NouveauRendezVous
+          dateInitiale={date}
+          equipe={praticiennes}
+          fermer={() => setNouveau(false)}
+          reserve={(d) => {
+            setNouveau(false);
+            setDate(d);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -379,8 +379,8 @@ export const FAMILLES: Famille[] = FAMILLES_BRUTES.map((f) => ({
   })),
 }));
 
-export const PRESTATIONS: (Prestation & { famille: string; univers: UniversId })[] =
-  FAMILLES.flatMap((f) => f.prestations.map((p) => ({ ...p, famille: f.nom, univers: f.univers })));
+export const PRESTATIONS: (Prestation & { famille: string; familleId: string; univers: UniversId })[] =
+  FAMILLES.flatMap((f) => f.prestations.map((p) => ({ ...p, famille: f.nom, familleId: f.id, univers: f.univers })));
 
 export function universParId(id: string): Univers | undefined {
   return UNIVERS.find((u) => u.id === id);

@@ -15,7 +15,8 @@ export type PrestationResa = {
   id: string;
   nom: string;
   phases: Phase[];
-  /** Type de poste requis : « cabine », « table-massage », « coiffure », « onglerie »… */
+  /** Type de poste requis : « cabine », « table-massage », « coiffure », « onglerie »…
+   *  Vide tant que l'institut n'a pas renseigné ses postes : seul l'agenda de la praticienne compte. */
   typePoste: string;
   /** Compétence requise, rattachée aux praticiennes (famille ou prestation). */
   competence: string;
@@ -62,6 +63,7 @@ export type Affectation = {
   debut: number;
   fin: number;
   praticiennes: string[];
+  /** Identifiant du poste, ou "" si la prestation ne demande pas de poste. */
   poste: string;
 };
 
@@ -163,13 +165,15 @@ export function planifier(demande: Demande, ctx: Contexte, debut: number): Crene
     const equipe = combinaisons(ordre, p.praticiennes).find((c) => !souhaitee || c.includes(souhaitee));
     if (!equipe) return null;
 
-    const poste = ctx.postes.find((po) => po.type === p.typePoste && libre(po.id, tempsPoste, occupees, date));
-    if (!poste) return null;
+    const poste = p.typePoste
+      ? ctx.postes.find((po) => po.type === p.typePoste && libre(po.id, tempsPoste, occupees, date))
+      : undefined;
+    if (p.typePoste && !poste) return null;
 
     const finP = t + dureeTotale(p);
     for (const pr of equipe) for (const i of tempsPraticienne) occupees.push({ ressource: pr.id, date, ...i });
-    for (const i of tempsPoste) occupees.push({ ressource: poste.id, date, ...i });
-    affectations.push({ prestation: p.id, debut: t, fin: finP, praticiennes: equipe.map((e) => e.id), poste: poste.id });
+    if (poste) for (const i of tempsPoste) occupees.push({ ressource: poste.id, date, ...i });
+    affectations.push({ prestation: p.id, debut: t, fin: finP, praticiennes: equipe.map((e) => e.id), poste: poste?.id ?? "" });
     t = finP;
   }
 
@@ -199,7 +203,7 @@ export function occupationsDuCreneau(creneau: Creneau, prestations: PrestationRe
       ...a.praticiennes.flatMap((r) =>
         morceaux(p, a.debut, "praticienne").map((i) => ({ ressource: r, date: creneau.date, ...i })),
       ),
-      ...morceaux(p, a.debut, "poste").map((i) => ({ ressource: a.poste, date: creneau.date, ...i })),
+      ...(a.poste ? morceaux(p, a.debut, "poste").map((i) => ({ ressource: a.poste, date: creneau.date, ...i })) : []),
     ];
   });
 }

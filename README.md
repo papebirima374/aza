@@ -44,6 +44,14 @@ Les informations à faire valider par l'institut : [`docs/POINTS-A-CONFIRMER.md`
 - Contrôles : `npm run test:regles` (8 tests des règles de sécurité) et
   `node scripts/verifier-agenda.mjs` (14 contrôles des changements de statut).
 
+**Rendez-vous au comptoir** — bouton « + Nouveau rendez-vous » de l'agenda
+- L'accueil choisit les prestations (durée pré-remplie si elle est paramétrée, sinon
+  saisie en minutes), la praticienne ou « peu importe », le jour, puis une heure libre au
+  quart d'heure ; nom et téléphone de la cliente.
+- Mêmes règles que le site (aucun double rendez-vous, compétences), sans délai de 2 h.
+- Tant que l'institut n'a pas saisi ses postes, seul l'agenda de la praticienne compte.
+- Contrôles : `node scripts/verifier-comptoir.mjs` (13 contrôles).
+
 **Premier démarrage et équipe**
 - La direction déclarée dans Vercel (`DIRECTION_EMAILS`) reçoit son rôle à sa première
   connexion, une seule fois ; les réglages (horaires de la plaquette) se créent seuls.
