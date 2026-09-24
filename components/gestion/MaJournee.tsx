@@ -2,6 +2,7 @@
 
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
+import { AlerteCliente } from "@/components/gestion/AlerteCliente";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { useCatalogue } from "@/lib/client/catalogue";
 import { statutsPermis, type Statut } from "@/lib/agenda/statuts";
@@ -173,6 +174,7 @@ function Carte({ r }: { r: Rdv }) {
           🔊
         </button>
       </div>
+      <AlerteCliente rdv={r.id} technique />
       <div className="mt-3 flex items-center gap-3">
         <span className="text-4xl" aria-hidden>
           {images.map((u) => IMAGE[u]).join("")}

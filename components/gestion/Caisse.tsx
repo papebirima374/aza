@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlerteCliente } from "@/components/gestion/AlerteCliente";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { useCatalogue } from "@/lib/client/catalogue";
 import { useAEncaisser, useFileCaisse } from "@/components/gestion/SuiviCaisse";
@@ -306,6 +307,7 @@ function Editeur(props: {
         </button>
       </div>
 
+      {b.rendezVous && <AlerteCliente rdv={b.rendezVous} />}
       <ul className="mt-3 divide-y divide-bordure rounded-xl border border-bordure">
         {lignes.length === 0 && <li className="p-3 text-sm text-doux">Ajoutez une prestation ou un produit ci-dessous.</li>}
         {lignes.map((l, i) => (

@@ -130,6 +130,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
           {[
             { href: "/gestion/jour", libelle: "Aujourd'hui", visible: compte?.role === "direction" || compte?.role === "manager" },
             { href: "/gestion", libelle: telephonePerso ? "Ma journée" : "Agenda", visible: true },
+            { href: "/gestion/clientes", libelle: "Clientes", visible: ["direction", "manager", "accueil"].includes(compte?.role ?? "") },
             { href: "/gestion/caisse", libelle: "Caisse", visible: ["direction", "manager", "accueil", "comptable"].includes(compte?.role ?? "") },
             { href: "/gestion/stock", libelle: "Stock", visible: ["direction", "manager", "accueil", "comptable"].includes(compte?.role ?? "") },
             { href: "/gestion/catalogue", libelle: "Catalogue", visible: compte?.role === "direction" },

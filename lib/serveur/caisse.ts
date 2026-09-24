@@ -215,6 +215,10 @@ export async function encaisser(membre: Membre, e: Encaissement) {
           totalAchats: FieldValue.increment(total),
           ...(credit > 0 ? { credit: FieldValue.increment(credit) } : {}),
           dernierTicket: ticketRef.id,
+          // Indicateurs de la fiche cliente, tenus à jour à chaque passage en caisse.
+          nbTickets: FieldValue.increment(1),
+          derniereVisite: date,
+          premiereVisite: (fiche?.get("premiereVisite") as string | undefined) ?? date,
         },
         { merge: true },
       );
@@ -287,7 +291,11 @@ export async function annulerTicket(membre: Membre, id: string, motifBrut: unkno
       });
     }
     if (fiche?.exists) {
-      tx.update(fiche.ref, { totalAchats: FieldValue.increment(total), ...(credit ? { credit: FieldValue.increment(credit) } : {}) });
+      tx.update(fiche.ref, {
+        totalAchats: FieldValue.increment(total),
+        nbTickets: FieldValue.increment(-1),
+        ...(credit ? { credit: FieldValue.increment(credit) } : {}),
+      });
     }
     appliquerSorties(tx, retour, { id: avoirRef.id, reference: reference(numero) }, membre, -1);
     return { id: avoirRef.id, reference: reference(numero) };
@@ -407,4 +415,49 @@ export async function lireRendezVous(membre: Membre, id: string) {
   const r = await db().doc(`rendezVous/${id}`).get();
   if (!r.exists) throw new Erreur("Rendez-vous introuvable.", 404);
   return { id: r.id, statut: r.get("statut"), cliente: r.get("cliente"), prestations: r.get("prestations"), date: r.get("date") };
+}
+
+/**
+ * Une cliente règle (tout ou partie de) ce qu'elle devait. Le montant entre dans le tiroir,
+ * mais la recette ne change pas : elle a été comptée le jour de la vente à crédit.
+ * Ticket « règlement » : paiement reçu (+) et crédit soldé (−), total 0.
+ */
+export async function reglerCredit(membre: Membre, clienteId: string, paiementsBruts: unknown) {
+  exiger(membre, ROLES_CAISSE);
+  const paiements = paiementsValides(paiementsBruts);
+  if (paiements.some((p) => p.mode === "credit")) throw new Erreur("Choisissez comment elle paie (espèces, Wave…).", 400);
+  const montant = paiements.reduce((s, p) => s + p.montant, 0);
+  const base = db();
+  const { date, minutes } = maintenantDakar();
+  const clienteRef = base.doc(`clientes/${clienteId}`);
+  const ticketRef = base.collection("tickets").doc();
+  const compteurRef = base.doc("compteurs/tickets");
+  return base.runTransaction(async (tx) => {
+    await caisseOuverte(tx, date);
+    const [fiche, compteur] = await Promise.all([tx.get(clienteRef), tx.get(compteurRef)]);
+    if (!fiche.exists) throw new Erreur("Fiche introuvable.", 404);
+    const du = (fiche.get("credit") as number | undefined) ?? 0;
+    if (montant > du) throw new Erreur(`Elle ne doit que ${new Intl.NumberFormat("fr-FR").format(du)} F.`, 400);
+    const numero = ((compteur.get("dernier") as number | undefined) ?? 0) + 1;
+    tx.set(compteurRef, { dernier: numero }, { merge: true });
+    tx.set(ticketRef, {
+      numero,
+      reference: reference(numero),
+      type: "reglement",
+      date,
+      heure: minutes,
+      lignes: [],
+      sousTotal: 0,
+      total: 0,
+      paiements: [...paiements, { mode: "credit", montant: -montant }],
+      rendu: 0,
+      credit: -montant,
+      cliente: { id: fiche.id, nom: fiche.get("nom"), telephone: fiche.get("telephone") },
+      rendezVous: null,
+      par: trace(membre),
+      creeLe: FieldValue.serverTimestamp(),
+    });
+    tx.update(clienteRef, { credit: FieldValue.increment(-montant) });
+    return { id: ticketRef.id, reference: reference(numero), reste: du - montant };
+  });
 }

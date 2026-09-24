@@ -60,7 +60,7 @@ export function Recu({ id }: { id: string }) {
           </p>
         </div>
         <h1 className="mt-5 text-center font-serif text-2xl font-semibold text-profond">
-          {t.type === "avoir" ? "Avoir" : "Reçu"} {t.reference}
+          {t.type === "avoir" ? "Avoir" : t.type === "reglement" ? "Règlement de crédit" : "Reçu"} {t.reference}
         </h1>
         <p className="text-center text-sm text-doux">
           {dateTexte(t.date)} à {heureTexte(t.heure)} · {t.par.nom}

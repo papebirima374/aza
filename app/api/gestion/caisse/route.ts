@@ -1,5 +1,5 @@
 import { membreConnecte } from "@/lib/serveur/agenda";
-import { aEncaisser, annulerTicket, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
+import { aEncaisser, annulerTicket, reglerCredit, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
 
@@ -7,7 +7,7 @@ import { reponseErreur } from "@/lib/serveur/reponses";
 // GET  /api/gestion/caisse?a-encaisser=1     rendez-vous terminés du jour
 // GET  /api/gestion/caisse?ticket=ID         un ticket (reçu)
 // GET  /api/gestion/caisse?rdv=ID            un rendez-vous à encaisser
-// POST /api/gestion/caisse { action: "ouvrir" | "encaisser" | "annuler" | "cloturer", … }
+// POST /api/gestion/caisse { action: "ouvrir" | "encaisser" | "annuler" | "reglement" | "cloturer", … }
 const indisponible = () => Response.json({ erreur: "Gestion indisponible." }, { status: 503 });
 const sansCache = { headers: { "Cache-Control": "no-store" } };
 
@@ -48,6 +48,8 @@ export async function POST(request: Request) {
         );
       case "annuler":
         return Response.json(await annulerTicket(membre, String(c.id ?? "-"), c.motif), { status: 201 });
+      case "reglement":
+        return Response.json(await reglerCredit(membre, String(c.cliente ?? "-"), c.paiements), { status: 201 });
       case "cloturer":
         return Response.json(await cloturerCaisse(membre, c.compte, c.justification));
       default:

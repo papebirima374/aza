@@ -8,7 +8,7 @@ import { telephoneCanonique } from "@/lib/telephone";
 export type Ticket = {
   id: string;
   reference: string;
-  type: "vente" | "avoir";
+  type: "vente" | "avoir" | "reglement";
   date: string;
   heure: number;
   lignes: { id: string; nom: string; prixUnitaire: number; quantite: number; montant: number }[];
@@ -38,7 +38,7 @@ export function texteRecu(t: Ticket): string {
     `*${INSTITUT.nom}*`,
     `${INSTITUT.adresse.rue}, ${INSTITUT.adresse.ville}`,
     "",
-    `${t.type === "avoir" ? "Avoir" : "Reçu"} ${t.reference} — ${dateTexte(t.date)} à ${heureTexte(t.heure)}`,
+    `${t.type === "avoir" ? "Avoir" : t.type === "reglement" ? "Règlement" : "Reçu"} ${t.reference} — ${dateTexte(t.date)} à ${heureTexte(t.heure)}`,
     ...(t.cliente ? [`Cliente : ${t.cliente.nom}`] : []),
     "",
     ...t.lignes.map((x) => `${x.quantite > 1 ? `${x.quantite} × ` : ""}${x.nom} : ${formatPrix(x.montant)}`),

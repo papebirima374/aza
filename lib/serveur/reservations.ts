@@ -255,6 +255,7 @@ async function enregistrer(e: Enregistrement) {
         nom: cliente.exists ? cliente.get("nom") : nom,
         ...(cliente.exists ? {} : { creeLe: FieldValue.serverTimestamp(), origine: e.source, absences: 0 }),
         dernierRendezVous: rdvRef.id,
+        nbRendezVous: FieldValue.increment(1),
       },
       { merge: true },
     );

@@ -3,9 +3,11 @@
 import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from "firebase/firestore";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { AlerteCliente } from "@/components/gestion/AlerteCliente";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { useCatalogue } from "@/lib/client/catalogue";
 import { NouveauRendezVous } from "@/components/gestion/NouveauRendezVous";
+import { Rappels } from "@/components/gestion/Rappels";
 import { ROLES_CAISSE } from "@/lib/caisse/modes";
 import { LIBELLES, ROLES_AGENDA, statutsPermis, type Statut } from "@/lib/agenda/statuts";
 import { formatPrix, UNIVERS, type UniversId } from "@/lib/catalogue";
@@ -171,6 +173,7 @@ export function Agenda() {
             + Nouveau rendez-vous
           </button>
         )}
+        {gere && <Rappels />}
         {gere && (
           <div className="flex rounded-full border border-bordure p-1 text-sm font-semibold">
             {(["praticiennes", "postes"] as const).map((v) => (
@@ -326,6 +329,7 @@ function Detail({ rdv, fermer }: { rdv: RendezVous; fermer: () => void }) {
           </button>
         </div>
 
+        <AlerteCliente rdv={rdv.id} technique />
         <p className="mt-4 font-semibold">
           {heure(rdv.debut)} – {heure(rdv.fin)} · <span className="text-profond">{LIBELLES[rdv.statut]}</span>
         </p>
