@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export default function PagePerruques() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <Link href="/boutique" className="text-sm font-semibold text-doux underline">
+      <Link href="/boutique" className="text-sm font-semibold text-doux underline inline-block py-2">
         ← La boutique
       </Link>
       <h1 className="mt-3 font-serif text-5xl font-semibold text-profond">Perruques sur mesure</h1>

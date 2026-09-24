@@ -31,7 +31,7 @@ export default async function PageCouture({ searchParams }: PageProps<"/boutique
   return (
     <div className="mx-auto max-w-6xl px-4 pt-10 pb-32">
       <div className="text-center">
-        <Image src={LOGO_COUTURE} alt="" width={160} height={160} unoptimized className="mx-auto h-20 w-20" />
+        <Image src={LOGO_COUTURE} alt="" width={160} height={160} className="mx-auto h-20 w-20" />
         <h1 className="mt-4 font-serif text-4xl tracking-[0.15em] text-encre uppercase md:text-5xl">Anna Zen Couture</h1>
         <p className="mx-auto mt-3 max-w-xl text-doux">
           Robes et tenues faites sur commande, à votre taille. Retrait gratuit à l&apos;institut, livraison à Dakar{monde ? <> et à l&apos;international</> : null}.
@@ -41,7 +41,7 @@ export default async function PageCouture({ searchParams }: PageProps<"/boutique
         <span className="whitespace-nowrap text-doux">{modeles.length} modèles</span>
         <span className="flex gap-4 whitespace-nowrap">
           {TRIS.map(([id, nom]) => (
-            <Link key={id} href={id ? `/boutique/couture?tri=${id}` : "/boutique/couture"} className={tri === id ? "font-semibold text-encre underline underline-offset-4" : "text-doux hover:text-encre"}>
+            <Link key={id} href={id ? `/boutique/couture?tri=${id}` : "/boutique/couture"} className={`inline-block py-2 ${tri === id ? "font-semibold text-encre underline underline-offset-4" : "text-doux hover:text-encre"}`}>
               {nom}
             </Link>
           ))}

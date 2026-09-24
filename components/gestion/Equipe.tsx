@@ -95,7 +95,7 @@ export function Equipe() {
       {lien && <MessageAEnvoyer envoi={lien} fermer={() => setLien(null)} />}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1.1fr]">
-        <section>
+        <section className="min-w-0">
           <h2 className="font-serif text-2xl font-semibold text-profond">Membres ({liste.length})</h2>
           <ul className="mt-3 divide-y divide-bordure rounded-2xl border border-bordure">
             {liste.map((m) => (
@@ -115,7 +115,7 @@ export function Equipe() {
                     {compte.role === "direction" && (
                       <button
                         onClick={() => setOuvert(ouvert === m.uid ? null : m.uid)}
-                        className="text-sm font-semibold text-aza underline-offset-2 hover:underline"
+                        className="min-h-11 px-2 text-sm font-semibold text-aza underline-offset-2 hover:underline"
                       >
                         {ouvert === m.uid ? "Fermer" : "Modifier"}
                       </button>

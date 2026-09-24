@@ -303,7 +303,7 @@ function Fermetures(props: { dates: string[]; motifs: Record<string, string>; aj
                 <strong className="capitalize">{new Date(d + "T12:00:00Z").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</strong>
                 <span className="text-doux"> · {props.motifs[d] ?? "Fermeture"}</span>
               </span>
-              <button onClick={() => props.retirer(d)} className="text-sm font-semibold text-profond underline">
+              <button onClick={() => props.retirer(d)} className="min-h-11 px-2 text-sm font-semibold text-profond underline">
                 Retirer
               </button>
             </li>
@@ -356,7 +356,7 @@ function Postes(props: { postes: { id: string; type: string; nom: string }[]; aj
                     <span>{p.nom}</span>
                     <button
                       onClick={() => window.confirm(`Retirer « ${p.nom} » ?`) && props.retirer(p.id)}
-                      className="text-xs font-semibold text-profond underline"
+                      className="min-h-11 px-2 text-xs font-semibold text-profond underline"
                     >
                       Retirer
                     </button>

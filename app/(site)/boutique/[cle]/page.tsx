@@ -29,7 +29,7 @@ export default async function PageProduit({ params }: PageProps<"/boutique/[cle]
   const { p } = r;
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
-      <Link href={`/boutique?rayon=${p.rayon}`} className="text-sm font-semibold text-doux underline">
+      <Link href={`/boutique?rayon=${p.rayon}`} className="text-sm font-semibold text-doux underline inline-block py-2">
         ← {RAYONS.find((x) => x.id === p.rayon)?.nom ?? "Boutique"}
       </Link>
       <div className="mt-4 grid gap-8 md:grid-cols-2">

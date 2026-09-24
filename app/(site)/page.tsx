@@ -39,7 +39,7 @@ export default async function Accueil() {
       <section className="relative overflow-hidden bg-bordeaux text-white">
         {bandeau && (
           <>
-            <Image src={urlPhotoSite(bandeau.id)} alt="" fill priority unoptimized className="object-cover" />
+            <Image src={urlPhotoSite(bandeau.id)} alt="" fill priority sizes="100vw" className="object-cover" />
             <div className="absolute inset-0 bg-gradient-to-r from-bordeaux/95 via-bordeaux/75 to-bordeaux/30" />
           </>
         )}
@@ -88,7 +88,7 @@ export default async function Accueil() {
                     alt={u.nom}
                     width={600}
                     height={400}
-                    unoptimized
+                    sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                     loading="lazy"
                     className="aspect-[3/2] w-full object-cover transition group-hover:scale-[1.02]"
                   />
@@ -138,7 +138,7 @@ export default async function Accueil() {
             {galerie.map((p) => (
               <li key={p.src}>
                 <figure>
-                  <Image src={p.src} alt={p.legende || "Réalisation Anna Zen Attitude"} width={600} height={600} unoptimized loading="lazy" className="aspect-square w-full rounded-2xl object-cover" />
+                  <Image src={p.src} alt={p.legende || "Réalisation Anna Zen Attitude"} width={600} height={600} sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw" loading="lazy" className="aspect-square w-full rounded-2xl object-cover" />
                   {p.legende && <figcaption className="mt-1 text-sm text-doux">{p.legende}</figcaption>}
                 </figure>
               </li>
@@ -173,7 +173,7 @@ export default async function Accueil() {
         <p className="mt-3 max-w-2xl text-doux">Robes et tenues de la collection, faites sur commande à votre taille. Choisissez votre modèle et commandez en ligne.</p>
         <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
           {vitrineCouture.map((src) => (
-            <Image key={src} src={src} alt="Anna Zen Couture" width={720} height={1080} unoptimized loading="lazy" className="aspect-[2/3] w-full rounded-2xl object-cover" />
+            <Image key={src} src={src} alt="Anna Zen Couture" width={720} height={1080} sizes="(min-width: 768px) 25vw, 50vw" loading="lazy" className="aspect-[2/3] w-full rounded-2xl object-cover" />
           ))}
         </div>
         <Link href="/boutique/couture" className="mt-6 inline-block rounded-full bg-aza px-6 py-3 font-bold text-white hover:bg-aza-fonce">
@@ -206,7 +206,7 @@ export default async function Accueil() {
             <div>
               <p className="font-semibold">{INSTITUT.adresse.rue}</p>
               <p className="text-doux">{INSTITUT.adresse.repere}, {INSTITUT.adresse.ville}</p>
-              <a href={LIEN_ITINERAIRE} target="_blank" rel="noopener" className="mt-1 inline-block font-semibold text-aza underline underline-offset-4">
+              <a href={LIEN_ITINERAIRE} target="_blank" rel="noopener" className="inline-block py-2 font-semibold text-aza underline underline-offset-4">
                 Itinéraire
               </a>
             </div>
@@ -222,10 +222,10 @@ export default async function Accueil() {
             </ul>
           </div>
           <div className="flex flex-col gap-2">
-            <a href={`tel:${TELEPHONE_PRINCIPAL.e164}`} className="flex items-center gap-3 font-semibold">
+            <a href={`tel:${TELEPHONE_PRINCIPAL.e164}`} className="flex min-h-11 items-center gap-3 font-semibold">
               <IconeTelephone className="h-6 w-6 text-profond" /> {TELEPHONE_PRINCIPAL.affiche}
             </a>
-            <a href={lienWhatsApp()} target="_blank" rel="noopener" className="flex items-center gap-3 font-semibold">
+            <a href={lienWhatsApp()} target="_blank" rel="noopener" className="flex min-h-11 items-center gap-3 font-semibold">
               <IconeWhatsApp className="h-6 w-6 text-[#128C4A]" /> {INSTITUT.telephones[1].affiche}
             </a>
           </div>

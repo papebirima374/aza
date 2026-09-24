@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { formatPrix } from "@/lib/catalogue";
 import { reduirePhoto } from "@/lib/client/image";
@@ -10,21 +11,22 @@ import { TAILLES, TAILLES_DEFAUT, type ModeleCouture } from "@/lib/couture";
 
 // Écran « Collection » : la direction ajoute ses modèles Anna Zen Couture (photos, nom,
 // prix, tailles, couleurs, description) et ils apparaissent aussitôt dans la boutique.
+// La liste est une grille de photos (filtres, recherche, tri) ; chaque modèle s'ouvre sur
+// sa propre page (/gestion/collection/C-07), le nouveau modèle sur /gestion/collection/nouveau.
 
 type Modele = ModeleCouture & { photoIds: string[] };
 type Brouillon = { nom: string; prix: string; description: string; tailles: string[]; couleurs: string };
+type Message = { ok: boolean; texte: string } | null;
 
 const bouton = "min-h-12 rounded-full px-5 font-bold disabled:opacity-40";
 const champ = "mt-1 block w-full rounded-xl border border-bordure px-4 py-2.5 font-normal";
 
-export function GestionCollection() {
+/** Lecture de la collection et actions, partagées par la grille et la page d'un modèle. */
+function useCollection() {
   const compte = useCompte();
-  const direction = compte.role === "direction";
   const [liste, setListe] = useState<{ modeles: Modele[]; guide: string } | null>(null);
   const [version, setVersion] = useState(0);
-  const [ouvert, setOuvert] = useState<string | "nouveau" | null>(null);
-  const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null);
-  const [filtre, setFiltre] = useState("");
+  const [message, setMessage] = useState<Message>(null);
 
   const appel = useCallback(
     async (corps?: object) => {
@@ -62,90 +64,227 @@ export function GestionCollection() {
       return null;
     }
   };
+  return { liste, agir, message, setMessage, direction: compte.role === "direction" };
+}
 
-  const modeles = (liste?.modeles ?? []).filter((m) => !filtre || `${m.nom} ${m.ref}`.toLowerCase().includes(filtre.toLowerCase()));
+function Bandeau({ message }: { message: Message }) {
+  if (!message) return null;
+  return <p className={`mt-4 rounded-xl p-3 text-sm font-semibold ${message.ok ? "bg-[#e7f5ec] text-[#0d6b37]" : "bg-aza/10 text-profond"}`}>{message.texte}</p>;
+}
+
+const FILTRES = [
+  ["tous", "Tous"],
+  ["en-vente", "En vente"],
+  ["sans-photo", "📷 Photos à ajouter"],
+  ["masques", "Masqués"],
+] as const;
+const TRIS = [
+  ["recents", "Nouveautés"],
+  ["prix", "Prix"],
+  ["nom", "Nom"],
+] as const;
+
+export function GestionCollection() {
+  const { liste, agir, message, direction } = useCollection();
+  const [filtre, setFiltre] = useState<(typeof FILTRES)[number][0]>("tous");
+  const [tri, setTri] = useState<(typeof TRIS)[number][0]>("recents");
+  const [recherche, setRecherche] = useState("");
+  const [guide, setGuide] = useState(false);
+
+  const tous = useMemo(() => liste?.modeles ?? [], [liste]);
+  const compte = (f: string) =>
+    tous.filter((m) => (f === "en-vente" ? !m.masque : f === "masques" ? m.masque : f === "sans-photo" ? m.photoIds.length === 0 : true)).length;
+  const visibles = tous
+    .filter((m) => (filtre === "en-vente" ? !m.masque : filtre === "masques" ? m.masque : filtre === "sans-photo" ? m.photoIds.length === 0 : true))
+    .filter((m) => !recherche.trim() || `${m.nom} ${m.ref}`.toLowerCase().includes(recherche.trim().toLowerCase()))
+    .sort((a, b) => (tri === "prix" ? a.prix - b.prix : tri === "nom" ? a.nom.localeCompare(b.nom) : b.ordre - a.ordre));
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6">
-      <Link href="/gestion/commandes" className="text-sm font-semibold text-aza hover:underline">
-        ← Commandes
-      </Link>
-      <h1 className="mt-2 font-serif text-4xl font-semibold text-profond">👗 Collection</h1>
-      <p className="text-sm text-doux">
-        Les modèles Anna Zen Couture de la boutique. Ajoutez un modèle avec ses photos : il est en ligne aussitôt.{" "}
-        <a href="/boutique/couture" target="_blank" rel="noopener" className="font-semibold text-aza underline">
-          Voir la boutique
-        </a>
-      </p>
+    <div className="mx-auto max-w-5xl px-4 py-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-serif text-4xl font-semibold text-profond">👗 Collection</h1>
+          <p className="text-sm text-doux">
+            {tous.length} modèles Anna Zen Couture ·{" "}
+            <a href="/boutique/couture" target="_blank" rel="noopener" className="font-semibold text-aza underline">
+              voir la boutique
+            </a>
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setGuide(!guide)} className="min-h-12 rounded-full border border-bordure px-4 text-sm font-semibold text-profond">
+            📏 Tableau des tailles
+          </button>
+          {direction && (
+            <Link href="/gestion/collection/nouveau" className={`${bouton} flex items-center bg-aza text-white`}>
+              + Nouveau modèle
+            </Link>
+          )}
+        </div>
+      </div>
+      <Bandeau message={message} />
+      {guide && liste && <GuideTailles texte={liste.guide} enregistrer={(texte) => agir({ action: "guide-tailles", texte }, "Tableau des tailles enregistré.")} />}
 
-      {message && <p className={`mt-4 rounded-xl p-3 text-sm font-semibold ${message.ok ? "bg-[#e7f5ec] text-[#0d6b37]" : "bg-aza/10 text-profond"}`}>{message.texte}</p>}
-
-      {direction && ouvert !== "nouveau" && (
-        <button onClick={() => setOuvert("nouveau")} className={`${bouton} mt-4 bg-aza text-white`}>
-          + Nouveau modèle
-        </button>
-      )}
-      {ouvert === "nouveau" && (
-        <Fiche
-          titre="Nouveau modèle"
-          depart={{ nom: "", prix: "", description: "", tailles: TAILLES_DEFAUT, couleurs: "" }}
-          prixModifiable
-          annuler={() => setOuvert(null)}
-          enregistrer={async (b) => {
-            const r = await agir({ action: "creer", ...corps(b) }, "");
-            if (r) {
-              setOuvert(r.id);
-              setMessage({ ok: true, texte: `Modèle ${r.ref} créé. Ajoutez maintenant ses photos.` });
-            }
-          }}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <input
+          type="search"
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          placeholder="Chercher (nom ou C-07)…"
+          className="min-w-0 flex-1 basis-56 rounded-full border border-bordure px-4 py-2.5"
         />
-      )}
+        <select value={tri} onChange={(e) => setTri(e.target.value as typeof tri)} aria-label="Trier" className="rounded-full border border-bordure bg-white px-4 py-2.5 text-sm">
+          {TRIS.map(([id, nom]) => (
+            <option key={id} value={id}>
+              Trier : {nom}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Filtrer">
+        {FILTRES.map(([id, nom]) => (
+          <button
+            key={id}
+            aria-pressed={filtre === id}
+            onClick={() => setFiltre(id)}
+            className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold ${filtre === id ? "bg-profond text-white" : "bg-creme text-profond"}`}
+          >
+            {nom} ({compte(id)})
+          </button>
+        ))}
+      </div>
 
-      {liste && <GuideTailles texte={liste.guide} enregistrer={(texte) => agir({ action: "guide-tailles", texte }, "Tableau des tailles enregistré.")} />}
-
-      <input type="search" value={filtre} onChange={(e) => setFiltre(e.target.value)} placeholder="Chercher un modèle…" className="mt-5 w-full rounded-xl border border-bordure px-4 py-3" />
       {!liste ? (
         <p className="mt-8 text-center text-doux">Chargement…</p>
+      ) : visibles.length === 0 ? (
+        <p className="mt-8 rounded-2xl border border-bordure p-6 text-center text-doux">Aucun modèle ici.</p>
       ) : (
-        <ul className="mt-3 space-y-2">
-          {modeles.map((m) => (
-            <li key={m.id} className={`rounded-2xl border ${ouvert === m.id ? "border-2 border-profond" : "border-bordure"}`}>
-              <button onClick={() => setOuvert(ouvert === m.id ? null : m.id)} className="flex w-full items-center gap-3 p-3 text-left">
-                {m.photos[0] ? (
-                  <Image src={m.photos[0]} alt="" width={60} height={90} unoptimized className="h-16 w-11 shrink-0 rounded-lg object-cover" />
-                ) : (
-                  <span className="flex h-16 w-11 shrink-0 items-center justify-center rounded-lg bg-creme">👗</span>
-                )}
-                <span className="min-w-0 flex-1">
-                  <span className="block font-semibold">{m.nom}</span>
-                  <span className="block text-sm text-doux">
-                    {m.ref} · <span className="prix">{formatPrix(m.prix)}</span> · {m.photos.length} photo{m.photos.length > 1 ? "s" : ""}
-                  </span>
-                </span>
-                {m.masque && <span className="rounded-full bg-bordure px-2 py-0.5 text-xs font-bold text-doux">Masqué</span>}
-              </button>
-              {ouvert === m.id && (
-                <div className="border-t border-bordure p-3">
-                  <Photos m={m} agir={agir} />
-                  <Fiche
-                    titre=""
-                    depart={{ nom: m.nom, prix: String(m.prix), description: m.description, tailles: m.tailles, couleurs: m.couleurs.join(", ") }}
-                    prixModifiable={direction}
-                    annuler={() => setOuvert(null)}
-                    enregistrer={(b) => agir({ action: "modifier", id: m.id, ...corps(b, direction) }, `${m.ref} enregistré.`).then(() => undefined)}
-                  />
-                  {direction && (
-                    <button
-                      onClick={() => agir({ action: "masquer", id: m.id, masque: !m.masque }, m.masque ? `${m.ref} est de nouveau en vente.` : `${m.ref} retiré de la boutique.`)}
-                      className="mt-3 text-sm font-semibold text-doux underline"
-                    >
-                      {m.masque ? "Remettre en vente" : "Retirer de la boutique (masquer)"}
-                    </button>
+        <ul className="mt-4 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+          {visibles.map((m) => (
+            <li key={m.id}>
+              <Link href={`/gestion/collection/${m.ref}`} className="group block">
+                <span className="relative block overflow-hidden rounded-xl bg-creme">
+                  {m.photos[0] ? (
+                    <Image src={m.photos[0]} alt="" width={240} height={360} loading="lazy" className={`aspect-[2/3] w-full object-cover ${m.masque ? "opacity-40" : ""}`} />
+                  ) : (
+                    <span className="flex aspect-[2/3] items-center justify-center text-3xl">👗</span>
                   )}
-                </div>
-              )}
+                  {m.masque && <span className="absolute top-1 left-1 rounded-full bg-encre/80 px-2 py-0.5 text-[10px] font-bold text-white">Masqué</span>}
+                  {!m.masque && m.photoIds.length === 0 && <span className="absolute top-1 left-1 rounded-full bg-white/90 px-1.5 py-0.5 text-[10px] font-bold text-profond">📷</span>}
+                </span>
+                <span className="mt-1 block truncate text-sm font-semibold group-hover:text-aza">{m.nom}</span>
+                <span className="prix block text-xs text-doux">
+                  {m.ref} · {formatPrix(m.prix)}
+                </span>
+              </Link>
             </li>
           ))}
         </ul>
+      )}
+      <p className="mt-6 text-xs text-doux">📷 = encore la photo d&apos;origine : touchez le modèle pour ajouter vos photos.</p>
+    </div>
+  );
+}
+
+/** Page d'un modèle : photos, fiche, retrait de la boutique. */
+export function EditeurModele({ reference }: { reference: string }) {
+  const { liste, agir, message, direction } = useCollection();
+  const router = useRouter();
+  const m = liste?.modeles.find((x) => x.ref === reference.toUpperCase());
+  const i = liste && m ? liste.modeles.indexOf(m) : -1;
+  const voisin = (d: number) => (liste && i >= 0 ? liste.modeles[i + d] : undefined);
+
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-6">
+      <div className="flex items-center justify-between gap-2">
+        <Link href="/gestion/collection" className="text-sm font-semibold text-aza hover:underline inline-block py-2">
+          ← Collection
+        </Link>
+        {m && (
+          <span className="flex gap-2 text-sm">
+            {voisin(-1) && (
+              <Link href={`/gestion/collection/${voisin(-1)!.ref}`} className="rounded-full border border-bordure px-3 py-1.5 font-semibold text-profond">
+                ‹ {voisin(-1)!.ref}
+              </Link>
+            )}
+            {voisin(1) && (
+              <Link href={`/gestion/collection/${voisin(1)!.ref}`} className="rounded-full border border-bordure px-3 py-1.5 font-semibold text-profond">
+                {voisin(1)!.ref} ›
+              </Link>
+            )}
+          </span>
+        )}
+      </div>
+      {!liste ? (
+        <p className="mt-8 text-center text-doux">Chargement…</p>
+      ) : !m ? (
+        <p className="mt-8 text-center text-doux">Modèle introuvable.</p>
+      ) : (
+        <>
+          <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2">
+            <h1 className="font-serif text-3xl font-semibold text-profond">{m.nom}</h1>
+            <span className="text-sm text-doux">
+              {m.ref} · <span className="prix">{formatPrix(m.prix)}</span> {m.masque ? "· Masqué" : ""}
+            </span>
+          </div>
+          <a href={`/boutique/couture/${m.ref}`} target="_blank" rel="noopener" className="inline-block py-2 text-sm font-semibold text-aza underline">
+            Voir sur le site
+          </a>
+          <Bandeau message={message} />
+          <div className="mt-4 rounded-2xl border border-bordure p-4">
+            <Photos m={m} agir={agir} />
+          </div>
+          <Fiche
+            key={m.id}
+            titre=""
+            depart={{ nom: m.nom, prix: String(m.prix), description: m.description, tailles: m.tailles, couleurs: m.couleurs.join(", ") }}
+            prixModifiable={direction}
+            annuler={() => router.push("/gestion/collection")}
+            enregistrer={(b) => agir({ action: "modifier", id: m.id, ...corps(b, direction) }, `${m.ref} enregistré.`).then(() => undefined)}
+          />
+          {direction && (
+            <button
+              onClick={() => agir({ action: "masquer", id: m.id, masque: !m.masque }, m.masque ? `${m.ref} est de nouveau en vente.` : `${m.ref} retiré de la boutique.`)}
+              className="mt-6 min-h-12 rounded-full border border-bordure px-5 text-sm font-semibold text-doux"
+            >
+              {m.masque ? "Remettre en vente" : "Retirer de la boutique (masquer)"}
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Nouveau modèle : la fiche, puis la page du modèle pour ajouter les photos. */
+export function NouveauModele() {
+  const { agir, message, setMessage, direction } = useCollection();
+  const router = useRouter();
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-6">
+      <Link href="/gestion/collection" className="text-sm font-semibold text-aza hover:underline inline-block py-2">
+        ← Collection
+      </Link>
+      {!direction ? (
+        <p className="mt-6 text-doux">Seule la direction crée un modèle (il a un prix).</p>
+      ) : (
+        <>
+          <Bandeau message={message} />
+          <Fiche
+            titre="Nouveau modèle"
+            depart={{ nom: "", prix: "", description: "", tailles: TAILLES_DEFAUT, couleurs: "" }}
+            prixModifiable
+            annuler={() => router.push("/gestion/collection")}
+            enregistrer={async (b) => {
+              const r = await agir({ action: "creer", ...corps(b) }, "");
+              if (r) {
+                setMessage({ ok: true, texte: `Modèle ${r.ref} créé. Ajoutez maintenant ses photos.` });
+                router.push(`/gestion/collection/${r.ref}`);
+              }
+            }}
+          />
+          <p className="mt-3 text-sm text-doux">Après « Enregistrer », la page du modèle s&apos;ouvre : ajoutez-y ses photos.</p>
+        </>
       )}
     </div>
   );
@@ -236,7 +375,7 @@ function Photos({ m, agir }: { m: Modele; agir: (corps: object, ok: string) => P
       <ul className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-6">
         {m.photoIds.map((id, i) => (
           <li key={id} className="relative">
-            <Image src={`/api/boutique/photo/${id}`} alt="" width={120} height={180} unoptimized className="aspect-[2/3] w-full rounded-lg object-cover" />
+            <Image src={`/api/boutique/photo/${id}`} alt="" width={120} height={180} className="aspect-[2/3] w-full rounded-lg object-cover" />
             {i === 0 ? (
               <span className="absolute top-1 left-1 rounded-full bg-profond px-1.5 text-[10px] font-bold text-white">1re</span>
             ) : (
@@ -290,13 +429,13 @@ function Photos({ m, agir }: { m: Modele; agir: (corps: object, ok: string) => P
 function GuideTailles({ texte, enregistrer }: { texte: string; enregistrer: (t: string) => Promise<unknown> }) {
   const [t, setT] = useState(texte);
   return (
-    <details className="mt-4 rounded-2xl border border-bordure p-4">
-      <summary className="cursor-pointer font-semibold">📏 Tableau des tailles {texte ? "" : "(pas encore rempli)"}</summary>
+    <div className="mt-4 rounded-2xl border border-bordure p-4">
+      <p className="font-semibold">📏 Tableau des tailles {texte ? "" : "(pas encore rempli)"}</p>
       <p className="mt-2 text-sm text-doux">Affiché sur chaque modèle. Écrivez les mesures de l&apos;atelier, une taille par ligne (ex. « M : poitrine 92 cm, taille 74 cm, hanches 100 cm »).</p>
       <textarea value={t} onChange={(e) => setT(e.target.value)} rows={6} className={champ} />
       <button onClick={() => enregistrer(t)} className={`${bouton} mt-2 bg-profond text-white`}>
         Enregistrer le tableau
       </button>
-    </details>
+    </div>
   );
 }

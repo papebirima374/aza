@@ -6,6 +6,7 @@ import { AjoutCouture } from "@/components/couture/AjoutCouture";
 import { Collection } from "@/components/couture/Collection";
 import { GalerieModele } from "@/components/couture/GalerieModele";
 import { formatPrix } from "@/lib/catalogue";
+import { INSTITUT } from "@/lib/institut";
 import { boutiqueOuverte, livraisonInternationale } from "@/lib/serveur/boutique";
 import { guideDesTailles, modelesCouture } from "@/lib/serveur/collection";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
@@ -23,6 +24,8 @@ export async function generateMetadata({ params }: PageProps<"/boutique/couture/
   const r = await charger((await params).ref);
   if (!r) return {};
   return {
+    alternates: { canonical: `/boutique/couture/${r.m.ref}` },
+    openGraph: { images: r.m.photos.slice(0, 1) },
     title: `${r.m.nom} — Anna Zen Couture`,
     description: r.m.description.slice(0, 150) || `${r.m.nom}, Anna Zen Couture : fait sur commande à votre taille. Retrait à l'institut (Point-E, Dakar) ou livraison.`,
   };
@@ -33,10 +36,22 @@ export default async function PageModele({ params }: PageProps<"/boutique/coutur
   if (!r) notFound();
   const { m, autres } = r;
   const [ouverte, guide, monde] = firebaseConfigure() ? await Promise.all([boutiqueOuverte(), guideDesTailles(), livraisonInternationale()]) : [false, "", false];
-  const pli = "border-b border-bordure py-4";
+  const pli = "border-b border-bordure py-2";
+  // Données « Product » lues par Google (prix en francs CFA, fait sur commande).
+  const donnees = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: m.nom,
+    sku: m.ref,
+    brand: { "@type": "Brand", name: "Anna Zen Couture" },
+    ...(m.description ? { description: m.description } : {}),
+    image: m.photos.map((p) => new URL(p, INSTITUT.site).toString()),
+    offers: { "@type": "Offer", price: m.prix, priceCurrency: "XOF", availability: "https://schema.org/PreOrder", url: `${INSTITUT.site}/boutique/couture/${m.ref}` },
+  };
   return (
     <div className="mx-auto max-w-6xl px-4 pt-6 pb-32 md:pt-10">
-      <Link href="/boutique/couture" className="text-sm text-doux hover:text-encre">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(donnees).replace(/</g, "\\u003c") }} />
+      <Link href="/boutique/couture" className="text-sm text-doux hover:text-encre inline-block py-2">
         ← Anna Zen Couture
       </Link>
       <div className="mt-4 grid gap-8 md:grid-cols-[1.35fr_1fr] md:gap-12">
@@ -50,18 +65,18 @@ export default async function PageModele({ params }: PageProps<"/boutique/coutur
           <div className="mt-8 border-t border-bordure text-sm">
             {guide && (
               <details className={pli}>
-                <summary className="cursor-pointer list-none font-semibold">📏 Tableau des tailles</summary>
+                <summary className="cursor-pointer list-none py-2 font-semibold">📏 Tableau des tailles</summary>
                 <p className="mt-3 whitespace-pre-line text-doux">{guide}</p>
               </details>
             )}
             <details className={pli}>
-              <summary className="cursor-pointer list-none font-semibold">✂️ Personnalisez votre coupe</summary>
+              <summary className="cursor-pointer list-none py-2 font-semibold">✂️ Personnalisez votre coupe</summary>
               <p className="mt-3 text-doux">
                 Choisissez « Sur mesure » : nous prenons vos mesures à l&apos;institut ou par message. Une longueur, des manches longues, une autre
                 couleur ? Écrivez-le dans « Une précision » au moment de commander.
               </p>
             </details>
-            <p className={pli}>
+            <p className={`${pli} py-4`}>
               {monde ? "🌍 Livraison à Dakar et à l'international" : "🛵 Livraison à Dakar"} · 🏠 Retrait gratuit à l&apos;institut (Point-E)
             </p>
           </div>

@@ -19,7 +19,7 @@ export function Collection({ modeles, limite }: { modeles: ModeleCouture[]; limi
                     alt={m.nom}
                     width={720}
                     height={1080}
-                    unoptimized
+                    sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
                     loading="lazy"
                     className="aspect-[2/3] w-full object-cover transition duration-500 group-hover:scale-[1.03]"
                   />
@@ -33,7 +33,7 @@ export function Collection({ modeles, limite }: { modeles: ModeleCouture[]; limi
                     alt=""
                     width={720}
                     height={1080}
-                    unoptimized
+                    sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
                     loading="lazy"
                     className="absolute inset-0 aspect-[2/3] w-full object-cover opacity-0 transition duration-500 group-hover:opacity-100"
                   />

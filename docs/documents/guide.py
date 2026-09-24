@@ -321,17 +321,17 @@ pages.append(page(f"""
 <span class="etiquette">7 · La boutique en ligne</span>
 <h2>Ajouter un modèle à la collection</h2>
 <div>
-<p>Commandes → <span class="touche">👗 Collection</span> (aussi depuis Catalogue). Direction et manager.</p>
+<p>Commandes → <span class="touche">👗 Collection</span> (aussi depuis Catalogue). Direction et manager. Les modèles s'affichent en <b>grille de photos</b> : cherchez un nom ou une référence, triez (nouveautés, prix, nom), filtrez (En vente, 📷 Photos à ajouter, Masqués). Touchez un modèle pour ouvrir sa page ; ‹ › passent au précédent ou au suivant.</p>
 <ol class="etapes">
 <li><span class="bouton">+ Nouveau modèle</span> (direction) : le <b>nom</b> (ex. « Robe Dijah »), le <b>prix</b>, les <b>tailles</b> proposées (touchez pour cocher), les <b>couleurs</b> si le modèle en a plusieurs (séparées par des virgules), la <b>description</b> (tissu, coupe, entretien).</li>
-<li><span class="bouton" style="background:#7E0A4C">Enregistrer</span> : le modèle reçoit sa référence (C-30, C-31…).</li>
+<li><span class="bouton" style="background:#7E0A4C">Enregistrer</span> : le modèle reçoit sa référence (C-30, C-31…) et sa page s'ouvre.</li>
 <li><b>📷 Ajouter</b> : choisissez une ou plusieurs photos dans le téléphone (10 au maximum). Elles sont réduites toutes seules.</li>
 <li>La <b>1re photo</b> est celle de la vitrine ; « ⭐ 1re » change l'ordre, ✕ retire une photo.</li>
 </ol>
 <p>Le modèle est en ligne <b>aussitôt</b>, en tête de la collection (« Nouveautés »). Il se vend aussi à la caisse.</p>
-<div class="encadre"><b>Retirer un modèle</b> : ouvrez-le → « Retirer de la boutique ». Il reste dans la liste (« Masqué ») et peut revenir en vente. <b>📏 Tableau des tailles</b> : en haut de l'écran, les mesures de l'atelier, affichées sur chaque modèle.</div>
+<div class="encadre"><b>Retirer un modèle</b> : ouvrez-le → « Retirer de la boutique ». Il reste dans la liste (« Masqué ») et peut revenir en vente. <b>📏 Tableau des tailles</b> : bouton en haut de l'écran, pour les mesures de l'atelier, affichées sur chaque modèle.</div>
 </div>
-<div style="display:flex;gap:10mm;justify-content:center;margin-top:2mm">{figure("69-collection-admin","La Collection")}{figure("70-collection-modele","Photos et fiche d'un modèle")}</div>
+<div style="display:flex;gap:10mm;justify-content:center;margin-top:2mm">{figure("69-collection-admin","La grille des modèles","tel-petit")}{figure("70-collection-modele","La page d'un modèle","tel-petit")}</div>
 """, P))
 
 pages.append(page(f"""

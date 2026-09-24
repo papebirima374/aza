@@ -129,7 +129,7 @@ export default async function Boutique({ searchParams }: PageProps<"/boutique">)
                   alt={p.titre}
                   width={500}
                   height={500}
-                  unoptimized
+                  sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
                   loading="lazy"
                   className="aspect-square w-full rounded-2xl bg-creme object-cover transition group-hover:opacity-90"
                 />

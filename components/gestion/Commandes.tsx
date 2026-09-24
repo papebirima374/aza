@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { DevisPerruques, type Devis } from "@/components/gestion/DevisPerruques";
 import { useCompte } from "@/components/gestion/EspaceGestion";
@@ -126,9 +127,9 @@ export function Commandes() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-serif text-4xl font-semibold text-profond">Commandes</h1>
         {(compte.role === "direction" || compte.role === "manager") && (
-          <a href="/gestion/collection" className="flex min-h-12 items-center rounded-full border border-bordure px-5 font-semibold text-profond hover:border-profond">
+          <Link href="/gestion/collection" className="flex min-h-12 items-center rounded-full border border-bordure px-5 font-semibold text-profond hover:border-profond">
             👗 Collection
-          </a>
+          </Link>
         )}
       </div>
       <p className="text-sm text-doux">Les commandes de la boutique en ligne et les demandes de perruques sur mesure. La liste se met à jour toute seule.</p>
@@ -411,7 +412,7 @@ function ReglagesBoutique({ direction, appel }: { direction: boolean; appel: (ch
             </button>
           )}
           <p className="mt-3 text-sm text-doux">
-            Robes Anna Zen Couture (photos, prix, tailles) : <a href="/gestion/collection" className="font-semibold text-aza underline">👗 Collection</a>.
+            Robes Anna Zen Couture (photos, prix, tailles) : <Link href="/gestion/collection" className="font-semibold text-aza underline">👗 Collection</Link>.
           </p>
           {(
             [

@@ -154,7 +154,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
             ))}
         </nav>
         <div className="ml-auto flex items-center gap-3 text-sm">
-          <Link href="/gestion/mon-compte" className="flex max-w-[9rem] items-center gap-1 truncate rounded-full px-2 py-1 hover:bg-white/10 md:max-w-none" title="Mon compte">
+          <Link href="/gestion/mon-compte" className="flex min-h-10 max-w-[9rem] items-center gap-1 truncate rounded-full px-2 py-1 hover:bg-white/10 md:max-w-none" title="Mon compte">
             <span aria-hidden>👤</span>
             <span className="truncate font-semibold text-white">{compte?.nom?.split(" ")[0]}</span>
             <span className="hidden text-or md:inline">· {compte && LIBELLE_ROLE[compte.role]}</span>

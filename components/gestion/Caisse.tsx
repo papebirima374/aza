@@ -646,11 +646,11 @@ function Tickets({ tickets, annulable, annuler }: { tickets: Ticket[]; annulable
                 </p>
               )}
               <div className="mt-1 flex gap-4 text-sm font-semibold">
-                <Link href={`/gestion/caisse/ticket/${t.id}`} className="text-profond underline">
+                <Link href={`/gestion/caisse/ticket/${t.id}`} className="inline-block py-2 text-profond underline">
                   Reçu
                 </Link>
                 {annulable && t.type === "vente" && !t.annule && (
-                  <button onClick={() => annuler(t)} className="text-aza-fonce underline">
+                  <button onClick={() => annuler(t)} className="min-h-10 text-aza-fonce underline">
                     Annuler par un avoir
                   </button>
                 )}

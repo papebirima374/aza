@@ -85,7 +85,7 @@ export function Panier({ ouverte, articles, zones }: { ouverte: boolean; article
         {lignes.map((l) => (
           <li key={l.article} className="flex items-center gap-3 p-3">
             {l.a.image ? (
-              <Image src={l.a.image} alt="" width={64} height={64} unoptimized className="h-16 w-16 shrink-0 rounded-xl object-cover object-top" />
+              <Image src={l.a.image} alt="" width={64} height={64} className="h-16 w-16 shrink-0 rounded-xl object-cover object-top" />
             ) : (
               <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-creme text-2xl">🛍️</span>
             )}

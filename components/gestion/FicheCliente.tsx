@@ -93,7 +93,7 @@ export function FicheCliente({ id }: { id: string }) {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
-      <Link href="/gestion/clientes" className="text-sm font-semibold text-doux underline">
+      <Link href="/gestion/clientes" className="inline-block py-2 text-sm font-semibold text-doux underline">
         ← Toutes les clientes
       </Link>
       <h1 className="mt-2 font-serif text-4xl font-semibold text-profond">{fiche.nom}</h1>

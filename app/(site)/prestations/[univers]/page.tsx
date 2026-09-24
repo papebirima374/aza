@@ -61,12 +61,12 @@ export default async function PageUnivers({ params }: PageProps<"/prestations/[u
       <section className="relative overflow-hidden bg-bordeaux text-white">
         {photo && (
           <>
-            <Image src={photo.src} alt="" fill priority unoptimized className="object-cover" />
+            <Image src={photo.src} alt="" fill priority sizes="100vw" className="object-cover" />
             <div className="absolute inset-0 bg-gradient-to-r from-bordeaux/95 via-bordeaux/80 to-bordeaux/40" />
           </>
         )}
         <div className="relative mx-auto max-w-6xl px-4 py-14">
-          <Link href="/prestations" className="text-sm font-semibold text-or hover:text-or-clair">
+          <Link href="/prestations" className="text-sm font-semibold text-or hover:text-or-clair inline-block py-2">
             ← Toutes les prestations
           </Link>
           <h1 className="mt-3 font-serif text-5xl font-semibold">{u.nom}</h1>

@@ -23,7 +23,7 @@ const api = (chemin, tok, corps) =>
     body: corps ? JSON.stringify(corps) : undefined,
   }).then(async (r) => ({ statut: r.status, corps: await r.json() }));
 const stock = (tok, corps) => api("/api/gestion/stock", tok, corps);
-const [direction, manager, accueil, comptable] = await Promise.all(["direction", "manager", "accueil", "comptable"].map((n) => jeton(`${n}@test.aza`)));
+const [manager, accueil, comptable] = await Promise.all(["manager", "accueil", "comptable"].map((n) => jeton(`${n}@test.aza`)));
 const article = async (id) => (await stock(manager)).corps.articles.find((a) => a.id === id);
 const TIGES = "locks--lot-de-10-tiges-locks-6-pouces";
 const SOURCILS = "epilation-femme--sourcils-forme";

@@ -172,7 +172,7 @@ export function EcranDuJour() {
                   ))}
                 </ul>
               )}
-              <Link href="/gestion" className="mt-3 inline-block text-sm font-semibold text-aza underline">
+              <Link href="/gestion" className="mt-1 inline-block py-2 text-sm font-semibold text-aza underline">
                 Ouvrir l&apos;agenda
               </Link>
             </Bloc>
@@ -211,7 +211,7 @@ export function EcranDuJour() {
                   ))}
                 </ul>
               )}
-              <Link href="/gestion/stock" className="mt-3 inline-block text-sm font-semibold text-aza underline">
+              <Link href="/gestion/stock" className="mt-1 inline-block py-2 text-sm font-semibold text-aza underline">
                 Ouvrir le stock
               </Link>
             </Bloc>

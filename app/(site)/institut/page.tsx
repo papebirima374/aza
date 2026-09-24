@@ -51,7 +51,7 @@ export default async function Institut() {
             <ul className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
               {lieu.map((p) => (
                 <li key={p.id}>
-                  <Image src={urlPhotoSite(p.id)} alt={p.legende || "L'institut Anna Zen Attitude"} width={600} height={450} unoptimized loading="lazy" className="aspect-[4/3] w-full rounded-2xl object-cover" />
+                  <Image src={urlPhotoSite(p.id)} alt={p.legende || "L'institut Anna Zen Attitude"} width={600} height={450} sizes="(min-width: 768px) 33vw, 100vw" loading="lazy" className="aspect-[4/3] w-full rounded-2xl object-cover" />
                   {p.legende && <p className="mt-1 text-sm text-doux">{p.legende}</p>}
                 </li>
               ))}

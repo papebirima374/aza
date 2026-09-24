@@ -72,7 +72,7 @@ export function CartesCadeaux() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
-      <Link href="/gestion/caisse" className="text-sm font-semibold text-aza hover:underline">
+      <Link href="/gestion/caisse" className="text-sm font-semibold text-aza hover:underline inline-block py-2">
         ← Caisse
       </Link>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-3">

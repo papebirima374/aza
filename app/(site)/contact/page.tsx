@@ -53,7 +53,7 @@ export default function Contact() {
               <ul>
                 {INSTITUT.telephones.map((t) => (
                   <li key={t.e164}>
-                    <a href={`tel:${t.e164}`} className="text-doux hover:text-profond">
+                    <a href={`tel:${t.e164}`} className="inline-block py-2 text-doux hover:text-profond">
                       <span className="prix font-semibold text-encre">{t.affiche}</span>
                     </a>
                   </li>
