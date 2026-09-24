@@ -30,6 +30,10 @@ ne comptent plus.
    « Une hygiène stricte » de l'accueil, les prestations « les plus demandées ».
 8. **Décisions** : politique d'acompte et d'annulation, nombre de postes par univers,
    formule de la plateforme de gestion (sur mesure ou pilote).
+9. **Prix d'Anna Zen Couture** : les 29 modèles ont des prix PROVISOIRES (2 000 F pour
+   C-01, puis 1 000 F de plus par modèle, jusqu'à 30 000 F pour C-29), selon la fourchette
+   donnée par Birima. La direction met les vrais prix dans l'écran Catalogue.
+10. **Tailles Couture** : S, M, L, XL, XXL ou « Sur mesure » — à confirmer avec l'atelier.
 
 ## Petites corrections faites en reprenant la plaquette
 - « Shampoing perruque » figure dans Tissage et dans Soins des cheveux (même prix) : gardé

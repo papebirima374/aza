@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { DevisPerruques, type Devis } from "@/components/gestion/DevisPerruques";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { STATUTS_COMMANDE, type StatutCommande } from "@/lib/boutique";
 import { MODES, type Mode } from "@/lib/caisse/modes";
@@ -69,6 +70,7 @@ export function Commandes() {
   const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null);
   const [version, setVersion] = useState(0);
   const [bon, setBon] = useState<Commande | null>(null);
+  const [devis, setDevis] = useState<Devis[]>([]);
 
   const appel = useCallback(
     async (chemin: string, corps?: object) => {
@@ -89,7 +91,10 @@ export function Commandes() {
     const lire = () =>
       appel("/api/gestion/commandes")
         .then((l: Commande[]) => actif && setListe(l))
-        .catch((e: Error) => actif && setMessage({ ok: false, texte: e.message }));
+        .catch((e: Error) => actif && setMessage({ ok: false, texte: e.message }))
+        .then(() => appel("/api/gestion/devis"))
+        .then((d: Devis[] | undefined) => actif && d && setDevis(d))
+        .catch(() => {});
     lire();
     const t = setInterval(lire, 60_000);
     return () => {
@@ -117,12 +122,15 @@ export function Commandes() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
       <h1 className="font-serif text-4xl font-semibold text-profond">Commandes</h1>
-      <p className="text-sm text-doux">Les commandes de la boutique en ligne. La liste se met à jour toute seule.</p>
+      <p className="text-sm text-doux">Les commandes de la boutique en ligne et les demandes de perruques sur mesure. La liste se met à jour toute seule.</p>
       {(compte.role === "direction" || compte.role === "manager") && <ReglagesBoutique direction={compte.role === "direction"} appel={appel} />}
 
       {message && <p className={`mt-4 rounded-xl p-3 text-sm font-semibold ${message.ok ? "bg-[#e7f5ec] text-[#0d6b37]" : "bg-aza/10 text-profond"}`}>{message.texte}</p>}
 
-      <div className="mt-5 grid grid-cols-2 gap-2">
+      <DevisPerruques liste={devis} agir={(corps, ok) => agir("/api/gestion/devis", corps, ok)} />
+
+      <h2 className="mt-6 font-serif text-2xl font-semibold text-profond">🛍️ Commandes de la boutique</h2>
+      <div className="mt-3 grid grid-cols-2 gap-2">
         {(
           [
             ["a-traiter", "À traiter"],

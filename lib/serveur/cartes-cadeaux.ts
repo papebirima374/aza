@@ -6,10 +6,11 @@
 // La vente d'une carte est un ticket de caisse (ligne « carte-cadeau ») : l'argent entre ce
 // jour-là. Payer ensuite avec la carte (mode « carte-cadeau ») baisse son solde, sans compter
 // une seconde fois dans la recette. Un avoir rend le solde (ou annule une carte jamais servie).
+// Validité : 1 an à partir du jour de la vente (champ expire).
 
 import { randomInt } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
-import { ALPHABET_CODE, MONTANT_MAX_CARTE, MONTANT_MIN_CARTE, normaliserCode, type CarteCadeau } from "@/lib/caisse/cartes";
+import { ALPHABET_CODE, dateFinValidite, estExpiree, MONTANT_MAX_CARTE, MONTANT_MIN_CARTE, normaliserCode, type CarteCadeau } from "@/lib/caisse/cartes";
 import { ROLES_CAISSE, ROLES_JOURNAL, reference } from "@/lib/caisse/modes";
 import type { Membre } from "@/lib/serveur/agenda";
 import { caisseOuverte, exiger, paiementsValides, trace, type LigneTicket } from "@/lib/serveur/caisse";
@@ -83,6 +84,7 @@ export async function vendreCarte(membre: Membre, c: Record<string, unknown>) {
       montant,
       solde: montant,
       statut: "active",
+      expire: dateFinValidite(date),
       pour,
       dePart,
       message,
@@ -102,6 +104,7 @@ function lue(d: FirebaseFirestore.DocumentSnapshot): CarteCadeau {
     montant: x.montant,
     solde: x.solde,
     statut: x.statut,
+    ...(x.expire ? { expire: x.expire } : {}),
     pour: x.pour ?? "",
     dePart: x.dePart ?? "",
     message: x.message ?? "",
@@ -124,7 +127,8 @@ export async function listerCartes(membre: Membre) {
   exiger(membre, [...ROLES_CAISSE, ...ROLES_JOURNAL], "Accès réservé.");
   const snap = await db().collection("cartesCadeaux").orderBy("creeLe", "desc").limit(300).get();
   const cartes = snap.docs.map(lue);
-  const actives = cartes.filter((c) => c.statut === "active");
+  const { date } = maintenantDakar();
+  const actives = cartes.filter((c) => c.statut === "active" && !estExpiree(c, date));
   // Ce que l'institut doit encore en prestations : le total des soldes des cartes actives.
   return { cartes, enCours: actives.reduce((s, c) => s + c.solde, 0), nombreActives: actives.filter((c) => c.solde > 0).length };
 }

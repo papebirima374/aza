@@ -19,6 +19,7 @@ import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation, maintenantDakar } from "@/lib/serveur/reservations";
 import { telephoneCanonique, telephoneValide } from "@/lib/telephone";
 import type { StatutCommande } from "@/lib/boutique";
+import { lireArticleCouture, libelleTaille, MODELES } from "@/lib/couture";
 
 export { RAYONS, STATUTS_COMMANDE, type StatutCommande } from "@/lib/boutique";
 
@@ -38,6 +39,22 @@ export function cleProduit(titre: string): string {
 }
 
 // ——— Vitrine (public) ———
+
+/** Modèles Anna Zen Couture en vente (prix du catalogue ; un modèle masqué n'apparaît pas). */
+export async function modelesCouture() {
+  const cat = await catalogueServeur();
+  return MODELES.flatMap((m) => {
+    const ligne = cat.parId(m.produit);
+    return ligne ? [{ ...m, titre: `Anna Zen Couture — modèle ${m.ref}`, prix: ligne.prix }] : [];
+  });
+}
+export type ModeleCouture = Awaited<ReturnType<typeof modelesCouture>>[number];
+
+/** La boutique est-elle ouverte aux commandes en ligne ? (réglage de la direction) */
+export async function boutiqueOuverte() {
+  const r = await db().doc("reglages/institut").get().catch(() => null);
+  return r?.get("boutiqueOuverte") === true;
+}
 
 export type Variante = { article: string; variante: string; disponible: number };
 export type ProduitBoutique = {
@@ -144,6 +161,16 @@ export async function passerCommande(c: NouvelleCommande) {
     livraison = { mode, zone: zone.nom, prix: zone.prix, adresse };
   }
   const produits = new Map(etat.produits.flatMap((p) => p.variantes.map((v) => [v.article, { p, v }] as const)));
+  // Anna Zen Couture : faite sur commande, pas de stock à réserver.
+  const couture = new Map((await modelesCouture()).map((m) => [m.ref, m]));
+  const lignesCouture = [...demandees].flatMap(([article, quantite]) => {
+    const c = lireArticleCouture(article);
+    if (!c) return [];
+    const m = couture.get(c.ref);
+    if (!m) throw new Erreur("Un modèle de votre panier n'est plus en vente. Rechargez la page.", 409);
+    return [{ article, produit: m.produit, nom: m.titre, variante: libelleTaille(c.taille), prixUnitaire: m.prix, quantite, montant: m.prix * quantite }];
+  });
+  for (const l of lignesCouture) demandees.delete(l.article);
 
   const refCommande = base.collection("commandes").doc();
   const compteurRef = base.doc("compteurs/commandes");
@@ -154,7 +181,7 @@ export async function passerCommande(c: NouvelleCommande) {
   return base.runTransaction(async (tx) => {
     const ids = [...demandees.keys()];
     const [articles, compteur, fiche] = await Promise.all([
-      tx.getAll(...ids.map((id) => base.doc(`articles/${id}`))),
+      ids.length ? tx.getAll(...ids.map((id) => base.doc(`articles/${id}`))) : Promise.resolve([]),
       tx.get(compteurRef),
       tx.get(clienteRef),
     ]);
@@ -179,7 +206,7 @@ export async function passerCommande(c: NouvelleCommande) {
         cout: (a.get("coutMoyen") as number) ?? 0,
       };
     });
-    const sousTotal = lignes.reduce((s, l) => s + l.montant, 0);
+    const sousTotal = [...lignes, ...lignesCouture].reduce((s, l) => s + l.montant, 0);
     const numero = ((compteur.get("dernier") as number | undefined) ?? 0) + 1;
 
     tx.set(compteurRef, { dernier: numero }, { merge: true });
@@ -204,7 +231,10 @@ export async function passerCommande(c: NouvelleCommande) {
       reference: reference(numero),
       date,
       statut: "nouvelle",
-      lignes: lignes.map((l) => ({ article: l.article, produit: l.produit, nom: l.nom, variante: l.variante, prixUnitaire: l.prixUnitaire, quantite: l.quantite, montant: l.montant })),
+      lignes: [
+        ...lignes.map((l) => ({ article: l.article, produit: l.produit, nom: l.nom, variante: l.variante, prixUnitaire: l.prixUnitaire, quantite: l.quantite, montant: l.montant })),
+        ...lignesCouture.map((l) => ({ ...l, surCommande: true })),
+      ],
       sousTotal,
       livraison,
       total: sousTotal + livraison.prix,

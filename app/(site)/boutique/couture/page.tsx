@@ -3,6 +3,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Collection } from "@/components/couture/Collection";
 import { LOGO_COUTURE, PHOTOS_GROUPE } from "@/lib/couture";
+import { BoutonPanier } from "@/components/boutique/BoutonPanier";
+import { modelesCouture } from "@/lib/serveur/boutique";
 
 export const metadata: Metadata = {
   title: "Anna Zen Couture",
@@ -10,9 +12,13 @@ export const metadata: Metadata = {
   alternates: { canonical: "/boutique/couture" },
 };
 
-export default function PageCouture() {
+// Prix de l'écran Catalogue, relus à chaque visite.
+export const dynamic = "force-dynamic";
+
+export default async function PageCouture() {
+  const modeles = await modelesCouture();
   return (
-    <div className="mx-auto max-w-6xl px-4 pt-12 pb-16">
+    <div className="mx-auto max-w-6xl px-4 pt-12 pb-32">
       <Link href="/boutique" className="text-sm font-semibold text-aza hover:underline">
         ← La boutique
       </Link>
@@ -21,8 +27,8 @@ export default function PageCouture() {
         <div>
           <h1 className="font-serif text-5xl font-semibold text-profond">Anna Zen Couture</h1>
           <p className="mt-3 max-w-2xl text-doux">
-            Robes et tenues de la collection, sur commande. Choisissez un modèle et demandez-le sur WhatsApp avec sa référence : nous vous
-            répondons avec le prix, les tailles et le délai.
+            Robes et tenues de la collection, faites sur commande à votre taille. Choisissez un modèle, votre taille, et commandez : retrait
+            gratuit à l&apos;institut ou livraison à Dakar.
           </p>
         </div>
       </div>
@@ -32,8 +38,9 @@ export default function PageCouture() {
         ))}
       </div>
       <div className="mt-10">
-        <Collection />
+        <Collection modeles={modeles} />
       </div>
+      <BoutonPanier />
     </div>
   );
 }

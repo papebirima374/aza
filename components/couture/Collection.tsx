@@ -1,17 +1,17 @@
 import Image from "next/image";
 import Link from "next/link";
-import { MODELES } from "@/lib/couture";
-import { lienWhatsApp } from "@/lib/institut";
+import { formatPrix } from "@/lib/catalogue";
+import type { ModeleCouture } from "@/lib/serveur/boutique";
 
-// Grille des modèles Anna Zen Couture ; chaque modèle se demande sur WhatsApp par sa référence.
-export function Collection({ limite }: { limite?: number }) {
-  const modeles = limite ? MODELES.slice(0, limite) : MODELES;
+// Grille des modèles Anna Zen Couture, comme une boutique en ligne : photo, prix, « Commander ».
+export function Collection({ modeles, limite }: { modeles: ModeleCouture[]; limite?: number }) {
+  const affiches = limite ? modeles.slice(0, limite) : modeles;
   return (
     <>
       <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-        {modeles.map((m) => (
-          <li key={m.ref}>
-            <figure>
+        {affiches.map((m) => (
+          <li key={m.ref} className="flex flex-col">
+            <Link href={`/boutique/couture/${m.ref}`} className="group block">
               <Image
                 src={m.src}
                 alt={`Anna Zen Couture, modèle ${m.ref}`}
@@ -19,26 +19,23 @@ export function Collection({ limite }: { limite?: number }) {
                 height={1080}
                 unoptimized
                 loading="lazy"
-                className="aspect-[2/3] w-full rounded-2xl bg-creme object-cover"
+                className="aspect-[2/3] w-full rounded-2xl bg-creme object-cover transition group-hover:opacity-90"
               />
-              <figcaption className="mt-2">
-                <span className="block font-semibold whitespace-nowrap">Modèle {m.ref}</span>
-                <a
-                  href={lienWhatsApp(`Bonjour Anna Zen Attitude, je suis intéressée par le modèle ${m.ref} de la collection Anna Zen Couture. Pouvez-vous me donner le prix et les tailles ?`)}
-                  target="_blank"
-                  rel="noopener"
-                  className="mt-1.5 block rounded-full bg-[#128C4A] px-3 py-2 text-center text-sm font-bold whitespace-nowrap text-white hover:opacity-90"
-                >
-                  Je le veux
-                </a>
-              </figcaption>
-            </figure>
+              <p className="mt-2 font-semibold group-hover:text-aza">Modèle {m.ref}</p>
+            </Link>
+            <p className="prix font-bold text-profond">{formatPrix(m.prix)}</p>
+            <Link
+              href={`/boutique/couture/${m.ref}`}
+              className="mt-2 block rounded-full bg-aza px-3 py-2.5 text-center text-sm font-bold whitespace-nowrap text-white hover:bg-aza-fonce"
+            >
+              Commander
+            </Link>
           </li>
         ))}
       </ul>
-      {limite && limite < MODELES.length && (
+      {limite && limite < modeles.length && (
         <Link href="/boutique/couture" className="mt-6 inline-block rounded-full border border-profond px-6 py-3 font-semibold text-profond hover:bg-creme">
-          Voir les {MODELES.length} modèles →
+          Voir les {modeles.length} modèles →
         </Link>
       )}
     </>

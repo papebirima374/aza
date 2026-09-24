@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
-import { lienCarteWhatsApp, normaliserCode, type CarteCadeau } from "@/lib/caisse/cartes";
+import { dateLongue, estExpiree, lienCarteWhatsApp, normaliserCode, type CarteCadeau } from "@/lib/caisse/cartes";
 import { MODES, ROLES_CAISSE, type Mode } from "@/lib/caisse/modes";
 import { dateTexte } from "@/lib/caisse/recu";
 import { formatPrix } from "@/lib/catalogue";
@@ -18,6 +18,7 @@ const nombre = (v: string) => Math.max(0, Math.round(Number(v.replace(/\s/g, "")
 const RAPIDES = [5_000, 10_000, 20_000, 50_000];
 const ICONE: Partial<Record<Mode, string>> = { especes: "💵", wave: "🌊", "orange-money": "🟠", carte: "💳", virement: "🏦" };
 const MODES_VENTE = MODES.filter((m) => m.id in ICONE);
+const aujourdhui = () => new Date().toISOString().slice(0, 10);
 
 function useAppel() {
   const compte = useCompte();
@@ -155,8 +156,8 @@ export function CartesCadeaux() {
                       </span>
                     </span>
                     <span className="shrink-0 text-right">
-                      <span className={`prix block font-bold ${c.statut === "annulee" || c.solde === 0 ? "text-doux" : "text-profond"}`}>
-                        {c.statut === "annulee" ? "Annulée" : c.solde === 0 ? "Utilisée" : formatPrix(c.solde)}
+                      <span className={`prix block font-bold ${c.statut === "annulee" || c.solde === 0 || estExpiree(c, aujourdhui()) ? "text-doux" : "text-profond"}`}>
+                        {c.statut === "annulee" ? "Annulée" : c.solde === 0 ? "Utilisée" : estExpiree(c, aujourdhui()) ? "Expirée" : formatPrix(c.solde)}
                       </span>
                       <span className="prix block text-xs text-doux">sur {formatPrix(c.montant)}</span>
                     </span>
@@ -304,7 +305,7 @@ function Actions({ carte }: { carte: CarteCadeau }) {
 }
 
 /** La carte elle-même, aux couleurs de l'institut (à imprimer ou à photographier). */
-export function CarteVisuelle({ carte }: { carte: Pick<CarteCadeau, "code" | "montant" | "pour" | "dePart" | "message"> }) {
+export function CarteVisuelle({ carte }: { carte: Pick<CarteCadeau, "code" | "montant" | "pour" | "dePart" | "message" | "expire"> }) {
   return (
     <div className="relative mx-auto aspect-[1.6] w-full max-w-md overflow-hidden rounded-2xl bg-bordeaux p-5 text-white shadow-lg print:shadow-none">
       <Image src="/images/lotus-or.png" alt="" width={244} height={257} className="pointer-events-none absolute -right-8 -bottom-8 w-44 opacity-15" />
@@ -323,6 +324,7 @@ export function CarteVisuelle({ carte }: { carte: Pick<CarteCadeau, "code" | "mo
         )}
         {carte.message && <p className="mt-1 text-xs text-or-clair italic">« {carte.message} »</p>}
         <p className="mt-3 font-mono text-lg font-bold tracking-[0.15em]">{carte.code}</p>
+        {carte.expire && <p className="text-xs text-or-clair">Valable jusqu&apos;au {dateLongue(carte.expire)}</p>}
       </div>
     </div>
   );
@@ -334,6 +336,8 @@ function Detail({ carte }: { carte: CarteCadeau }) {
       <p className="text-lg">
         {carte.statut === "annulee" ? (
           <strong className="text-aza-fonce">Carte annulée</strong>
+        ) : estExpiree(carte, aujourdhui()) ? (
+          <strong className="text-aza-fonce">Carte expirée le {dateLongue(carte.expire!)} (il restait {formatPrix(carte.solde)})</strong>
         ) : (
           <>
             Solde : <strong className="prix text-profond">{formatPrix(carte.solde)}</strong> sur {formatPrix(carte.montant)}

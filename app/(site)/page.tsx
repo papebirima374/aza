@@ -54,7 +54,7 @@ export default async function Accueil() {
           </h1>
           <p className="mt-5 max-w-xl text-lg text-or-clair">
             Soins du visage et du corps, onglerie, épilation, tresses, tissages et locks : plus de{" "}
-            {Math.floor(cat.prestations.length / 10) * 10} prestations, dans une atmosphère de sérénité.
+            {Math.floor(cat.prestations.filter((p) => p.note !== "Produit").length / 10) * 10} prestations, dans une atmosphère de sérénité.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/reservation" className="rounded-full bg-aza px-7 py-3.5 font-bold text-white hover:bg-aza-fonce">

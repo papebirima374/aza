@@ -78,7 +78,7 @@ const PAR_FAMILLE = {
 
 let n = 0;
 const lot = db.batch();
-for (const f of FAMILLES) {
+for (const f of FAMILLES.filter((x) => !x.boutique)) {
   const [typePoste, phases] = PAR_FAMILLE[f.id];
   for (const p of f.prestations) {
     if (p.note === "Produit") continue;
@@ -131,7 +131,7 @@ for (const [email, nom, role, praticienne] of comptes) {
 
 // --- Quelques rendez-vous FICTIFS aujourd'hui et demain, placés par le moteur
 const ctxPrestations = new Map();
-for (const f of FAMILLES) {
+for (const f of FAMILLES.filter((x) => !x.boutique)) {
   const [typePoste, phases] = PAR_FAMILLE[f.id];
   for (const p of f.prestations) ctxPrestations.set(p.id, { id: p.id, nom: p.nom, phases, typePoste, competence: f.id, praticiennes: p.id === "massage--massage-a-quatre-mains" ? 2 : 1 });
 }

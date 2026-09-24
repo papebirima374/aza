@@ -16,6 +16,18 @@ export function normaliserCode(saisie: string): string | null {
 }
 
 export const MONTANT_MIN_CARTE = 1_000;
+
+/** Une carte est valable 1 an à partir du jour de la vente (décision de la direction). */
+export function dateFinValidite(dateVente: string): string {
+  const [a, m, j] = dateVente.split("-").map(Number);
+  const fin = new Date(Date.UTC(a + 1, m - 1, j));
+  // 29 février → 28 février l'année suivante.
+  if (fin.getUTCMonth() !== m - 1) fin.setUTCDate(0);
+  return fin.toISOString().slice(0, 10);
+}
+
+/** Expirée : le jour de fin est passé (la carte reste valable le jour même). */
+export const estExpiree = (c: { expire?: string }, aujourdhui: string) => Boolean(c.expire && aujourdhui > c.expire);
 export const MONTANT_MAX_CARTE = 2_000_000;
 
 export type CarteCadeau = {
@@ -23,6 +35,8 @@ export type CarteCadeau = {
   montant: number;
   solde: number;
   statut: "active" | "annulee";
+  /** Dernier jour de validité (AAAA-MM-JJ). */
+  expire?: string;
   pour: string;
   dePart: string;
   message: string;
@@ -32,7 +46,7 @@ export type CarteCadeau = {
 };
 
 /** Message WhatsApp de la carte : à la personne qui l'a achetée (ou à choisir dans WhatsApp). */
-export function lienCarteWhatsApp(c: Pick<CarteCadeau, "code" | "montant" | "pour" | "dePart" | "message" | "telephone">): string {
+export function lienCarteWhatsApp(c: Pick<CarteCadeau, "code" | "montant" | "pour" | "dePart" | "message" | "telephone" | "expire">): string {
   const texte = [
     `🎁 *Carte cadeau ${INSTITUT.nom}*`,
     c.pour ? `Pour : ${c.pour}` : "",
@@ -41,6 +55,7 @@ export function lienCarteWhatsApp(c: Pick<CarteCadeau, "code" | "montant" | "pou
     "",
     `Montant : *${formatPrix(c.montant)}*`,
     `Code : *${c.code}*`,
+    c.expire ? `Valable jusqu'au ${dateLongue(c.expire)}` : "",
     "",
     `À utiliser à l'institut pour les soins, la coiffure ou la boutique : donnez simplement ce code à l'accueil.`,
     `${INSTITUT.adresse.rue}, ${INSTITUT.adresse.ville}`,
@@ -51,4 +66,8 @@ export function lienCarteWhatsApp(c: Pick<CarteCadeau, "code" | "montant" | "pou
   const tel = c.telephone ? telephoneCanonique(c.telephone) : "";
   const numero = tel.length === 9 ? `221${tel}` : tel;
   return `https://wa.me/${numero}?text=${encodeURIComponent(texte)}`;
+}
+
+export function dateLongue(date: string): string {
+  return new Date(`${date}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 }

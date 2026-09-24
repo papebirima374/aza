@@ -19,6 +19,8 @@ export type Famille = {
   nom: string;
   univers: UniversId;
   prestations: Prestation[];
+  /** Famille de la boutique seulement (Anna Zen Couture) : absente des pages prestations et de la réservation. */
+  boutique?: true;
 };
 
 export type Univers = {
@@ -67,7 +69,7 @@ export const UNIVERS: Univers[] = [
 // Chaque ligne : [nom, prix] ou [nom, prix, note].
 type Ligne = [string, number] | [string, number, string];
 
-const FAMILLES_BRUTES: { id: string; nom: string; univers: UniversId; lignes: Ligne[] }[] = [
+const FAMILLES_BRUTES: { id: string; nom: string; univers: UniversId; lignes: Ligne[]; boutique?: true }[] = [
   // ——— L'Épilation ———
   {
     id: "epilation-femme",
@@ -355,6 +357,17 @@ const FAMILLES_BRUTES: { id: string; nom: string; univers: UniversId; lignes: Li
       ["Soin du visage Peggy Sage", 45000],
     ],
   },
+
+  // ——— Boutique : Anna Zen Couture (sur commande) ———
+  // Prix PROVISOIRES donnés par Birima (fourchette 2 000 – 30 000 F, 1 000 F d'écart d'un
+  // modèle au suivant) : la direction les corrige dans l'écran Catalogue.
+  {
+    id: "couture",
+    nom: "Anna Zen Couture",
+    univers: "coiffure",
+    boutique: true,
+    lignes: Array.from({ length: 29 }, (_, i): Ligne => [`Modèle C-${String(i + 1).padStart(2, "0")}`, 2000 + i * 1000, "Produit"]),
+  },
 ];
 
 function slug(texte: string): string {
@@ -371,6 +384,7 @@ export const FAMILLES: Famille[] = FAMILLES_BRUTES.map((f) => ({
   id: f.id,
   nom: f.nom,
   univers: f.univers,
+  ...(f.boutique ? { boutique: true as const } : {}),
   prestations: f.lignes.map(([nom, prix, note]) => ({
     id: `${f.id}--${slug(nom)}`,
     nom,
@@ -387,7 +401,7 @@ export function universParId(id: string): Univers | undefined {
 }
 
 export function famillesDe(univers: UniversId): Famille[] {
-  return FAMILLES.filter((f) => f.univers === univers);
+  return FAMILLES.filter((f) => f.univers === univers && !f.boutique);
 }
 
 export function prestationParId(id: string) {
@@ -442,7 +456,7 @@ export function construireCatalogue(modifs: Record<string, ModifCatalogue> = {},
     familles,
     prestations,
     parId: (id) => index.get(id),
-    famillesDe: (u) => familles.filter((f) => f.univers === u && f.prestations.length > 0),
+    famillesDe: (u) => familles.filter((f) => f.univers === u && !f.boutique && f.prestations.length > 0),
   };
 }
 

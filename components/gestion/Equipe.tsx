@@ -211,7 +211,7 @@ function ChoixCompetences({ competences, setCompetences }: { competences: string
         <div key={u.id} className="mt-2">
           <p className="text-xs font-bold tracking-wide text-doux uppercase">{u.nom}</p>
           <div className="mt-1 flex flex-wrap gap-2">
-            {FAMILLES.filter((f) => f.univers === u.id).map((f) => (
+            {FAMILLES.filter((f) => f.univers === u.id && !f.boutique).map((f) => (
               <label
                 key={f.id}
                 className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm ${competences.includes(f.id) ? "border-profond bg-profond text-white" : "border-bordure"}`}

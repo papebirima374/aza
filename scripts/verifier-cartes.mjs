@@ -82,7 +82,25 @@ ok(
   (await caisse(accueil, { action: "encaisser", lignes: [{ id: VERNIS }], paiements: [{ mode: "carte-cadeau", montant: 1000 }, { mode: "especes", montant: 10000 }], carteCadeau: code })).statut === 409,
   "une carte annulée ne paie plus",
 );
+// Validité : 1 an à partir de la vente
+const v2 = await cartes(accueil, { montant: 10000, paiements: [{ mode: "wave", montant: 10000 }] });
+const c4 = (await cartes(accueil, undefined, `?code=${v2.corps.code}`)).corps;
+const auj = new Date().toISOString().slice(0, 10);
+ok(c4.expire === `${Number(auj.slice(0, 4)) + 1}${auj.slice(4)}` || (auj.endsWith("02-29") && c4.expire?.endsWith("02-28")), `valable 1 an : jusqu'au ${c4.expire}`);
+ok(
+  (await caisse(accueil, { action: "encaisser", lignes: [{ id: VERNIS }], paiements: [{ mode: "carte-cadeau", montant: 5000 }], carteCadeau: v2.corps.code })).statut === 201,
+  "carte valable : elle paie",
+);
+// On la fait expirer (hier) directement dans la base de test.
+await fetch(`${EMU}/cartesCadeaux/${v2.corps.code}?updateMask.fieldPaths=expire`, {
+  method: "PATCH",
+  headers: { ...OWNER, "Content-Type": "application/json" },
+  body: JSON.stringify({ fields: { expire: { stringValue: new Date(Date.now() - 86400000).toISOString().slice(0, 10) } } }),
+});
+const exp = await caisse(accueil, { action: "encaisser", lignes: [{ id: VERNIS }], paiements: [{ mode: "carte-cadeau", montant: 5000 }], carteCadeau: v2.corps.code });
+ok(exp.statut === 409 && exp.corps.erreur.includes("expiré"), "carte expirée : refusée");
 const liste = (await cartes(comptable)).corps;
+ok(liste.enCours === 0, "le reste à consommer ne compte ni les cartes annulées ni les expirées");
 ok(Array.isArray(liste.cartes) && liste.cartes.some((x) => x.code === code), "la liste des cartes contient la carte (lecture comptable)");
 
 console.log(echecs ? `\n${echecs} échec(s).` : "\nTout est bon.");

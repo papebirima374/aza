@@ -9,7 +9,7 @@ import { lienWhatsApp } from "@/lib/institut";
 
 // Panier et commande : retrait gratuit à l'institut ou livraison, sans compte à créer.
 
-type Article = { titre: string; variante: string; prix: number; disponible: number; photo: string | null; cle: string };
+type Article = { titre: string; variante: string; prix: number; disponible: number; image: string | null; lien: string; surCommande?: boolean };
 type Zone = { id: string; nom: string; prix: number };
 
 export function Panier({ ouverte, articles, zones }: { ouverte: boolean; articles: Record<string, Article>; zones: Zone[] }) {
@@ -79,17 +79,20 @@ export function Panier({ ouverte, articles, zones }: { ouverte: boolean; article
       <ul className="divide-y divide-bordure rounded-2xl border border-bordure">
         {lignes.map((l) => (
           <li key={l.article} className="flex items-center gap-3 p-3">
-            {l.a.photo ? (
-              <Image src={`/api/boutique/photo/${l.a.photo}`} alt="" width={64} height={64} unoptimized className="h-16 w-16 shrink-0 rounded-xl object-cover" />
+            {l.a.image ? (
+              <Image src={l.a.image} alt="" width={64} height={64} unoptimized className="h-16 w-16 shrink-0 rounded-xl object-cover object-top" />
             ) : (
               <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-creme text-2xl">🛍️</span>
             )}
             <div className="min-w-0 flex-1">
-              <Link href={`/boutique/${l.a.cle}`} className="block font-semibold">
+              <Link href={l.a.lien} className="block font-semibold">
                 {l.a.titre}
                 {l.a.variante ? ` — ${l.a.variante}` : ""}
               </Link>
-              <p className="prix text-sm text-doux">{formatPrix(l.a.prix)}</p>
+              <p className="prix text-sm text-doux">
+                {formatPrix(l.a.prix)}
+                {l.a.surCommande ? " · fait sur commande" : ""}
+              </p>
               {l.quantite > l.a.disponible && (
                 <p className="text-sm font-semibold text-aza-fonce">{l.a.disponible === 0 ? "Épuisé : retirez-le" : `Il n'en reste que ${l.a.disponible}`}</p>
               )}

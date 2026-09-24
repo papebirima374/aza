@@ -6,7 +6,7 @@ import { Collection } from "@/components/couture/Collection";
 import { RAYONS } from "@/lib/boutique";
 import { formatPrix } from "@/lib/catalogue";
 import { lienWhatsApp } from "@/lib/institut";
-import { etatBoutique } from "@/lib/serveur/boutique";
+import { etatBoutique, modelesCouture } from "@/lib/serveur/boutique";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 
 export const metadata: Metadata = {
@@ -33,10 +33,10 @@ async function etat() {
 }
 
 export default async function Boutique({ searchParams }: PageProps<"/boutique">) {
-  const e = await etat();
+  const [e, couture] = await Promise.all([etat(), modelesCouture()]);
   const rayon = String((await searchParams).rayon ?? "");
 
-  if (!e?.ouverte || e.produits.length === 0) {
+  if (!e?.ouverte) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-12">
         <h1 className="font-serif text-5xl font-semibold text-profond">La boutique</h1>
@@ -62,8 +62,17 @@ export default async function Boutique({ searchParams }: PageProps<"/boutique">)
         </a>
         <section id="couture" className="mt-12 scroll-mt-24">
           <h2 className="font-serif text-3xl font-semibold text-profond">Anna Zen Couture</h2>
-          <p className="mt-2 mb-6 max-w-2xl text-doux">Robes et tenues sur commande : demandez le modèle sur WhatsApp, nous vous donnons le prix, les tailles et le délai.</p>
-          <Collection limite={8} />
+          <p className="mt-2 mb-6 max-w-2xl text-doux">Robes et tenues faites sur commande à votre taille : choisissez votre modèle et commandez.</p>
+          <Collection modeles={couture} limite={8} />
+        </section>
+        <section className="mt-12 rounded-2xl border-2 border-or/50 bg-creme p-6">
+          <h2 className="font-serif text-3xl font-semibold text-profond">Perruques sur mesure</h2>
+          <p className="mt-2 max-w-2xl text-doux">
+            Perruque complète, closure ou frontale, confectionnée pour vous. Décrivez votre envie : prix et délai sur WhatsApp, devis gratuit.
+          </p>
+          <Link href="/boutique/perruques-sur-mesure" className="mt-4 inline-block rounded-full bg-aza px-6 py-3 font-bold text-white hover:bg-aza-fonce">
+            Demander un devis
+          </Link>
         </section>
         <section className="mt-12 rounded-2xl bg-bordeaux p-6 text-white">
           <h2 className="font-serif text-3xl font-semibold">🎁 Cartes cadeaux</h2>
@@ -102,6 +111,12 @@ export default async function Boutique({ searchParams }: PageProps<"/boutique">)
             {r.nom}
           </Link>
         ))}
+        <Link href="/boutique/couture" className="rounded-full bg-creme px-4 py-2 text-sm font-semibold text-profond">
+          Anna Zen Couture
+        </Link>
+        <Link href="/boutique/perruques-sur-mesure" className="rounded-full bg-creme px-4 py-2 text-sm font-semibold text-profond">
+          Perruques sur mesure
+        </Link>
       </nav>
       <ul className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
         {produits.map((p) => (
@@ -134,8 +149,17 @@ export default async function Boutique({ searchParams }: PageProps<"/boutique">)
       </ul>
       <section id="couture" className="mt-12 scroll-mt-24">
         <h2 className="font-serif text-3xl font-semibold text-profond">Anna Zen Couture</h2>
-        <p className="mt-2 mb-6 max-w-2xl text-doux">Robes et tenues sur commande : demandez le modèle sur WhatsApp, nous vous donnons le prix, les tailles et le délai.</p>
-        <Collection limite={8} />
+        <p className="mt-2 mb-6 max-w-2xl text-doux">Robes et tenues faites sur commande à votre taille : choisissez votre modèle et commandez.</p>
+        <Collection modeles={couture} limite={8} />
+      </section>
+      <section className="mt-12 rounded-2xl border-2 border-or/50 bg-creme p-6">
+        <h2 className="font-serif text-3xl font-semibold text-profond">Perruques sur mesure</h2>
+        <p className="mt-2 max-w-2xl text-doux">
+          Perruque complète, closure ou frontale, confectionnée pour vous. Décrivez votre envie : prix et délai sur WhatsApp, devis gratuit.
+        </p>
+        <Link href="/boutique/perruques-sur-mesure" className="mt-4 inline-block rounded-full bg-aza px-6 py-3 font-bold text-white hover:bg-aza-fonce">
+          Demander un devis
+        </Link>
       </section>
       <section className="mt-12 rounded-2xl bg-bordeaux p-6 text-white">
         <h2 className="font-serif text-3xl font-semibold">🎁 Cartes cadeaux</h2>

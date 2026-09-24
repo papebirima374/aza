@@ -322,6 +322,7 @@ function Editeur(props: {
       const j = await r.json();
       if (!r.ok) return setErreurCarte(j.erreur ?? "Carte introuvable.");
       if (j.statut !== "active") return setErreurCarte("Cette carte a été annulée.");
+      if (j.expire && new Date().toISOString().slice(0, 10) > j.expire) return setErreurCarte(`Cette carte a expiré (fin de validité : ${j.expire.split("-").reverse().join("/")}).`);
       if (j.solde <= 0) return setErreurCarte("Cette carte est entièrement utilisée (solde 0 F).");
       const utilise = Math.min(j.solde, total);
       setCarte({ code: j.code, solde: j.solde, pour: j.pour });

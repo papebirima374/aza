@@ -1,6 +1,7 @@
 import { membreConnecte } from "@/lib/serveur/agenda";
 import { changerCommande, compterNouvelles, listerCommandes } from "@/lib/serveur/boutique";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
+import { compterNouveauxDevis } from "@/lib/serveur/perruques";
 import { reponseErreur } from "@/lib/serveur/reponses";
 
 // GET  /api/gestion/commandes              les 200 dernières commandes
@@ -12,7 +13,11 @@ export async function GET(request: Request) {
   if (!firebaseConfigure()) return Response.json({ erreur: "Gestion indisponible." }, { status: 503 });
   try {
     const membre = await membreConnecte(request);
-    if (new URL(request.url).searchParams.get("nouvelles")) return Response.json({ nouvelles: await compterNouvelles(membre) }, sansCache);
+    if (new URL(request.url).searchParams.get("nouvelles")) {
+      // La pastille compte aussi les demandes de perruques sur mesure à traiter.
+      const [c, d] = await Promise.all([compterNouvelles(membre), compterNouveauxDevis(membre)]);
+      return Response.json({ nouvelles: c + d }, sansCache);
+    }
     return Response.json(await listerCommandes(membre), sansCache);
   } catch (e) {
     return reponseErreur(e);

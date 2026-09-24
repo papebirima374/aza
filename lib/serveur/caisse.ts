@@ -9,7 +9,7 @@
 // avec motif et auteur. Les sommes sont en francs CFA entiers.
 
 import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
-import { normaliserCode } from "@/lib/caisse/cartes";
+import { dateLongue, estExpiree, normaliserCode } from "@/lib/caisse/cartes";
 import { ROLES_JOURNAL, ROLES_CAISSE, ROLES_REMISE, MODES, recetteDuTicket, reference, type Mode } from "@/lib/caisse/modes";
 import type { Catalogue } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
@@ -181,6 +181,8 @@ export async function encaisser(membre: Membre, e: Encaissement) {
     if (carte) {
       if (!carte.exists) throw new Erreur("Carte cadeau inconnue : vérifiez le code.", 404);
       if (carte.get("statut") !== "active") throw new Erreur("Cette carte cadeau a été annulée.", 409);
+      const expire = carte.get("expire") as string | undefined;
+      if (estExpiree({ expire }, date)) throw new Erreur(`Cette carte cadeau a expiré le ${dateLongue(expire!)}.`, 409);
       const solde = carte.get("solde") as number;
       if (parCarte > solde) throw new Erreur(`Il ne reste que ${new Intl.NumberFormat("fr-FR").format(solde)} F sur cette carte.`, 400);
     }
