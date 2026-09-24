@@ -80,10 +80,80 @@ export async function demarrer(jeton: string) {
 
 export async function listerEquipe(membre: Membre) {
   if (membre.role !== "direction" && membre.role !== "manager") throw new ErreurReservation("Accès réservé à la direction.", 403);
-  const snap = await db().collection("comptes").get();
-  return snap.docs
-    .map((d) => ({ uid: d.id, nom: d.get("nom"), email: d.get("email") ?? "", role: d.get("role"), praticienne: d.get("praticienne") ?? null }))
-    .sort((a, b) => ROLES.indexOf(a.role) - ROLES.indexOf(b.role) || a.nom.localeCompare(b.nom));
+  const base = db();
+  const [comptes, fiches] = await Promise.all([base.collection("comptes").get(), base.collection("praticiennes").get()]);
+  const competences = new Map(fiches.docs.map((d) => [d.id, (d.get("competences") as string[] | undefined) ?? []]));
+  return comptes.docs
+    .map((d) => ({
+      uid: d.id,
+      nom: d.get("nom"),
+      email: d.get("email") ?? "",
+      role: d.get("role"),
+      praticienne: d.get("praticienne") ?? null,
+      competences: competences.get(d.get("praticienne")) ?? [],
+      actif: d.get("actif") !== false,
+    }))
+    .sort((a, b) => Number(b.actif) - Number(a.actif) || ROLES.indexOf(a.role) - ROLES.indexOf(b.role) || a.nom.localeCompare(b.nom));
+}
+
+export type Modification = { nom?: string; role?: Role; competences?: string[]; actif?: boolean; lien?: boolean };
+
+/**
+ * Modifie le compte d'une personne (direction seulement) : nom, rôle, compétences,
+ * accès coupé ou rendu, nouveau lien de mot de passe. On ne supprime jamais un compte :
+ * son nom reste dans l'historique des rendez-vous.
+ */
+export async function modifierMembre(membre: Membre, uid: string, m: Modification) {
+  if (membre.role !== "direction") throw new ErreurReservation("Seule la direction modifie les comptes.", 403);
+  const base = db();
+  const ref = base.doc(`comptes/${uid}`);
+  const doc = await ref.get();
+  if (!doc.exists) throw new ErreurReservation("Compte introuvable.", 404);
+  const soiMeme = uid === membre.uid;
+  const roleActuel = doc.get("role") as Role;
+  const role = m.role ?? roleActuel;
+  if (!ROLES.includes(role)) throw new ErreurReservation("Rôle inconnu.", 400);
+  if (soiMeme && (role !== roleActuel || m.actif === false)) {
+    throw new ErreurReservation("Vous ne pouvez pas changer votre propre rôle ni couper votre propre accès.", 400);
+  }
+
+  const maj: Record<string, unknown> = { modifiePar: membre.uid, modifieLe: FieldValue.serverTimestamp() };
+  let nom = doc.get("nom") as string;
+  if (m.nom !== undefined) {
+    nom = m.nom.trim().slice(0, 60);
+    if (nom.length < 2) throw new ErreurReservation("Indiquez le nom.", 400);
+    maj.nom = nom;
+  }
+  maj.role = role;
+  const actif = m.actif ?? doc.get("actif") !== false;
+  maj.actif = actif;
+
+  // Fiche d'agenda : une intervenante en a une ; les autres rôles n'apparaissent pas dans l'agenda.
+  const intervenante = role === "praticienne" || role === "prestataire";
+  const familles = new Set(FAMILLES.map((f) => f.id));
+  let ficheId = doc.get("praticienne") as string | undefined;
+  const fiche: Record<string, unknown> = { nom, actif: intervenante && actif, externe: role === "prestataire" };
+  if (m.competences !== undefined) fiche.competences = m.competences.filter((c) => familles.has(c));
+  if (intervenante) {
+    const competences = (fiche.competences as string[] | undefined) ??
+      (ficheId ? (((await base.doc(`praticiennes/${ficheId}`).get()).get("competences") as string[] | undefined) ?? []) : []);
+    if (competences.length === 0) throw new ErreurReservation("Cochez au moins une compétence.", 400);
+    fiche.competences = competences;
+    if (!ficheId) {
+      ficheId = base.collection("praticiennes").doc().id;
+      maj.praticienne = ficheId;
+    }
+  }
+  if (ficheId) await base.doc(`praticiennes/${ficheId}`).set(fiche, { merge: true });
+  await ref.set(maj, { merge: true });
+
+  const a = auth();
+  await a.updateUser(uid, { displayName: nom, disabled: !actif });
+  if (!actif) await a.revokeRefreshTokens(uid);
+  const email = (doc.get("email") as string | undefined) || (await a.getUser(uid)).email;
+  if (m.lien && !email) throw new ErreurReservation("Ce compte n'a pas d'email.", 400);
+  const lien = m.lien && actif && email ? await a.generatePasswordResetLink(email) : undefined;
+  return { ok: true, ...(lien ? { lien } : {}) };
 }
 
 export type NouveauMembre = { nom: string; email: string; role: Role; competences?: string[] };

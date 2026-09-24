@@ -77,6 +77,11 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
         return;
       }
       const d = snap.data();
+      if (d.actif === false) {
+        setRaison("Ce compte a été désactivé par la direction.");
+        setEtat("refuse");
+        return;
+      }
       setCompte({ uid: user.uid, nom: d.nom, role: d.role, praticienne: d.praticienne, user });
       setEtat("connecte");
     });

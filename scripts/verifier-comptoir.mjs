@@ -98,13 +98,14 @@ const maintenant = new Date();
 const minutes = maintenant.getUTCHours() * 60 + maintenant.getUTCMinutes();
 const aujourdhui = maintenant.toISOString().slice(0, 10);
 const jour = maintenant.getUTCDay();
+const ouvre = jour === 0 ? 10 * 60 : 9 * 60;
 const ferme = jour === 0 ? 18 * 60 : 19 * 60;
-if (minutes + 60 < ferme - 45) {
+if (minutes >= ouvre && minutes + 60 < ferme - 45) {
   const t = await comptoir(accueil, { action: "creneaux", date: aujourdhui, lignes: [{ id: "epilation-femme--sourcils-forme", duree: 15 }] });
   const premier = t.corps.creneaux?.[0]?.debut;
   ok(premier !== undefined && premier < minutes + 60, `le jour même, première heure libre ${Math.floor(premier / 60)}h${premier % 60} (moins de 2 h après maintenant)`);
 } else {
-  console.log("—     (institut bientôt fermé : contrôle « le jour même » sauté)");
+  console.log("—     (institut fermé à cette heure : contrôle « le jour même » sauté)");
 }
 
 console.log(echecs === 0 ? "\nTout est bon." : `\n${echecs} contrôle(s) en échec.`);

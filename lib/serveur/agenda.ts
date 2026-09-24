@@ -18,7 +18,7 @@ export async function membreConnecte(request: Request): Promise<Membre> {
     throw new ErreurReservation("Session expirée. Reconnectez-vous.", 401);
   }
   const compte = await db().doc(`comptes/${uid}`).get();
-  if (!compte.exists) throw new ErreurReservation("Ce compte n'a pas d'accès à la gestion.", 403);
+  if (!compte.exists || compte.get("actif") === false) throw new ErreurReservation("Ce compte n'a pas d'accès à la gestion.", 403);
   return { uid, nom: compte.get("nom"), role: compte.get("role"), praticienne: compte.get("praticienne") };
 }
 

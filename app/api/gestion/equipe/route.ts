@@ -1,11 +1,12 @@
 import type { Role } from "@/lib/agenda/statuts";
 import { membreConnecte } from "@/lib/serveur/agenda";
-import { creerMembre, listerEquipe } from "@/lib/serveur/equipe";
+import { creerMembre, listerEquipe, modifierMembre } from "@/lib/serveur/equipe";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
 
 // GET  /api/gestion/equipe — liste (direction, manager)
 // POST /api/gestion/equipe { nom, email, role, competences? } — création (direction)
+// PATCH /api/gestion/equipe { uid, nom?, role?, competences?, actif?, lien? } — modification (direction)
 export async function GET(request: Request) {
   if (!firebaseConfigure()) return Response.json({ erreur: "Gestion indisponible." }, { status: 503 });
   try {
@@ -27,6 +28,25 @@ export async function POST(request: Request) {
       competences: Array.isArray(c.competences) ? c.competences.map(String) : [],
     });
     return Response.json(res, { status: 201 });
+  } catch (e) {
+    return reponseErreur(e);
+  }
+}
+
+export async function PATCH(request: Request) {
+  if (!firebaseConfigure()) return Response.json({ erreur: "Gestion indisponible." }, { status: 503 });
+  try {
+    const membre = await membreConnecte(request);
+    const c = await request.json().catch(() => ({}));
+    return Response.json(
+      await modifierMembre(membre, String(c.uid ?? "-"), {
+        nom: c.nom === undefined ? undefined : String(c.nom),
+        role: c.role === undefined ? undefined : (String(c.role) as Role),
+        competences: Array.isArray(c.competences) ? c.competences.map(String) : undefined,
+        actif: typeof c.actif === "boolean" ? c.actif : undefined,
+        lien: c.lien === true,
+      }),
+    );
   } catch (e) {
     return reponseErreur(e);
   }
