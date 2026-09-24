@@ -112,34 +112,33 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
 
   return (
     <ContexteCompte.Provider value={compte}>
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-bordure bg-bordeaux px-4 text-or-clair">
-        <div className="flex items-center gap-4">
-          <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} className="h-8 w-auto" />
-          <nav className="flex gap-1 text-sm font-semibold" aria-label="Gestion">
-            {[
-              { href: "/gestion", libelle: "Agenda", visible: true },
-              { href: "/gestion/equipe", libelle: "Équipe", visible: compte?.role === "direction" || compte?.role === "manager" },
-              { href: "/gestion/reglages", libelle: "Réglages", visible: compte?.role === "direction" || compte?.role === "manager" },
-            ]
-              .filter((l) => l.visible)
-              .map((l) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  className={`rounded-full px-3 py-1.5 ${chemin === l.href ? "bg-white/15 text-white" : "hover:text-white"}`}
-                >
-                  {l.libelle}
-                </Link>
-              ))}
-          </nav>
-        </div>
-        <div className="flex items-center gap-3 text-sm">
-          <span className="hidden sm:inline">
+      {/* Téléphone : logo + Déconnexion en haut, onglets sur une 2e ligne. Écran large : une ligne. */}
+      <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-bordure bg-bordeaux px-4 py-2 text-or-clair sm:h-14 sm:flex-nowrap sm:py-0">
+        <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} className="h-8 w-auto" />
+        <nav className="order-last -mx-1 flex w-full gap-1 overflow-x-auto text-sm font-semibold sm:order-none sm:mx-0 sm:w-auto" aria-label="Gestion">
+          {[
+            { href: "/gestion", libelle: "Agenda", visible: true },
+            { href: "/gestion/equipe", libelle: "Équipe", visible: compte?.role === "direction" || compte?.role === "manager" },
+            { href: "/gestion/reglages", libelle: "Réglages", visible: compte?.role === "direction" || compte?.role === "manager" },
+          ]
+            .filter((l) => l.visible)
+            .map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 ${chemin === l.href ? "bg-white/15 text-white" : "hover:text-white"}`}
+              >
+                {l.libelle}
+              </Link>
+            ))}
+        </nav>
+        <div className="ml-auto flex items-center gap-3 text-sm">
+          <span className="hidden md:inline">
             {compte?.nom} · <span className="text-or">{compte && LIBELLE_ROLE[compte.role]}</span>
           </span>
           <button
             onClick={() => signOut(firebaseClient().auth)}
-            className="rounded-full border border-or-clair/40 px-4 py-1.5 font-semibold hover:bg-white/10"
+            className="whitespace-nowrap rounded-full border border-or-clair/40 px-4 py-1.5 font-semibold hover:bg-white/10"
           >
             Déconnexion
           </button>

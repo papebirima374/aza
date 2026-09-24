@@ -118,7 +118,7 @@ export function Reglages() {
         ))}
       </nav>
 
-      <div className="sticky top-14 z-20 mt-3 min-h-0">
+      <div className="sticky top-[5.75rem] z-20 sm:top-14 mt-3 min-h-0">
         {erreur && <p className="rounded-xl bg-aza/10 p-3 text-sm font-semibold text-profond" role="alert">{erreur}</p>}
         {info && !erreur && <p className="rounded-xl bg-[#e7f5ec] p-3 text-sm font-semibold text-[#0d6b37]" role="status">{info}</p>}
       </div>
