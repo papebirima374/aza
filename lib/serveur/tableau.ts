@@ -3,6 +3,7 @@
 // Direction et manager seulement.
 
 import type { Statut } from "@/lib/agenda/statuts";
+import { recetteDuTicket } from "@/lib/caisse/modes";
 import type { Horaires } from "@/lib/reservation/disponibilites";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
@@ -24,7 +25,7 @@ type TicketLu = { type: string; total: number; paiements: { mode: string; montan
 
 function recette(tickets: TicketLu[]) {
   const ventes = tickets.filter((t) => t.type === "vente");
-  const total = tickets.reduce((s, t) => s + t.total, 0);
+  const total = tickets.reduce((s, t) => s + recetteDuTicket(t), 0);
   const parMode: Record<string, number> = {};
   let prestations = 0;
   let produits = 0;

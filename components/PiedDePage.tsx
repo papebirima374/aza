@@ -57,6 +57,11 @@ export function PiedDePage() {
               </li>
             ))}
             <li>
+              <Link href="/boutique/couture" className="hover:text-white">
+                Anna Zen Couture
+              </Link>
+            </li>
+            <li>
               <Link href="/mentions-legales" className="hover:text-white">
                 Mentions légales
               </Link>

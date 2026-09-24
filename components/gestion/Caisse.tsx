@@ -8,6 +8,7 @@ import { useCompte } from "@/components/gestion/EspaceGestion";
 import { useCatalogue } from "@/lib/client/catalogue";
 import { useAEncaisser, useFileCaisse } from "@/components/gestion/SuiviCaisse";
 import { erreurReseau, nouvelIdLocal } from "@/lib/client/file-caisse";
+import { normaliserCode } from "@/lib/caisse/cartes";
 import { LIBELLE_MODE, MODES, ROLES_CAISSE, ROLES_REMISE, type Mode } from "@/lib/caisse/modes";
 import { dateTexte, heureTexte, lienRecuWhatsApp, type Ticket } from "@/lib/caisse/recu";
 import { formatPrix } from "@/lib/catalogue";
@@ -35,13 +36,14 @@ type Ligne = { id: string; quantite: number };
 type Brouillon = { rendezVous?: string; cliente?: { nom: string; telephone: string }; lignes: Ligne[] };
 
 // Pour une équipe qui lit peu : chaque moyen de paiement a son image et sa couleur.
-const ICONE: Record<Mode, string> = { especes: "💵", wave: "🌊", "orange-money": "🟠", carte: "💳", virement: "🏦", credit: "📝" };
+const ICONE: Record<Mode, string> = { especes: "💵", wave: "🌊", "orange-money": "🟠", carte: "💳", virement: "🏦", "carte-cadeau": "🎁", credit: "📝" };
 const TUILE: Record<Mode, string> = {
   especes: "border-[#0d6b37]/40 bg-[#e7f5ec] text-[#0d6b37]",
   wave: "border-[#1DC8FF]/60 bg-[#e5f8ff] text-[#0b6f93]",
   "orange-money": "border-[#FF7900]/60 bg-[#fff1e5] text-[#a34d00]",
   carte: "border-bordure bg-white text-profond",
   virement: "border-bordure bg-white text-profond",
+  "carte-cadeau": "border-aza/50 bg-aza/10 text-profond",
   credit: "border-bordure bg-white text-profond",
 };
 
@@ -129,6 +131,9 @@ export function Caisse() {
           <h1 className="font-serif text-4xl font-semibold text-profond">Caisse</h1>
           <p className="text-doux">{dateTexte(date)}</p>
         </div>
+        <Link href="/gestion/cartes" className="flex min-h-12 items-center rounded-full border border-bordure px-5 font-semibold text-profond hover:border-profond">
+          🎁 Cartes cadeaux
+        </Link>
         <label className="text-sm font-semibold text-doux">
           Journal du
           <input type="date" value={date} max={aujourdhui()} onChange={(e) => e.target.value && setDate(e.target.value)} className="ml-2 rounded-full border border-bordure px-3 py-2" />
@@ -213,7 +218,9 @@ export function Caisse() {
                   setFait(res);
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 } catch (e) {
-                  if (erreurReseau(e)) {
+                  if (erreurReseau(e) && corps.carteCadeau) {
+                    setErreur("Pas de connexion : une carte cadeau ne peut être vérifiée que connectée. Faites payer autrement, ou réessayez.");
+                  } else if (erreurReseau(e)) {
                     file.mettreEnAttente({ idLocal, faitLe, corps, ...info });
                     setBrouillon(null);
                     setFait({ id: "", reference: "", rendu: rendu(corps, info.total), horsLigne: true });
@@ -276,6 +283,12 @@ function Editeur(props: {
   const [montants, setMontants] = useState<Partial<Record<Mode, string>>>({});
   const [partage, setPartage] = useState(false);
   const [envoi, setEnvoi] = useState(false);
+  // Carte cadeau : le code est vérifié (solde) avant de payer avec.
+  const compte = useCompte();
+  const [panneauCarte, setPanneauCarte] = useState(false);
+  const [code, setCode] = useState("");
+  const [carte, setCarte] = useState<{ code: string; solde: number; pour: string } | null>(null);
+  const [erreurCarte, setErreurCarte] = useState("");
 
   const resultats = useMemo(
     () => (recherche.trim().length < 2 ? [] : cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, recherche)).slice(0, 8)),
@@ -296,7 +309,29 @@ function Editeur(props: {
     lignes.length > 0 && reste <= 0 && !renduImpossible && (remiseN === 0 || motif.trim().length >= 3) && (credit === 0 || clienteConnue) && !envoi;
 
   const changer = (lignesNouvelles: Ligne[]) => props.setBrouillon({ ...b, lignes: lignesNouvelles });
-  const toutEn = (mode: Mode) => setMontants({ [mode]: String(total) });
+  const parCarte = carte ? nombre(montants["carte-cadeau"] ?? "") : 0;
+  const avecCarte = (m: Partial<Record<Mode, string>>) => (parCarte > 0 ? { ...m, "carte-cadeau": String(parCarte) } : m);
+  const toutEn = (mode: Mode) => setMontants(avecCarte({ [mode]: String(Math.max(0, total - parCarte)) }));
+
+  async function verifierCarte() {
+    setErreurCarte("");
+    const c = normaliserCode(code);
+    if (!c) return setErreurCarte("Code invalide : 8 lettres et chiffres, par exemple AZA-K7M2-Q9TX.");
+    try {
+      const r = await fetch(`/api/gestion/cartes?code=${encodeURIComponent(c)}`, { headers: { Authorization: `Bearer ${await compte.user.getIdToken()}` } });
+      const j = await r.json();
+      if (!r.ok) return setErreurCarte(j.erreur ?? "Carte introuvable.");
+      if (j.statut !== "active") return setErreurCarte("Cette carte a été annulée.");
+      if (j.solde <= 0) return setErreurCarte("Cette carte est entièrement utilisée (solde 0 F).");
+      const utilise = Math.min(j.solde, total);
+      setCarte({ code: j.code, solde: j.solde, pour: j.pour });
+      setMontants({ "carte-cadeau": String(utilise) });
+      setPanneauCarte(false);
+    } catch {
+      setErreurCarte("Pas de connexion : impossible de vérifier la carte.");
+    }
+  }
+
 
   return (
     <section className="mt-6 rounded-2xl border-2 border-profond p-4 sm:p-5">
@@ -419,8 +454,8 @@ function Editeur(props: {
         {MODES.filter((m) => m.id !== "credit").map((m) => (
           <button
             key={m.id}
-            onClick={() => toutEn(m.id)}
-            disabled={total === 0}
+            onClick={() => (m.id === "carte-cadeau" ? setPanneauCarte(true) : toutEn(m.id))}
+            disabled={total === 0 || (m.id === "carte-cadeau" && Boolean(carte))}
             className={`flex min-h-20 flex-col items-center justify-center rounded-2xl border-2 px-2 font-bold disabled:opacity-40 ${TUILE[m.id]} ${
               nombre(montants[m.id] ?? "") >= total && total > 0 ? "ring-4 ring-profond/40" : ""
             }`}
@@ -432,9 +467,52 @@ function Editeur(props: {
           </button>
         ))}
       </div>
+      {panneauCarte && !carte && (
+        <div className="mt-3 rounded-2xl border-2 border-aza/40 bg-aza/5 p-4">
+          <label className="block text-sm font-semibold">
+            🎁 Code de la carte cadeau
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="AZA-XXXX-XXXX"
+              autoCapitalize="characters"
+              className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 text-lg font-normal tracking-widest"
+            />
+          </label>
+          {erreurCarte && <p className="mt-2 text-sm font-semibold text-aza-fonce">{erreurCarte}</p>}
+          <div className="mt-3 flex gap-2">
+            <button onClick={verifierCarte} className={`${bouton} bg-profond text-white`}>
+              Vérifier la carte
+            </button>
+            <button onClick={() => setPanneauCarte(false)} className={`${bouton} border border-bordure text-profond`}>
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+      {carte && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-aza/10 p-4">
+          <p className="text-sm">
+            🎁 <strong>Carte {carte.code}</strong>
+            {carte.pour ? ` (pour ${carte.pour})` : ""} : {formatPrix(parCarte)} payés avec la carte, il restera{" "}
+            <strong className="prix">{formatPrix(carte.solde - parCarte)}</strong> dessus.
+          </p>
+          <button
+            onClick={() => {
+              setCarte(null);
+              setCode("");
+              setMontants({});
+            }}
+            className="text-sm font-semibold text-doux underline"
+          >
+            Retirer la carte
+          </button>
+        </div>
+      )}
+      {carte && total - parCarte > 0 && <p className="mt-2 text-sm font-semibold text-profond">La carte ne couvre pas tout : touchez le moyen de paiement du reste.</p>}
       {partage ? (
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          {MODES.map((m) => (
+          {MODES.filter((m) => m.id !== "carte-cadeau").map((m) => (
             <label key={m.id} className="text-sm font-semibold">
               <span aria-hidden>{ICONE[m.id]} </span>
               {m.id === "especes" ? "Espèces reçues" : m.libelle}
@@ -456,7 +534,7 @@ function Editeur(props: {
               <input
                 inputMode="numeric"
                 value={montants.especes}
-                onChange={(e) => setMontants({ especes: e.target.value })}
+                onChange={(e) => setMontants(avecCarte({ especes: e.target.value }))}
                 className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 text-right text-lg font-normal"
               />
             </label>
@@ -488,6 +566,7 @@ function Editeur(props: {
             lignes: b.lignes,
             paiements: MODES.map((m) => ({ mode: m.id, montant: nombre(montants[m.id] ?? "") })).filter((p) => p.montant > 0),
             ...(remiseN > 0 ? { remise: { montant: remiseN, motif } } : {}),
+            ...(carte && parCarte > 0 ? { carteCadeau: carte.code } : {}),
             ...(!b.rendezVous && telephone.trim() ? { cliente: { nom: nom.trim() || "Cliente", telephone } } : {}),
           }, {
             total,
@@ -600,7 +679,10 @@ function Bilan({ journal, attente, cloturer }: { journal: Journal; attente: numb
         {MODES.map((m) =>
           t.parMode[m.id] ? (
             <div key={m.id} className="flex justify-between">
-              <dt>{m.libelle}</dt>
+              <dt>
+                {m.libelle}
+                {m.id === "carte-cadeau" && <span className="text-doux"> (déjà encaissé à la vente de la carte)</span>}
+              </dt>
               <dd className="prix">{formatPrix(t.parMode[m.id])}</dd>
             </div>
           ) : null,

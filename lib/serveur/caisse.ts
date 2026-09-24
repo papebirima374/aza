@@ -9,7 +9,8 @@
 // avec motif et auteur. Les sommes sont en francs CFA entiers.
 
 import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
-import { ROLES_JOURNAL, ROLES_CAISSE, ROLES_REMISE, MODES, reference, type Mode } from "@/lib/caisse/modes";
+import { normaliserCode } from "@/lib/caisse/cartes";
+import { ROLES_JOURNAL, ROLES_CAISSE, ROLES_REMISE, MODES, recetteDuTicket, reference, type Mode } from "@/lib/caisse/modes";
 import type { Catalogue } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import { appliquerSorties, preparerRetour, preparerSorties } from "@/lib/serveur/stock";
@@ -20,21 +21,21 @@ import { telephoneCanonique, telephoneValide } from "@/lib/telephone";
 
 const Erreur = ErreurReservation;
 
-export type LigneTicket = { id: string; nom: string; type: "prestation" | "produit" | "livraison"; prixUnitaire: number; quantite: number; montant: number };
+export type LigneTicket = { id: string; nom: string; type: "prestation" | "produit" | "livraison" | "carte-cadeau"; prixUnitaire: number; quantite: number; montant: number };
 export type Paiement = { mode: Mode; montant: number };
 
-function exiger(membre: Membre, roles: string[], message = "Réservé à l'accueil et à la direction.") {
+export function exiger(membre: Membre, roles: string[], message = "Réservé à l'accueil et à la direction.") {
   if (!roles.includes(membre.role)) throw new Erreur(message, 403);
 }
 
 const entier = (v: unknown) => Math.round(Number(v));
 
-function trace(membre: Membre) {
+export function trace(membre: Membre) {
   return { uid: membre.uid, nom: membre.nom };
 }
 
 /** La caisse d'aujourd'hui doit être ouverte (et pas encore clôturée) pour encaisser. */
-async function caisseOuverte(tx: Transaction, date: string, horsLigne = false) {
+export async function caisseOuverte(tx: Transaction, date: string, horsLigne = false) {
   const caisse = await tx.get(db().doc(`caisses/${date}`));
   if (!caisse.exists) throw new Erreur("Ouvrez d'abord la caisse du jour (fond de caisse).", 409);
   // Une vente faite hors connexion avant la clôture est toujours acceptée : aucune vente perdue.
@@ -82,9 +83,9 @@ function lignesValides(brutes: unknown, catalogue: Catalogue): LigneTicket[] {
   });
 }
 
-function paiementsValides(bruts: unknown): Paiement[] {
+export function paiementsValides(bruts: unknown, carteCadeauPermise = false): Paiement[] {
   if (!Array.isArray(bruts)) throw new Erreur("Indiquez le paiement.", 400);
-  const modes = new Set<string>(MODES.map((m) => m.id));
+  const modes = new Set<string>(MODES.map((m) => m.id).filter((m) => carteCadeauPermise || m !== "carte-cadeau"));
   const res: Paiement[] = [];
   for (const p of bruts) {
     const mode = String(p?.mode ?? "");
@@ -106,6 +107,8 @@ export type Encaissement = {
   remise?: { montant?: unknown; motif?: unknown };
   rendezVous?: string;
   cliente?: { nom?: string; telephone?: string };
+  /** Code de la carte cadeau, quand une partie est payée avec. */
+  carteCadeau?: string;
   /** Identifiant fabriqué par l'appareil : renvoyer deux fois la même vente ne crée qu'un ticket. */
   idLocal?: string;
   /** Moment réel de la vente (millisecondes), pour une vente envoyée après une coupure. */
@@ -130,9 +133,12 @@ export async function encaisser(membre: Membre, e: Encaissement) {
   }
   const total = sousTotal - remiseMontant;
 
-  const paiements = paiementsValides(e.paiements);
+  const paiements = paiementsValides(e.paiements, true);
   const recu = paiements.reduce((s, p) => s + p.montant, 0);
   const especes = paiements.find((p) => p.mode === "especes")?.montant ?? 0;
+  const parCarte = paiements.find((p) => p.mode === "carte-cadeau")?.montant ?? 0;
+  const code = parCarte > 0 ? normaliserCode(String(e.carteCadeau ?? "")) : null;
+  if (parCarte > 0 && !code) throw new Erreur("Code de carte cadeau invalide.", 400);
   // Seules les espèces rendent la monnaie : la cliente donne 10 000 F pour 7 000 F.
   const rendu = recu - total;
   if (rendu < 0) throw new Erreur(`Il manque ${new Intl.NumberFormat("fr-FR").format(-rendu)} F dans le paiement.`, 400);
@@ -171,6 +177,13 @@ export async function encaisser(membre: Membre, e: Encaissement) {
     if (credit > 0 && !cliente) throw new Erreur("Une vente à crédit demande le nom et le téléphone de la cliente.", 400);
     const clienteRef = cliente ? base.doc(`clientes/${cliente.id}`) : null;
     const fiche = clienteRef ? await tx.get(clienteRef) : null;
+    const carte = code ? await tx.get(base.doc(`cartesCadeaux/${code}`)) : null;
+    if (carte) {
+      if (!carte.exists) throw new Erreur("Carte cadeau inconnue : vérifiez le code.", 404);
+      if (carte.get("statut") !== "active") throw new Erreur("Cette carte cadeau a été annulée.", 409);
+      const solde = carte.get("solde") as number;
+      if (parCarte > solde) throw new Erreur(`Il ne reste que ${new Intl.NumberFormat("fr-FR").format(solde)} F sur cette carte.`, 400);
+    }
 
     const numero = ((compteur.get("dernier") as number | undefined) ?? 0) + 1;
     // Stock : ce qui sort (produits vendus, produits consommés par les soins) — lectures d'abord.
@@ -190,6 +203,7 @@ export async function encaisser(membre: Membre, e: Encaissement) {
       credit,
       cliente,
       rendezVous: rdvRef?.id ?? null,
+      ...(code ? { carteCadeau: code } : {}),
       par: trace(membre),
       creeLe: FieldValue.serverTimestamp(),
       ...(horsLigne ? { horsLigne: true } : {}),
@@ -198,6 +212,12 @@ export async function encaisser(membre: Membre, e: Encaissement) {
     tx.set(compteurRef, { dernier: numero }, { merge: true });
     tx.set(ticketRef, ticket);
     if (apresCloture) tx.update(caisse.ref, { ticketsApresCloture: FieldValue.arrayUnion(reference(numero)) });
+    if (carte) {
+      tx.update(carte.ref, {
+        solde: FieldValue.increment(-parCarte),
+        historique: FieldValue.arrayUnion({ type: "utilisation", montant: -parCarte, reference: reference(numero), date, par: membre.nom }),
+      });
+    }
     if (rdvRef) {
       tx.update(rdvRef, {
         statut: "encaisse",
@@ -246,10 +266,18 @@ export async function annulerTicket(membre: Membre, id: string, motifBrut: unkno
     if (origine.get("annule")) throw new Erreur("Ce ticket est déjà annulé.", 409);
     const rdvId = origine.get("rendezVous") as string | null;
     const cliente = origine.get("cliente") as { id: string } | null;
-    const [rdv, fiche] = await Promise.all([
+    // Carte utilisée pour payer (elle retrouve son solde) ou carte vendue par ce ticket.
+    const codeUtilise = origine.get("carteCadeau") as string | undefined;
+    const codeVendu = origine.get("carteVendue") as string | undefined;
+    const [rdv, fiche, carteUtilisee, carteVendue] = await Promise.all([
       rdvId ? tx.get(base.doc(`rendezVous/${rdvId}`)) : Promise.resolve(null),
       cliente ? tx.get(base.doc(`clientes/${cliente.id}`)) : Promise.resolve(null),
+      codeUtilise ? tx.get(base.doc(`cartesCadeaux/${codeUtilise}`)) : Promise.resolve(null),
+      codeVendu ? tx.get(base.doc(`cartesCadeaux/${codeVendu}`)) : Promise.resolve(null),
     ]);
+    if (carteVendue?.exists && (carteVendue.get("solde") as number) < (carteVendue.get("montant") as number)) {
+      throw new Erreur("Cette carte cadeau a déjà servi : la vente ne peut plus être annulée.", 409);
+    }
 
     const numero = ((compteur.get("dernier") as number | undefined) ?? 0) + 1;
     const retour = await preparerRetour(tx, id);
@@ -297,6 +325,20 @@ export async function annulerTicket(membre: Membre, id: string, motifBrut: unkno
         ...(credit ? { credit: FieldValue.increment(credit) } : {}),
       });
     }
+    const parCarte = (origine.get("paiements") as Paiement[]).find((p) => p.mode === "carte-cadeau")?.montant ?? 0;
+    if (carteUtilisee?.exists && parCarte > 0) {
+      tx.update(carteUtilisee.ref, {
+        solde: FieldValue.increment(parCarte),
+        historique: FieldValue.arrayUnion({ type: "remboursement", montant: parCarte, reference: reference(numero), date, par: membre.nom }),
+      });
+    }
+    if (carteVendue?.exists) {
+      tx.update(carteVendue.ref, {
+        statut: "annulee",
+        solde: 0,
+        historique: FieldValue.arrayUnion({ type: "annulation", montant: -(carteVendue.get("solde") as number), reference: reference(numero), date, par: membre.nom }),
+      });
+    }
     appliquerSorties(tx, retour, { id: avoirRef.id, reference: reference(numero) }, membre, -1);
     return { id: avoirRef.id, reference: reference(numero) };
   });
@@ -328,7 +370,7 @@ function totaux(fond: number, tickets: TicketLu[]) {
     // La monnaie rendue sort du tiroir.
     if (t.rendu) parMode.especes = (parMode.especes ?? 0) - t.rendu;
   }
-  const recette = tickets.reduce((s, t) => s + t.total, 0);
+  const recette = tickets.reduce((s, t) => s + recetteDuTicket(t), 0);
   return { parMode, recette, especesAttendues: fond + (parMode.especes ?? 0), nombre: tickets.filter((t) => t.type === "vente").length };
 }
 

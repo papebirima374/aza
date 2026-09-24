@@ -221,7 +221,7 @@ function Credit({ fiche, whatsapp, jeton, fini }: { fiche: Fiche; whatsapp: stri
         <input inputMode="numeric" value={montant} onChange={(e) => setMontant(e.target.value)} className={champ} />
       </label>
       <div className="mt-2 flex flex-wrap gap-2">
-        {MODES.filter((m) => m.id !== "credit").map((m) => (
+        {MODES.filter((m) => m.id !== "credit" && m.id !== "carte-cadeau").map((m) => (
           <button key={m.id} onClick={() => setMode(m.id)} className={`rounded-full px-4 py-2 text-sm font-semibold ${mode === m.id ? "bg-profond text-white" : "border border-bordure bg-white"}`}>
             {m.libelle}
           </button>

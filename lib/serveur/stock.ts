@@ -256,7 +256,7 @@ export async function modifierStock(membre: Membre, c: Record<string, unknown>) 
 
 // ——— Sorties automatiques à l'encaissement (appelées DANS la transaction de la caisse) ———
 
-type LigneVendue = { id: string; type: "prestation" | "produit" | "livraison"; quantite: number };
+type LigneVendue = { id: string; type: "prestation" | "produit" | "livraison" | "carte-cadeau"; quantite: number };
 export type PlanStock = { article: FirebaseFirestore.DocumentReference; nom: string; avant: number; delta: number; cout: number; type: "vente" | "consommation" }[];
 
 /** Lectures (à faire AVANT toute écriture de la transaction) : ce qui doit sortir du stock. */

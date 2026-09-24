@@ -8,6 +8,7 @@ export const MODES = [
   { id: "orange-money", libelle: "Orange Money" },
   { id: "carte", libelle: "Carte bancaire" },
   { id: "virement", libelle: "Virement" },
+  { id: "carte-cadeau", libelle: "Carte cadeau" },
   { id: "credit", libelle: "À crédit (payé plus tard)" },
 ] as const;
 
@@ -26,4 +27,12 @@ export const ROLES_JOURNAL: Role[] = ["direction", "manager", "accueil", "compta
 
 export function reference(numero: number): string {
   return `T-${String(numero).padStart(6, "0")}`;
+}
+
+/**
+ * Ce qu'une vente a vraiment rapporté ce jour-là. Payer avec une carte cadeau n'apporte pas
+ * d'argent : il est entré le jour où la carte a été vendue (déjà compté dans la recette).
+ */
+export function recetteDuTicket(t: { total: number; paiements: { mode: string; montant: number }[] }): number {
+  return t.total - t.paiements.filter((p) => p.mode === "carte-cadeau").reduce((s, p) => s + p.montant, 0);
 }

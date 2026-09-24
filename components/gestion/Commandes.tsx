@@ -265,7 +265,7 @@ function Paiement({ c, agir, fermer }: { c: Commande; agir: (chemin: string, cor
         La cliente paie <span className="prix">{formatPrix(c.total)}</span> par :
       </p>
       <div className="mt-2 flex flex-wrap gap-2">
-        {MODES.filter((m) => m.id !== "credit" && m.id !== "virement").map((m) => (
+        {MODES.filter((m) => m.id !== "credit" && m.id !== "virement" && m.id !== "carte-cadeau").map((m) => (
           <button key={m.id} onClick={() => setMode(m.id)} className={`min-h-11 rounded-full px-4 text-sm font-semibold ${mode === m.id ? "bg-profond text-white" : "border border-bordure bg-white"}`}>
             {m.libelle}
           </button>

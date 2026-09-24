@@ -65,6 +65,21 @@ export default async function Boutique({ searchParams }: PageProps<"/boutique">)
           <p className="mt-2 mb-6 max-w-2xl text-doux">Robes et tenues sur commande : demandez le modèle sur WhatsApp, nous vous donnons le prix, les tailles et le délai.</p>
           <Collection limite={8} />
         </section>
+        <section className="mt-12 rounded-2xl bg-bordeaux p-6 text-white">
+          <h2 className="font-serif text-3xl font-semibold">🎁 Cartes cadeaux</h2>
+          <p className="mt-2 max-w-2xl text-or-clair">
+            Offrez le montant de votre choix, à utiliser à l&apos;institut pour un soin, une coiffure, l&apos;onglerie ou la boutique. En vente à
+            l&apos;accueil, ou demandez-la sur WhatsApp : nous vous l&apos;envoyons avec son code.
+          </p>
+          <a
+            href={lienWhatsApp("Bonjour Anna Zen Attitude, je voudrais offrir une carte cadeau.")}
+            target="_blank"
+            rel="noopener"
+            className="mt-4 inline-block rounded-full bg-[#128C4A] px-6 py-3 font-bold text-white hover:opacity-90"
+          >
+            Commander une carte cadeau
+          </a>
+        </section>
       </div>
     );
   }
@@ -121,6 +136,21 @@ export default async function Boutique({ searchParams }: PageProps<"/boutique">)
         <h2 className="font-serif text-3xl font-semibold text-profond">Anna Zen Couture</h2>
         <p className="mt-2 mb-6 max-w-2xl text-doux">Robes et tenues sur commande : demandez le modèle sur WhatsApp, nous vous donnons le prix, les tailles et le délai.</p>
         <Collection limite={8} />
+      </section>
+      <section className="mt-12 rounded-2xl bg-bordeaux p-6 text-white">
+        <h2 className="font-serif text-3xl font-semibold">🎁 Cartes cadeaux</h2>
+        <p className="mt-2 max-w-2xl text-or-clair">
+        Offrez le montant de votre choix, à utiliser à l&apos;institut pour un soin, une coiffure, l&apos;onglerie ou la boutique. En vente à
+        l&apos;accueil, ou demandez-la sur WhatsApp : nous vous l&apos;envoyons avec son code.
+        </p>
+        <a
+        href={lienWhatsApp("Bonjour Anna Zen Attitude, je voudrais offrir une carte cadeau.")}
+        target="_blank"
+        rel="noopener"
+        className="mt-4 inline-block rounded-full bg-[#128C4A] px-6 py-3 font-bold text-white hover:opacity-90"
+        >
+        Commander une carte cadeau
+        </a>
       </section>
       <BoutonPanier />
     </div>
