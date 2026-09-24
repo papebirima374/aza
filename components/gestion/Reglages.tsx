@@ -52,6 +52,16 @@ export function Reglages() {
   const [donnees, setDonnees] = useState<Donnees | null>(null);
   const [erreur, setErreur] = useState("");
   const [info, setInfo] = useState("");
+
+  // Les messages restent en haut de l'écran : on les efface après quelques secondes.
+  useEffect(() => {
+    if (!info && !erreur) return;
+    const t = setTimeout(() => {
+      setInfo("");
+      setErreur("");
+    }, erreur ? 8000 : 3000);
+    return () => clearTimeout(t);
+  }, [info, erreur]);
   const [version, setVersion] = useState(0);
 
   const appel = useCallback(
@@ -363,7 +373,7 @@ function Durees(props: { parametres: Record<string, Param>; enregistrer: (id: st
     <Carte
       id="durees"
       titre="Durées des prestations"
-      aide="Durée totale : de l'installation de la cliente au poste libéré. Temps de pose : minutes pendant lesquelles la praticienne peut s'occuper d'une autre cliente. Une ligne enregistrée devient réservable en ligne (si « En ligne » est coché)."
+      aide="Pour chaque prestation, choisissez combien de temps elle dure, puis appuyez sur « Enregistrer ». Le site s'en sert pour savoir quelles heures sont libres. Une prestation sans durée reste en demande WhatsApp."
     >
       <div className="flex flex-wrap items-center gap-3">
         <input type="search" value={requete} onChange={(e) => setRequete(e.target.value)} placeholder="Chercher une prestation…" className="min-w-56 flex-1 rounded-xl border border-bordure px-3 py-2.5" />
@@ -380,26 +390,13 @@ function Durees(props: { parametres: Record<string, Param>; enregistrer: (id: st
             <div key={u.id}>
               <p className="text-xs font-bold tracking-wide text-doux uppercase">{u.nom}</p>
               {fs.map((f) => (
-                <div key={f.id} className="mt-2 overflow-x-auto rounded-xl border border-bordure">
+                <div key={f.id} className="mt-2 overflow-hidden rounded-xl border border-bordure">
                   <p className="bg-creme px-3 py-2 text-sm font-bold text-profond">{f.nom}</p>
-                  <table className="w-full min-w-[640px] text-sm">
-                    <thead className="text-left text-xs text-doux">
-                      <tr>
-                        <th className="px-3 py-1.5 font-semibold">Prestation</th>
-                        <th className="px-2 py-1.5 font-semibold">Durée</th>
-                        <th className="px-2 py-1.5 font-semibold">Pose</th>
-                        <th className="px-2 py-1.5 font-semibold">Poste</th>
-                        <th className="px-2 py-1.5 font-semibold">4 mains</th>
-                        <th className="px-2 py-1.5 font-semibold">En ligne</th>
-                        <th />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {f.prestations.map((p) => (
-                        <LigneDuree key={p.id} id={p.id} nom={p.nom} prix={p.prix} param={props.parametres[p.id]} enregistrer={props.enregistrer} />
-                      ))}
-                    </tbody>
-                  </table>
+                  <ul className="divide-y divide-bordure">
+                    {f.prestations.map((p) => (
+                      <LigneDuree key={p.id} id={p.id} nom={p.nom} prix={p.prix} param={props.parametres[p.id]} enregistrer={props.enregistrer} />
+                    ))}
+                  </ul>
                 </div>
               ))}
             </div>
@@ -410,61 +407,103 @@ function Durees(props: { parametres: Record<string, Param>; enregistrer: (id: st
   );
 }
 
+const DUREES = [15, 20, 30, 45, 60, 75, 90, 105, 120, 150, 180, 210, 240, 270, 300, 360, 420, 480];
+const POSES = [10, 15, 20, 30, 45, 60, 90, 120];
+
+function enHeures(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h === 0) return `${m} min`;
+  return m ? `${h} h ${String(m).padStart(2, "0")}` : `${h} h`;
+}
+
 function LigneDuree(props: { id: string; nom: string; prix: number; param?: Param; enregistrer: (id: string, p: Param) => Promise<boolean> }) {
   const depart = props.param ?? { duree: 0, pose: 0, typePoste: "", praticiennes: 1, enLigne: true };
-  const [v, setV] = useState({ ...depart, duree: depart.duree ? String(depart.duree) : "", pose: String(depart.pose) });
+  const [v, setV] = useState(depart);
   const [envoi, setEnvoi] = useState(false);
   const modifie =
-    v.duree !== (depart.duree ? String(depart.duree) : "") ||
-    v.pose !== String(depart.pose) ||
+    v.duree !== depart.duree ||
+    v.pose !== depart.pose ||
     v.typePoste !== depart.typePoste ||
     v.praticiennes !== depart.praticiennes ||
     v.enLigne !== depart.enLigne;
-  const valide = Number(v.duree) >= 5 && Number(v.pose) >= 0 && Number(v.pose) <= Number(v.duree) - 5;
+  const valide = v.duree >= 5 && v.pose >= 0 && v.pose <= v.duree - 5;
+  // Une valeur déjà enregistrée hors de la liste reste proposée.
+  const durees = [...new Set([...DUREES, ...(depart.duree ? [depart.duree] : [])])].sort((x, y) => x - y);
+  const poses = [...new Set([...POSES, ...(depart.pose ? [depart.pose] : [])])].sort((x, y) => x - y).filter((x) => !v.duree || x <= v.duree - 5);
+  const champ = "mt-1 block w-full rounded-lg border border-bordure bg-white px-2 py-2";
   return (
-    <tr className="border-t border-bordure">
-      <td className="px-3 py-1.5">
-        {props.nom} <span className="prix text-xs text-doux">{formatPrix(props.prix)}</span>
-        {props.param && !modifie && <span className="ml-1 text-xs text-[#0d6b37]">✓</span>}
-      </td>
-      <td className="px-2 py-1.5">
-        <input type="number" inputMode="numeric" min={5} step={5} value={v.duree} onChange={(e) => setV({ ...v, duree: e.target.value })} className={`w-20 rounded-lg border px-2 py-1 text-right ${v.duree && !valide ? "border-aza" : "border-bordure"}`} aria-label={`Durée de ${props.nom}`} />
-      </td>
-      <td className="px-2 py-1.5">
-        <input type="number" inputMode="numeric" min={0} step={5} value={v.pose} onChange={(e) => setV({ ...v, pose: e.target.value })} className="w-16 rounded-lg border border-bordure px-2 py-1 text-right" aria-label={`Temps de pose de ${props.nom}`} />
-      </td>
-      <td className="px-2 py-1.5">
-        <select value={v.typePoste} onChange={(e) => setV({ ...v, typePoste: e.target.value })} className="rounded-lg border border-bordure bg-white px-1 py-1" aria-label={`Poste de ${props.nom}`}>
-          <option value="">—</option>
-          {TYPES_POSTE.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.libelle}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-2 py-1.5 text-center">
-        <input type="checkbox" checked={v.praticiennes === 2} onChange={(e) => setV({ ...v, praticiennes: e.target.checked ? 2 : 1 })} className="h-5 w-5 accent-[#7E0A4C]" aria-label={`${props.nom} à deux praticiennes`} />
-      </td>
-      <td className="px-2 py-1.5 text-center">
-        <input type="checkbox" checked={v.enLigne} onChange={(e) => setV({ ...v, enLigne: e.target.checked })} className="h-5 w-5 accent-[#7E0A4C]" aria-label={`${props.nom} réservable en ligne`} />
-      </td>
-      <td className="px-2 py-1.5 text-right">
-        {modifie && (
-          <button
-            disabled={!valide || envoi}
-            onClick={async () => {
-              setEnvoi(true);
-              await props.enregistrer(props.id, { ...v, duree: Number(v.duree), pose: Number(v.pose) });
-              setEnvoi(false);
+    <li className="px-3 py-3">
+      <p className="font-semibold">
+        {props.nom} <span className="prix text-xs font-normal text-doux">{formatPrix(props.prix)}</span>
+        {props.param && !modifie && <span className="ml-2 text-xs font-bold text-[#0d6b37]">✓ Enregistrée</span>}
+      </p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+        <label className="text-xs font-semibold text-doux">
+          Durée totale
+          <select
+            value={v.duree || ""}
+            onChange={(e) => {
+              const duree = Number(e.target.value);
+              setV({ ...v, duree, pose: v.pose > duree - 5 ? 0 : v.pose });
             }}
-            className="rounded-full bg-aza px-3 py-1 text-xs font-bold text-white disabled:opacity-40"
+            className={`${champ} text-sm text-encre ${props.param || v.duree ? "" : "border-aza/60"}`}
           >
-            {envoi ? "…" : "Enregistrer"}
-          </button>
-        )}
-      </td>
-    </tr>
+            <option value="">— À choisir —</option>
+            {durees.map((d) => (
+              <option key={d} value={d}>
+                {enHeures(d)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs font-semibold text-doux">
+          Temps de pose (praticienne libre)
+          <select value={v.pose} onChange={(e) => setV({ ...v, pose: Number(e.target.value) })} className={`${champ} text-sm text-encre`}>
+            <option value={0}>Aucun</option>
+            {poses.map((d) => (
+              <option key={d} value={d}>
+                {enHeures(d)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs font-semibold text-doux">
+          Poste utilisé
+          <select value={v.typePoste} onChange={(e) => setV({ ...v, typePoste: e.target.value })} className={`${champ} text-sm text-encre`}>
+            <option value="">Aucun poste précis</option>
+            {TYPES_POSTE.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.libelle}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1.5 text-sm">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={v.praticiennes === 2} onChange={(e) => setV({ ...v, praticiennes: e.target.checked ? 2 : 1 })} className="h-5 w-5 accent-[#7E0A4C]" />
+          Faite à 2 praticiennes (4 mains)
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={v.enLigne} onChange={(e) => setV({ ...v, enLigne: e.target.checked })} className="h-5 w-5 accent-[#7E0A4C]" />
+          Réservable sur le site
+        </label>
+      </div>
+      {modifie && (
+        <button
+          disabled={!valide || envoi}
+          onClick={async () => {
+            setEnvoi(true);
+            await props.enregistrer(props.id, v);
+            setEnvoi(false);
+          }}
+          className="mt-3 w-full rounded-full bg-aza py-2.5 text-sm font-bold text-white disabled:opacity-40 sm:w-auto sm:px-8"
+        >
+          {envoi ? "Enregistrement…" : valide ? "Enregistrer" : "Choisissez d'abord la durée totale"}
+        </button>
+      )}
+    </li>
   );
 }
 
