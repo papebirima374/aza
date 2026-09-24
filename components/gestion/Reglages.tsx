@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Donnees } from "@/components/gestion/Donnees";
 import { useCompte } from "@/components/gestion/EspaceGestion";
-import { FAMILLES, formatPrix, UNIVERS } from "@/lib/catalogue";
+import { FAMILLES, formatPrix, prestationParId, UNIVERS } from "@/lib/catalogue";
 import { correspond } from "@/lib/recherche";
 
 // Écran « Réglages » (direction, manager) : tout ce que la réservation a besoin de savoir,
@@ -10,6 +11,7 @@ import { correspond } from "@/lib/recherche";
 
 type Param = { duree: number; pose: number; typePoste: string; praticiennes: number; enLigne: boolean };
 type Donnees = {
+  equipeParFamille?: Record<string, number>;
   reglages: {
     reservationEnLigne?: boolean;
     horaires?: Record<string, { debut: number; fin: number }[]>;
@@ -121,6 +123,7 @@ export function Reglages() {
           ["#postes", "Postes"],
           ["#durees", `Durées (${renseignees}/${total})`],
           ["#regles", "Règles"],
+          ...(compte.role === "direction" ? [["#donnees", "Sauvegarde"]] : []),
         ].map(([href, libelle]) => (
           <a key={href} href={href} className="rounded-full bg-creme px-3 py-1.5 text-profond hover:bg-bordure">
             {libelle}
@@ -137,6 +140,10 @@ export function Reglages() {
         <EnLigne
           actif={r.reservationEnLigne === true}
           renseignees={renseignees}
+          bloquees={Object.entries(donnees.parametres).filter(([id, p]) => {
+            const n = (donnees.equipeParFamille ?? {})[prestationParId(id)?.familleId ?? ""] ?? 0;
+            return p.enLigne && (n === 0 || (p.praticiennes === 2 && n < 2));
+          }).length}
           direction={compte.role === "direction"}
           basculer={(actif) =>
             envoyer({ action: "en-ligne", actif }, actif ? "Réservation en ligne ouverte aux clientes." : "Réservation en ligne fermée.")
@@ -156,6 +163,7 @@ export function Reglages() {
         />
         <Durees
           parametres={donnees.parametres}
+          equipeParFamille={donnees.equipeParFamille ?? {}}
           enregistrer={(id, p) => envoyer({ action: "prestation", id, ...p }, "Durée enregistrée.")}
           enregistrerLot={(ids, p) => envoyer({ action: "prestations-lot", ids, ...p }, `Durée enregistrée pour ${ids.length} prestation${ids.length > 1 ? "s" : ""}.`)}
         />
@@ -164,12 +172,13 @@ export function Reglages() {
           acompte={r.acompte ?? { montantMin: 30000, dureeMinMinutes: 120, absencesMax: 2 }}
           enregistrer={(v) => envoyer({ action: "regles", ...v }, "Règles enregistrées.")}
         />
+        {compte.role === "direction" && <Donnees />}
       </div>
     </div>
   );
 }
 
-function EnLigne(props: { actif: boolean; renseignees: number; direction: boolean; basculer: (a: boolean) => void }) {
+function EnLigne(props: { actif: boolean; renseignees: number; bloquees: number; direction: boolean; basculer: (a: boolean) => void }) {
   return (
     <Carte
       id="en-ligne"
@@ -197,6 +206,13 @@ function EnLigne(props: { actif: boolean; renseignees: number; direction: boolea
         Seules les prestations dont la durée est renseignée (et marquées « en ligne ») se réservent sur le site :{" "}
         <strong>{props.renseignees}</strong> aujourd&apos;hui. Les autres restent en demande WhatsApp.
       </p>
+      {props.bloquees > 0 && (
+        <p className="mt-3 rounded-xl bg-aza/10 p-3 text-sm font-semibold text-profond">
+          ⚠️ {props.bloquees} prestation{props.bloquees > 1 ? "s" : ""} remplie{props.bloquees > 1 ? "s" : ""} ne peu{props.bloquees > 1 ? "vent" : "t"} pas
+          sortir sur le site : personne dans l&apos;équipe ne sait les faire (ou pas assez de monde pour un 4 mains). Voir les familles marquées ⚠️
+          dans « Durées ».
+        </p>
+      )}
     </Carte>
   );
 }
@@ -356,6 +372,7 @@ function Postes(props: { postes: { id: string; type: string; nom: string }[]; aj
 
 function Durees(props: {
   parametres: Record<string, Param>;
+  equipeParFamille: Record<string, number>;
   enregistrer: (id: string, p: Param) => Promise<boolean>;
   enregistrerLot: (ids: string[], p: Param) => Promise<boolean>;
 }) {
@@ -400,6 +417,7 @@ function Durees(props: {
                 <Famille
                   key={f.id}
                   nom={f.nom}
+                  equipe={props.equipeParFamille[f.id] ?? 0}
                   prestations={f.prestations}
                   parametres={props.parametres}
                   ouverte={recherche || ouvertes.includes(f.id)}
@@ -428,6 +446,7 @@ function enHeures(min: number): string {
 
 function Famille(props: {
   nom: string;
+  equipe: number;
   prestations: { id: string; nom: string; prix: number }[];
   parametres: Record<string, Param>;
   ouverte: boolean;
@@ -440,7 +459,10 @@ function Famille(props: {
   return (
     <div className="mt-2 overflow-hidden rounded-xl border border-bordure">
       <button onClick={props.basculer} aria-expanded={props.ouverte} className="flex w-full items-center justify-between gap-3 bg-creme px-3 py-3 text-left">
-        <span className="font-bold text-profond">{props.nom}</span>
+        <span className="font-bold text-profond">
+          {props.nom}
+          {props.equipe === 0 && <span className="ml-2 text-xs font-bold text-aza-fonce">⚠️ personne ne sait le faire</span>}
+        </span>
         <span className="flex shrink-0 items-center gap-2 text-xs font-semibold">
           <span className={remplies === n ? "text-[#0d6b37]" : "text-doux"}>
             {remplies === n ? "✓ " : ""}
@@ -453,11 +475,22 @@ function Famille(props: {
       </button>
       {props.ouverte && (
         <>
+          {props.equipe === 0 && (
+            <p className="border-t border-bordure bg-aza/10 px-3 py-3 text-sm font-semibold text-profond">
+              ⚠️ Aucune praticienne n&apos;a la compétence « {props.nom} ». Ces prestations ne pourront jamais être réservées, même avec une
+              durée. Allez dans{" "}
+              <a href="/gestion/equipe" className="underline">
+                Équipe
+              </a>{" "}
+              → Modifier → cochez « {props.nom} ».
+            </p>
+          )}
           {n > 1 && <RemplirFamille prestations={props.prestations} parametres={props.parametres} enregistrerLot={props.enregistrerLot} />}
           <ul className="divide-y divide-bordure border-t border-bordure">
             {props.prestations.map((p) => (
               <LigneDuree
                 key={`${p.id}:${JSON.stringify(props.parametres[p.id] ?? null)}`}
+                equipe={props.equipe}
                 id={p.id}
                 nom={p.nom}
                 prix={p.prix}
@@ -537,7 +570,7 @@ function RemplirFamille(props: {
   );
 }
 
-function LigneDuree(props: { id: string; nom: string; prix: number; param?: Param; enregistrer: (id: string, p: Param) => Promise<boolean> }) {
+function LigneDuree(props: { equipe: number; id: string; nom: string; prix: number; param?: Param; enregistrer: (id: string, p: Param) => Promise<boolean> }) {
   const depart = props.param ?? { duree: 0, pose: 0, typePoste: "", praticiennes: 1, enLigne: true };
   const [v, setV] = useState(depart);
   const [envoi, setEnvoi] = useState(false);
@@ -610,6 +643,12 @@ function LigneDuree(props: { id: string; nom: string; prix: number; param?: Para
           Réservable sur le site
         </label>
       </div>
+      {v.praticiennes === 2 && props.equipe === 1 && (
+        <p className="mt-2 text-sm font-semibold text-aza-fonce">
+          ⚠️ 4 mains : il faut 2 praticiennes qui savent le faire, vous n&apos;en avez qu&apos;une. Décochez « 4 mains » ou ajoutez la compétence à
+          une autre praticienne.
+        </p>
+      )}
       {modifie && (
         <button
           disabled={!valide || envoi}

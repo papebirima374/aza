@@ -52,11 +52,18 @@ function exiger(membre: Membre, direction = false) {
 export async function lireReglagesComplets(membre: Membre) {
   exiger(membre);
   const base = db();
-  const [reglages, postes, prestations] = await Promise.all([
+  const [reglages, postes, prestations, praticiennes] = await Promise.all([
     base.doc("reglages/institut").get(),
     base.collection("postes").get(),
     base.collection("prestationsResa").get(),
+    base.collection("praticiennes").where("actif", "==", true).get(),
   ]);
+  // Combien de praticiennes savent faire chaque famille : l'écran avertit quand personne
+  // (ou pas assez de monde pour un 4 mains) ne peut faire une prestation.
+  const equipeParFamille: Record<string, number> = {};
+  for (const d of praticiennes.docs) {
+    for (const c of (d.get("competences") as string[] | undefined) ?? []) equipeParFamille[c] = (equipeParFamille[c] ?? 0) + 1;
+  }
   const parametres: Record<string, ParametrePrestation> = {};
   for (const d of prestations.docs) {
     parametres[d.id] = {
@@ -72,6 +79,7 @@ export async function lireReglagesComplets(membre: Membre) {
       .filter((d) => d.get("actif") !== false)
       .map((d) => ({ id: d.id, type: d.get("type") as string, nom: (d.get("nom") as string | undefined) ?? d.id })),
     parametres,
+    equipeParFamille,
   };
 }
 

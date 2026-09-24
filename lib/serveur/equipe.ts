@@ -28,6 +28,17 @@ export function horairesInstitut(): Record<number, { debut: number; fin: number 
   return res;
 }
 
+/** Réglages de départ : horaires de la plaquette, règles du cahier des charges. */
+export function reglagesParDefaut() {
+  return {
+    horaires: horairesInstitut(),
+    fermetures: [],
+    delaiMinimumMinutes: 120,
+    pasMinutes: 30,
+    acompte: { montantMin: 30000, dureeMinMinutes: 120, absencesMax: 2 },
+  };
+}
+
 function emailsDirection(): string[] {
   return (process.env.DIRECTION_EMAILS ?? "")
     .split(",")
@@ -68,13 +79,7 @@ export async function demarrer(jeton: string) {
     }
     tx.set(compteRef, { nom, email, role: "direction", creeLe: FieldValue.serverTimestamp() });
     if (!reglages.exists) {
-      tx.set(base.doc("reglages/institut"), {
-        horaires: horairesInstitut(),
-        fermetures: [],
-        delaiMinimumMinutes: 120,
-        pasMinutes: 30,
-        acompte: { montantMin: 30000, dureeMinMinutes: 120, absencesMax: 2 },
-      });
+      tx.set(base.doc("reglages/institut"), reglagesParDefaut());
     }
   });
   return { deja: false };
