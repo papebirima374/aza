@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { INSTITUT } from "@/lib/institut";
+import { urlPhotoSite } from "@/lib/photos-site";
+import { photosDuSite } from "@/lib/serveur/photos-site";
 
 export const metadata: Metadata = {
   title: "L'institut",
@@ -12,7 +14,11 @@ export const metadata: Metadata = {
 
 // L'histoire, l'équipe (photo et spécialité) et les cabines viendront avec l'immersion
 // et le shooting photo : rien n'est inventé ici.
-export default function Institut() {
+// Photos du lieu : ajoutées par la direction (Catalogue → Photos du site).
+export const revalidate = 60;
+
+export default async function Institut() {
+  const lieu = (await photosDuSite()).filter((p) => p.emplacement === "lieu");
   return (
     <div>
       <section className="bg-bordeaux text-white">
@@ -38,6 +44,20 @@ export default function Institut() {
             photo et sa spécialité, arrive très bientôt.
           </p>
         </section>
+
+        {lieu.length > 0 && (
+          <section className="mt-12">
+            <h2 className="font-serif text-3xl font-semibold text-profond">Le lieu</h2>
+            <ul className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+              {lieu.map((p) => (
+                <li key={p.id}>
+                  <Image src={urlPhotoSite(p.id)} alt={p.legende || "L'institut Anna Zen Attitude"} width={600} height={450} unoptimized loading="lazy" className="aspect-[4/3] w-full rounded-2xl object-cover" />
+                  {p.legende && <p className="mt-1 text-sm text-doux">{p.legende}</p>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section className="mt-12">
           <h2 className="font-serif text-3xl font-semibold text-profond">Les marques que nous utilisons</h2>

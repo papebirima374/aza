@@ -17,7 +17,7 @@ const PROTEGEES = new Set(["journalDonnees", "securite"]);
 
 export const PARTIES = {
   activite: ["commandes", "rendezVous", "occupations", "jours", "clientes", "tickets", "caisses", "compteurs", "liensConnexion"],
-  reglages: ["reglages", "prestationsResa", "postes", "catalogue"],
+  reglages: ["reglages", "prestationsResa", "postes", "catalogue", "photosSite", "photosSiteData"],
   stock: ["articles", "mouvementsStock", "consommations", "photosProduits"],
   equipe: ["praticiennes"],
 } as const;

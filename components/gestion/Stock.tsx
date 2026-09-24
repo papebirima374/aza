@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { RAYONS } from "@/lib/boutique";
+import { reduirePhoto } from "@/lib/client/image";
 import { formatPrix } from "@/lib/catalogue";
 import { useCatalogue } from "@/lib/client/catalogue";
 import { correspond } from "@/lib/recherche";
@@ -599,18 +600,6 @@ function EditeurRecette(props: {
   );
 }
 
-/** Réduit une photo dans le téléphone (1000 px, WebP) avant l'envoi : rapide même en 3G. */
-async function reduire(fichier: File): Promise<string> {
-  const img = await createImageBitmap(fichier);
-  const echelle = Math.min(1, 1000 / Math.max(img.width, img.height));
-  const toile = document.createElement("canvas");
-  toile.width = Math.round(img.width * echelle);
-  toile.height = Math.round(img.height * echelle);
-  toile.getContext("2d")!.drawImage(img, 0, 0, toile.width, toile.height);
-  const webp = toile.toDataURL("image/webp", 0.8);
-  return webp.startsWith("data:image/webp") ? webp : toile.toDataURL("image/jpeg", 0.8);
-}
-
 function FormBoutique({ a, envoyer, fermer }: { a: Article; envoyer: Envoyer; fermer: () => void }) {
   const b = a.boutique ?? {};
   const [visible, setVisible] = useState(b.visible ?? false);
@@ -682,7 +671,7 @@ function FormBoutique({ a, envoyer, fermer }: { a: Article; envoyer: Envoyer; fe
                   if (!f) return;
                   setPhoto(true);
                   try {
-                    await envoyer({ action: "photo-ajout", id: a.id, image: await reduire(f) }, "Photo ajoutée.");
+                    await envoyer({ action: "photo-ajout", id: a.id, image: await reduirePhoto(f) }, "Photo ajoutée.");
                   } finally {
                     setPhoto(false);
                   }

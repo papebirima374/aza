@@ -3,6 +3,8 @@ import Link from "next/link";
 import { IconeHorloge, IconeLieu, IconeTelephone, IconeWhatsApp } from "@/components/Icones";
 import { formatPrix, UNIVERS } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
+import { urlPhotoSite } from "@/lib/photos-site";
+import { photosDuSite } from "@/lib/serveur/photos-site";
 import { INSTITUT, LIEN_ITINERAIRE, lienWhatsApp, TELEPHONE_PRINCIPAL } from "@/lib/institut";
 
 // Prestations mises en avant sur l'accueil (à ajuster avec la gérante).
@@ -21,13 +23,22 @@ const PHARES = [
 export const revalidate = 60;
 
 export default async function Accueil() {
-  const cat = await catalogueServeur();
+  const [cat, photos] = await Promise.all([catalogueServeur(), photosDuSite()]);
+  const bandeau = photos.find((p) => p.emplacement === "accueil");
+  const photoUnivers = (u: string) => photos.find((p) => p.emplacement === `univers-${u}`);
+  const galerie = photos.filter((p) => p.emplacement === "galerie");
   const phares = PHARES.map(cat.parId).filter((p) => p !== undefined);
 
   return (
     <>
       {/* Bandeau — la photo ou la vidéo de l'institut viendra du shooting. */}
       <section className="relative overflow-hidden bg-bordeaux text-white">
+        {bandeau && (
+          <>
+            <Image src={urlPhotoSite(bandeau.id)} alt="" fill priority unoptimized className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-bordeaux/95 via-bordeaux/75 to-bordeaux/30" />
+          </>
+        )}
         <Image
           src="/images/lotus-or.png"
           alt=""
@@ -65,11 +76,24 @@ export default async function Accueil() {
               <Link
                 key={u.id}
                 href={`/prestations/${u.id}`}
-                className="group rounded-2xl border border-bordure bg-creme p-6 transition hover:border-profond"
+                className="group overflow-hidden rounded-2xl border border-bordure bg-creme transition hover:border-profond"
               >
+                {photoUnivers(u.id) && (
+                  <Image
+                    src={urlPhotoSite(photoUnivers(u.id)!.id)}
+                    alt={u.nom}
+                    width={600}
+                    height={400}
+                    unoptimized
+                    loading="lazy"
+                    className="aspect-[3/2] w-full object-cover transition group-hover:scale-[1.02]"
+                  />
+                )}
+                <div className="p-6">
                 <h3 className="font-serif text-2xl font-semibold text-profond">{u.nom}</h3>
                 <p className="mt-2 text-sm text-doux">{u.accroche}</p>
                 <p className="mt-4 text-sm font-semibold text-encre group-hover:text-aza">{nb} prestations →</p>
+                </div>
               </Link>
             );
           })}
@@ -102,6 +126,26 @@ export default async function Accueil() {
         </div>
       </section>
 
+      {/* En images : les réalisations de l'institut (photos ajoutées par la direction) */}
+      {galerie.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 pt-16">
+          <h2 className="font-serif text-4xl font-semibold text-profond">En images</h2>
+          <ul className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+            {galerie.map((p) => (
+              <li key={p.id}>
+                <figure>
+                  <Image src={urlPhotoSite(p.id)} alt={p.legende || "Réalisation Anna Zen Attitude"} width={600} height={600} unoptimized loading="lazy" className="aspect-square w-full rounded-2xl object-cover" />
+                  {p.legende && <figcaption className="mt-1 text-sm text-doux">{p.legende}</figcaption>}
+                </figure>
+              </li>
+            ))}
+          </ul>
+          <a href={INSTITUT.instagram} target="_blank" rel="noopener" className="mt-6 inline-block font-semibold text-aza underline">
+            Plus de photos sur Instagram {INSTITUT.instagramPseudo}
+          </a>
+        </section>
+      )}
+
       {/* Réassurance */}
       <section className="mx-auto max-w-6xl px-4 py-16">
         <div className="grid gap-8 md:grid-cols-3">
@@ -122,14 +166,14 @@ export default async function Accueil() {
       <section className="bg-bordeaux text-white">
         <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-4 py-14 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="font-serif text-3xl font-semibold">La boutique arrive bientôt</h2>
+            <h2 className="font-serif text-3xl font-semibold">La boutique</h2>
             <p className="mt-2 max-w-xl text-or-clair">
-              Prêt-à-porter, perruques et mèches, produits capillaires et cosmétiques, cartes cadeaux : à commander en
-              ligne et à retirer à l&apos;institut.
+              Produits capillaires et cosmétiques, perruques et mèches, prêt-à-porter : à commander en ligne, à retirer
+              gratuitement à l&apos;institut ou en livraison.
             </p>
           </div>
           <Link href="/boutique" className="rounded-full border border-or px-6 py-3 font-semibold text-or-clair hover:bg-white/10">
-            En savoir plus
+            Voir la boutique
           </Link>
         </div>
       </section>

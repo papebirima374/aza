@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { LignePrestation } from "@/components/LignePrestation";
 import { formatPrix, UNIVERS, universParId } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
+import Image from "next/image";
+import { urlPhotoSite } from "@/lib/photos-site";
+import { photosDuSite } from "@/lib/serveur/photos-site";
 import { INSTITUT } from "@/lib/institut";
 
 export const dynamicParams = false;
@@ -30,7 +33,9 @@ export async function generateMetadata({ params }: PageProps<"/prestations/[univ
 export default async function PageUnivers({ params }: PageProps<"/prestations/[univers]">) {
   const u = universParId((await params).univers);
   if (!u) notFound();
-  const familles = (await catalogueServeur()).famillesDe(u.id);
+  const [cat, photos] = await Promise.all([catalogueServeur(), photosDuSite()]);
+  const familles = cat.famillesDe(u.id);
+  const photo = photos.find((p) => p.emplacement === `univers-${u.id}`);
 
   // Données « Service » pour Google : chaque prestation avec son prix.
   const donnees = {
@@ -53,8 +58,14 @@ export default async function PageUnivers({ params }: PageProps<"/prestations/[u
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(donnees).replace(/</g, "\\u003c") }}
       />
-      <section className="bg-bordeaux text-white">
-        <div className="mx-auto max-w-6xl px-4 py-14">
+      <section className="relative overflow-hidden bg-bordeaux text-white">
+        {photo && (
+          <>
+            <Image src={urlPhotoSite(photo.id)} alt="" fill priority unoptimized className="object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-bordeaux/95 via-bordeaux/80 to-bordeaux/40" />
+          </>
+        )}
+        <div className="relative mx-auto max-w-6xl px-4 py-14">
           <Link href="/prestations" className="text-sm font-semibold text-or hover:text-or-clair">
             ← Toutes les prestations
           </Link>

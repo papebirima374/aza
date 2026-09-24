@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { formatPrix, UNIVERS, type Famille, type Prestation } from "@/lib/catalogue";
@@ -48,7 +49,12 @@ export function Catalogue() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
-      <h1 className="font-serif text-4xl font-semibold text-profond">Catalogue et prix</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-serif text-4xl font-semibold text-profond">Catalogue et prix</h1>
+        <Link href="/gestion/photos" className="min-h-11 rounded-full border border-bordure px-4 py-2.5 text-sm font-bold text-profond">
+          🖼️ Photos du site
+        </Link>
+      </div>
       <p className="mt-1 text-doux">
         Changez un prix, masquez une ligne ou ajoutez une prestation ou un produit. C&apos;est appliqué partout (site, réservation, caisse) en
         moins d&apos;une minute.
