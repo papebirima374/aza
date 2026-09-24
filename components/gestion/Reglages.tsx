@@ -157,6 +157,7 @@ export function Reglages() {
         <Durees
           parametres={donnees.parametres}
           enregistrer={(id, p) => envoyer({ action: "prestation", id, ...p }, "Durée enregistrée.")}
+          enregistrerLot={(ids, p) => envoyer({ action: "prestations-lot", ids, ...p }, `Durée enregistrée pour ${ids.length} prestation${ids.length > 1 ? "s" : ""}.`)}
         />
         <Regles
           delai={r.delaiMinimumMinutes ?? 120}
@@ -353,8 +354,14 @@ function Postes(props: { postes: { id: string; type: string; nom: string }[]; aj
   );
 }
 
-function Durees(props: { parametres: Record<string, Param>; enregistrer: (id: string, p: Param) => Promise<boolean> }) {
+function Durees(props: {
+  parametres: Record<string, Param>;
+  enregistrer: (id: string, p: Param) => Promise<boolean>;
+  enregistrerLot: (ids: string[], p: Param) => Promise<boolean>;
+}) {
   const [requete, setRequete] = useState("");
+  const [ouvertes, setOuvertes] = useState<string[]>([]);
+  const recherche = requete.trim().length >= 2;
   const [manquantes, setManquantes] = useState(false);
   const familles = useMemo(
     () =>
@@ -390,14 +397,16 @@ function Durees(props: { parametres: Record<string, Param>; enregistrer: (id: st
             <div key={u.id}>
               <p className="text-xs font-bold tracking-wide text-doux uppercase">{u.nom}</p>
               {fs.map((f) => (
-                <div key={f.id} className="mt-2 overflow-hidden rounded-xl border border-bordure">
-                  <p className="bg-creme px-3 py-2 text-sm font-bold text-profond">{f.nom}</p>
-                  <ul className="divide-y divide-bordure">
-                    {f.prestations.map((p) => (
-                      <LigneDuree key={p.id} id={p.id} nom={p.nom} prix={p.prix} param={props.parametres[p.id]} enregistrer={props.enregistrer} />
-                    ))}
-                  </ul>
-                </div>
+                <Famille
+                  key={f.id}
+                  nom={f.nom}
+                  prestations={f.prestations}
+                  parametres={props.parametres}
+                  ouverte={recherche || ouvertes.includes(f.id)}
+                  basculer={() => setOuvertes((o) => (o.includes(f.id) ? o.filter((x) => x !== f.id) : [...o, f.id]))}
+                  enregistrer={props.enregistrer}
+                  enregistrerLot={props.enregistrerLot}
+                />
               ))}
             </div>
           );
@@ -415,6 +424,117 @@ function enHeures(min: number): string {
   const m = min % 60;
   if (h === 0) return `${m} min`;
   return m ? `${h} h ${String(m).padStart(2, "0")}` : `${h} h`;
+}
+
+function Famille(props: {
+  nom: string;
+  prestations: { id: string; nom: string; prix: number }[];
+  parametres: Record<string, Param>;
+  ouverte: boolean;
+  basculer: () => void;
+  enregistrer: (id: string, p: Param) => Promise<boolean>;
+  enregistrerLot: (ids: string[], p: Param) => Promise<boolean>;
+}) {
+  const remplies = props.prestations.filter((p) => props.parametres[p.id]).length;
+  const n = props.prestations.length;
+  return (
+    <div className="mt-2 overflow-hidden rounded-xl border border-bordure">
+      <button onClick={props.basculer} aria-expanded={props.ouverte} className="flex w-full items-center justify-between gap-3 bg-creme px-3 py-3 text-left">
+        <span className="font-bold text-profond">{props.nom}</span>
+        <span className="flex shrink-0 items-center gap-2 text-xs font-semibold">
+          <span className={remplies === n ? "text-[#0d6b37]" : "text-doux"}>
+            {remplies === n ? "✓ " : ""}
+            {remplies}/{n} remplie{remplies > 1 ? "s" : ""}
+          </span>
+          <span className="text-base text-profond" aria-hidden>
+            {props.ouverte ? "▾" : "▸"}
+          </span>
+        </span>
+      </button>
+      {props.ouverte && (
+        <>
+          {n > 1 && <RemplirFamille prestations={props.prestations} parametres={props.parametres} enregistrerLot={props.enregistrerLot} />}
+          <ul className="divide-y divide-bordure border-t border-bordure">
+            {props.prestations.map((p) => (
+              <LigneDuree
+                key={`${p.id}:${JSON.stringify(props.parametres[p.id] ?? null)}`}
+                id={p.id}
+                nom={p.nom}
+                prix={p.prix}
+                param={props.parametres[p.id]}
+                enregistrer={props.enregistrer}
+              />
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
+}
+
+function RemplirFamille(props: {
+  prestations: { id: string }[];
+  parametres: Record<string, Param>;
+  enregistrerLot: (ids: string[], p: Param) => Promise<boolean>;
+}) {
+  const [duree, setDuree] = useState(0);
+  const [typePoste, setTypePoste] = useState("");
+  const [toutes, setToutes] = useState(false);
+  const [envoi, setEnvoi] = useState(false);
+  const vides = props.prestations.filter((p) => !props.parametres[p.id]).map((p) => p.id);
+  const cibles = toutes ? props.prestations.map((p) => p.id) : vides;
+  const champ = "mt-1 block w-full rounded-lg border border-bordure bg-white px-2 py-2 text-sm text-encre";
+  return (
+    <div className="border-t border-bordure bg-[#fdf8fb] px-3 py-3">
+      <p className="text-sm font-semibold text-profond">Remplir toute la famille d&apos;un coup</p>
+      <p className="text-xs text-doux">Même durée pour toutes ; vous pourrez ensuite ajuster une prestation en dessous.</p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        <label className="text-xs font-semibold text-doux">
+          Durée totale
+          <select value={duree || ""} onChange={(e) => setDuree(Number(e.target.value))} className={champ}>
+            <option value="">— À choisir —</option>
+            {DUREES.map((d) => (
+              <option key={d} value={d}>
+                {enHeures(d)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs font-semibold text-doux">
+          Poste utilisé
+          <select value={typePoste} onChange={(e) => setTypePoste(e.target.value)} className={champ}>
+            <option value="">Aucun poste précis</option>
+            {TYPES_POSTE.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.libelle}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {vides.length < props.prestations.length && (
+        <label className="mt-2 flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={toutes} onChange={(e) => setToutes(e.target.checked)} className="h-5 w-5 accent-[#7E0A4C]" />
+          Remplacer aussi celles déjà remplies
+        </label>
+      )}
+      <button
+        disabled={!duree || cibles.length === 0 || envoi}
+        onClick={async () => {
+          setEnvoi(true);
+          await props.enregistrerLot(cibles, { duree, pose: 0, typePoste, praticiennes: 1, enLigne: true });
+          setEnvoi(false);
+        }}
+        className="mt-3 w-full rounded-full bg-aza py-2.5 text-sm font-bold text-white disabled:opacity-40 sm:w-auto sm:px-8"
+      >
+        {envoi
+          ? "Enregistrement…"
+          : cibles.length === 0
+            ? "Toutes sont déjà remplies"
+            : `Appliquer à ${cibles.length} prestation${cibles.length > 1 ? "s" : ""}`}
+      </button>
+    </div>
+  );
 }
 
 function LigneDuree(props: { id: string; nom: string; prix: number; param?: Param; enregistrer: (id: string, p: Param) => Promise<boolean> }) {

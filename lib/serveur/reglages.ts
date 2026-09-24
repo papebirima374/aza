@@ -81,6 +81,22 @@ const entier = (v: unknown, min: number, max: number, libelle: string) => {
   return n;
 };
 
+function parametreValide(id: string, c: Record<string, unknown>) {
+  const p = prestationParId(id);
+  if (!p || p.note === "Produit") throw new ErreurReservation("Prestation inconnue.", 400);
+  const duree = entier(c.duree, 5, 720, "Durée");
+  const pose = entier(c.pose ?? 0, 0, duree - 5, "Temps de pose");
+  const typePoste = String(c.typePoste ?? "");
+  if (typePoste && !TYPES_POSTE.some((t) => t.id === typePoste)) throw new ErreurReservation("Poste inconnu.", 400);
+  return {
+    phases: versPhases(duree, pose),
+    typePoste,
+    competence: p.familleId,
+    praticiennes: entier(c.praticiennes ?? 1, 1, 2, "Praticiennes"),
+    enLigne: c.enLigne !== false,
+  };
+}
+
 /** Une modification des réglages. Chaque action vérifie ses données avant d'écrire. */
 export async function modifierReglages(membre: Membre, c: Record<string, unknown>) {
   const base = db();
@@ -158,21 +174,19 @@ export async function modifierReglages(membre: Membre, c: Record<string, unknown
     case "prestation": {
       exiger(membre);
       const id = String(c.id ?? "");
-      const p = prestationParId(id);
-      if (!p || p.note === "Produit") throw new ErreurReservation("Prestation inconnue.", 400);
-      const duree = entier(c.duree, 5, 720, "Durée");
-      const pose = entier(c.pose ?? 0, 0, duree - 5, "Temps de pose");
-      const typePoste = String(c.typePoste ?? "");
-      if (typePoste && !TYPES_POSTE.some((t) => t.id === typePoste)) throw new ErreurReservation("Poste inconnu.", 400);
-      await base.doc(`prestationsResa/${id}`).set({
-        phases: versPhases(duree, pose),
-        typePoste,
-        competence: p.familleId,
-        praticiennes: entier(c.praticiennes ?? 1, 1, 2, "Praticiennes"),
-        enLigne: c.enLigne !== false,
-        ...trace,
-      });
+      await base.doc(`prestationsResa/${id}`).set({ ...parametreValide(id, c), ...trace });
       return { ok: true };
+    }
+    case "prestations-lot": {
+      // Même durée pour plusieurs prestations d'un coup (une famille entière, par exemple).
+      exiger(membre);
+      const ids = Array.isArray(c.ids) ? [...new Set(c.ids.map(String))] : [];
+      if (ids.length === 0 || ids.length > 200) throw new ErreurReservation("Aucune prestation choisie.", 400);
+      const valeurs = ids.map((id) => [id, parametreValide(id, c)] as const);
+      const lot = base.batch();
+      for (const [id, v] of valeurs) lot.set(base.doc(`prestationsResa/${id}`), { ...v, ...trace });
+      await lot.commit();
+      return { ok: true, nombre: ids.length };
     }
     case "en-ligne": {
       exiger(membre, true);

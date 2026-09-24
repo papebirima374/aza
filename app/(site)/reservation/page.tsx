@@ -10,8 +10,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "/reservation" },
 };
 
-// L'interrupteur « Réservation en ligne » (écran Réglages) est relu au plus toutes les minutes.
-export const revalidate = 60;
+// L'interrupteur « Réservation en ligne » et les durées (écran Réglages) sont relus à chaque
+// visite : un changement de la direction s'applique tout de suite.
+export const dynamic = "force-dynamic";
 
 async function etat() {
   if (!firebaseConfigure()) return { actif: false, ids: [] as string[] };

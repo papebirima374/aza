@@ -91,6 +91,18 @@ ok(
 );
 ok((await reglage(manager, { action: "prestation", id: "locks--lot-de-10-tiges-locks-6-pouces", duree: 30 })).statut === 400, "un produit n'a pas de durée");
 
+// Toute une famille d'un coup
+const cils = ["pose-cils--pose-cils-simple", "pose-cils--pose-cils-cheveux-naturels"];
+const lot = await reglage(manager, { action: "prestations-lot", ids: cils, duree: 90, typePoste: "cabine" });
+ok(lot.statut === 200 && lot.corps.nombre === 2, "famille remplie d'un coup : 2 prestations à 1 h 30");
+const relues = (await reglage(manager)).corps.parametres;
+ok(cils.every((id) => relues[id]?.duree === 90 && relues[id]?.typePoste === "cabine"), "…les deux sont relues à 1 h 30, en cabine");
+ok(
+  (await reglage(manager, { action: "prestations-lot", ids: [...cils, "locks--lot-de-10-tiges-locks-6-pouces"], duree: 60 })).statut === 400,
+  "un lot contenant un produit est refusé en entier",
+);
+ok((await reglage(accueil, { action: "prestations-lot", ids: cils, duree: 60 })).statut === 403, "l'accueil ne remplit pas les durées");
+
 // Règles
 ok(
   (await reglage(manager, { action: "regles", delaiMinimumMinutes: 60, acompte: { montantMin: 25000, dureeMinMinutes: 180, absencesMax: 3 } })).statut === 200,
