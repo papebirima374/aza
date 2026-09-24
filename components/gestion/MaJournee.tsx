@@ -82,6 +82,7 @@ export function MaJournee() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-4">
+      <p className="mb-3 font-serif text-3xl font-semibold text-profond">Bonjour {compte.nom.split(" ")[0]} 👋</p>
       <div className="grid grid-cols-2 gap-2">
         {["Aujourd'hui", "Demain"].map((libelle, i) => (
           <button

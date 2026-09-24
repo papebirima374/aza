@@ -32,6 +32,7 @@ export function Equipe() {
   const [competences, setCompetences] = useState<string[]>([]);
   const [envoi, setEnvoi] = useState(false);
   const [telephone, setTelephone] = useState("");
+  const [motDePasse, setMotDePasse] = useState("");
   const [lien, setLien] = useState<Envoi | null>(null);
   const [ouvert, setOuvert] = useState<string | null>(null);
 
@@ -68,12 +69,9 @@ export function Equipe() {
     setEnvoi(true);
     setErreur("");
     try {
-      const res = await appel("POST", { nom, email, telephone, role, competences: intervenante ? competences : [] });
-      setLien(
-        res.lienConnexion
-          ? envoiConnexion(nom, res.lienConnexion, telephone, `Compte créé pour ${nom}.`)
-          : envoiMotDePasse(nom, res.lien, telephone, `Compte créé pour ${nom}.`),
-      );
+      const res = await appel("POST", { nom, email, telephone, role, motDePasse, competences: intervenante ? competences : [] });
+      setLien(envoiIdentifiants(nom, res.telephone, res.motDePasse, `Compte créé pour ${nom}.`));
+      setMotDePasse("");
       setNom("");
       setEmail("");
       setTelephone("");
@@ -135,8 +133,9 @@ export function Equipe() {
                         const n = changes.nom ?? m.nom;
                         const tel = changes.telephone ?? m.telephone;
                         if (res.lien) setLien(envoiMotDePasse(n, res.lien, tel, `Nouveau lien de mot de passe pour ${n}.`));
+                        if (res.motDePasse) setLien(envoiIdentifiants(n, res.telephone ?? tel, res.motDePasse, `Nouveau mot de passe pour ${n}.`));
                         if (res.lienConnexion) setLien(envoiConnexion(n, res.lienConnexion, tel, `Lien de connexion pour ${n}.`));
-                        if (res.lien || res.lienConnexion) window.scrollTo({ top: 0, behavior: "smooth" });
+                        if (res.lien || res.lienConnexion || res.motDePasse) window.scrollTo({ top: 0, behavior: "smooth" });
                         setOuvert(null);
                         setVersion((v) => v + 1);
                       } catch (err) {
@@ -160,13 +159,16 @@ export function Equipe() {
             </label>
             <ChoixRole role={role} setRole={setRole} />
             <label className="mt-4 block">
-              <span className="text-sm font-semibold">Numéro WhatsApp</span> <span className="text-sm text-doux">(pour lui envoyer son accès)</span>
-              <input inputMode="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="77 123 45 67" className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond" />
+              <span className="text-sm font-semibold">📱 Numéro de téléphone</span> <span className="text-sm text-doux">(c&apos;est son identifiant de connexion)</span>
+              <input inputMode="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="77 123 45 67" required className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond" />
             </label>
             <label className="mt-3 block">
-              <span className="text-sm font-semibold">Email</span>{" "}
-              {intervenante && <span className="text-sm text-doux">(facultatif : sans email, elle se connecte par un lien WhatsApp)</span>}
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required={!intervenante} className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond" />
+              <span className="text-sm font-semibold">🔑 Mot de passe</span> <span className="text-sm text-doux">(vide : 6 chiffres tirés au sort)</span>
+              <input value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} autoComplete="off" placeholder="au moins 6 caractères" className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond" />
+            </label>
+            <label className="mt-3 block">
+              <span className="text-sm font-semibold">Email</span> <span className="text-sm text-doux">(facultatif)</span>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond" />
             </label>
             {intervenante && <ChoixCompetences competences={competences} setCompetences={setCompetences} />}
             <button type="submit" disabled={envoi} className="mt-6 w-full rounded-full bg-aza py-3 font-bold text-white hover:bg-aza-fonce disabled:opacity-50">
@@ -230,7 +232,16 @@ function ChoixCompetences({ competences, setCompetences }: { competences: string
   );
 }
 
-type Changes = { nom?: string; role?: Role; competences?: string[]; actif?: boolean; lien?: boolean; lienConnexion?: boolean; telephone?: string };
+type Changes = { nom?: string; role?: Role; competences?: string[]; actif?: boolean; lien?: boolean; lienConnexion?: boolean; telephone?: string; motDePasse?: true };
+
+function envoiIdentifiants(nom: string, telephone: string, motDePasse: string, titre: string): Envoi {
+  return {
+    titre,
+    aide: "Envoyez-lui ce message par WhatsApp. Elle se connecte avec son numéro et ce mot de passe, et pourra le changer dans « Mon compte ».",
+    texte: `Bonjour ${nom} 👋\nVotre accès Anna Zen Attitude : ${adresse("/gestion")}\n📱 Numéro : ${telephone}\n🔑 Mot de passe : ${motDePasse}\nVous pourrez changer le mot de passe dans « Mon compte ».`,
+    telephone,
+  };
+}
 
 type Envoi = { titre: string; aide: string; texte: string; telephone: string };
 
@@ -324,6 +335,17 @@ function Modifier({ m, soiMeme, enregistrer }: { m: Ligne; soiMeme: boolean; enr
         {envoi ? "Enregistrement…" : "Enregistrer les modifications"}
       </button>
       <div className="mt-3 flex flex-wrap gap-2">
+        {m.actif && (
+          <button
+            disabled={envoi}
+            onClick={() => {
+              if (window.confirm(`Donner un nouveau mot de passe (6 chiffres) à ${m.nom} ? L'ancien ne marchera plus.`)) envoyer({ motDePasse: true });
+            }}
+            className="rounded-full bg-aza px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+          >
+            🔑 Nouveau mot de passe
+          </button>
+        )}
         {m.actif && !soiMeme && (
           <button
             disabled={envoi}

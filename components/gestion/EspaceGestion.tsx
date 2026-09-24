@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
+import { onAuthStateChanged, sendPasswordResetEmail, signInWithCustomToken, signInWithEmailAndPassword, signOut, type User } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import type { Role } from "@/lib/agenda/statuts";
 import { firebaseClient } from "@/lib/client/firebase";
@@ -154,15 +154,17 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
             ))}
         </nav>
         <div className="ml-auto flex items-center gap-3 text-sm">
-          <span className="hidden md:inline">
-            {compte?.nom} · <span className="text-or">{compte && LIBELLE_ROLE[compte.role]}</span>
-          </span>
+          <Link href="/gestion/mon-compte" className="flex max-w-[9rem] items-center gap-1 truncate rounded-full px-2 py-1 hover:bg-white/10 md:max-w-none" title="Mon compte">
+            <span aria-hidden>👤</span>
+            <span className="truncate font-semibold text-white">{compte?.nom?.split(" ")[0]}</span>
+            <span className="hidden text-or md:inline">· {compte && LIBELLE_ROLE[compte.role]}</span>
+          </Link>
           <button
             onClick={() => {
-              if (telephonePerso && !window.confirm("Se déconnecter ? Pour revenir, il faudra demander un nouveau lien à la direction.")) return;
+              if (telephonePerso && !window.confirm("Se déconnecter ? Pour revenir, il faudra votre numéro et votre mot de passe.")) return;
               signOut(firebaseClient().auth);
             }}
-            className="whitespace-nowrap rounded-full border border-or-clair/40 px-4 py-1.5 font-semibold hover:bg-white/10"
+            className="hidden whitespace-nowrap rounded-full border border-or-clair/40 px-4 py-1.5 font-semibold hover:bg-white/10 sm:block"
           >
             Déconnexion
           </button>
@@ -185,20 +187,27 @@ function Message({ titre, texte, children }: { titre: string; texte?: string; ch
 }
 
 function Connexion() {
-  const [email, setEmail] = useState("");
+  // Par défaut : numéro de téléphone + mot de passe (le plus simple pour l'équipe).
+  const [parEmail, setParEmail] = useState(false);
+  const [identifiant, setIdentifiant] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
+  const [voir, setVoir] = useState(false);
   const [erreur, setErreur] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [info, setInfo] = useState("");
 
   async function oubli() {
     setErreur("");
-    if (!email.includes("@")) {
+    if (!parEmail) {
+      setInfo("Demandez à la direction : elle vous donne un nouveau mot de passe en un instant (Équipe → Modifier).");
+      return;
+    }
+    if (!identifiant.includes("@")) {
       setErreur("Écrivez d'abord votre email, puis touchez « Mot de passe oublié ».");
       return;
     }
     // Même réponse que l'email existe ou non : on ne révèle pas qui a un compte.
-    await sendPasswordResetEmail(firebaseClient().auth, email.trim()).catch(() => {});
+    await sendPasswordResetEmail(firebaseClient().auth, identifiant.trim()).catch(() => {});
     setInfo("Si ce compte existe, un email vient d'être envoyé pour choisir un nouveau mot de passe.");
   }
 
@@ -207,57 +216,89 @@ function Connexion() {
     setEnvoi(true);
     setErreur("");
     try {
-      await signInWithEmailAndPassword(firebaseClient().auth, email.trim(), motDePasse);
-    } catch {
-      setErreur("Email ou mot de passe incorrect.");
+      if (parEmail) {
+        await signInWithEmailAndPassword(firebaseClient().auth, identifiant.trim(), motDePasse).catch(() => {
+          throw new Error("Email ou mot de passe incorrect.");
+        });
+      } else {
+        const r = await fetch("/api/connexion-equipe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ telephone: identifiant, motDePasse }),
+        }).catch(() => {
+          throw new Error("Pas de connexion internet.");
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.erreur ?? "Numéro ou mot de passe incorrect.");
+        await signInWithCustomToken(firebaseClient().auth, j.jeton);
+      }
+    } catch (e) {
+      setErreur((e as Error).message);
     } finally {
       setEnvoi(false);
     }
   }
 
+  const champ = "mt-1 block w-full rounded-xl border border-bordure px-4 py-3 text-lg outline-none focus:border-profond";
   return (
     <div className="flex min-h-screen items-center justify-center bg-bordeaux px-4">
       <form onSubmit={seConnecter} className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-xl">
         <Image src="/images/logo-rose.png" alt="Anna Zen Attitude" width={790} height={257} className="mx-auto h-12 w-auto" />
         <h1 className="mt-6 text-center font-serif text-3xl font-semibold text-profond">Espace de gestion</h1>
         <label className="mt-6 block">
-          <span className="text-sm font-semibold">Email</span>
+          <span className="text-sm font-semibold">{parEmail ? "✉️ Email" : "📱 Votre numéro de téléphone"}</span>
           <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            key={parEmail ? "email" : "tel"}
+            type={parEmail ? "email" : "tel"}
+            inputMode={parEmail ? "email" : "tel"}
+            value={identifiant}
+            onChange={(e) => setIdentifiant(e.target.value)}
             autoComplete="username"
+            placeholder={parEmail ? "" : "77 123 45 67"}
             required
-            className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond"
+            className={champ}
           />
         </label>
         <label className="mt-4 block">
-          <span className="text-sm font-semibold">Mot de passe</span>
-          <input
-            type="password"
-            value={motDePasse}
-            onChange={(e) => setMotDePasse(e.target.value)}
-            autoComplete="current-password"
-            required
-            className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond"
-          />
+          <span className="text-sm font-semibold">🔑 Mot de passe</span>
+          <span className="mt-1 flex gap-2">
+            <input
+              type={voir ? "text" : "password"}
+              value={motDePasse}
+              onChange={(e) => setMotDePasse(e.target.value)}
+              autoComplete="current-password"
+              required
+              className={`${champ} mt-0 min-w-0 flex-1`}
+            />
+            <button type="button" onClick={() => setVoir(!voir)} className="rounded-xl border border-bordure px-3 text-xl" aria-label={voir ? "Cacher le mot de passe" : "Voir le mot de passe"}>
+              {voir ? "🙈" : "👁️"}
+            </button>
+          </span>
         </label>
         {erreur && (
           <p className="mt-4 text-sm font-semibold text-aza-fonce" role="alert">
             {erreur}
           </p>
         )}
-        <button
-          type="submit"
-          disabled={envoi}
-          className="mt-6 w-full rounded-full bg-aza py-3 font-bold text-white hover:bg-aza-fonce disabled:opacity-50"
-        >
+        <button type="submit" disabled={envoi} className="mt-6 min-h-12 w-full rounded-full bg-aza text-lg font-bold text-white hover:bg-aza-fonce disabled:opacity-50">
           {envoi ? "Connexion…" : "Se connecter"}
         </button>
         <button type="button" onClick={oubli} className="mt-4 w-full text-center text-sm font-semibold text-profond underline underline-offset-4">
           Mot de passe oublié ?
         </button>
         {info && <p className="mt-3 text-center text-sm text-doux">{info}</p>}
+        <button
+          type="button"
+          onClick={() => {
+            setParEmail(!parEmail);
+            setIdentifiant("");
+            setErreur("");
+            setInfo("");
+          }}
+          className="mt-6 w-full text-center text-xs text-doux underline"
+        >
+          {parEmail ? "Se connecter avec mon numéro de téléphone" : "Se connecter avec un email"}
+        </button>
       </form>
     </div>
   );

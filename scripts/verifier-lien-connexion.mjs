@@ -40,10 +40,6 @@ async function connecterAvec(customToken) {
 const [direction, manager, coiffeuse] = await Promise.all(["direction", "manager", "coiffeuse1"].map((n) => jeton(`${n}@test.aza`)));
 
 // Création sans email
-ok(
-  (await api("/api/gestion/equipe", direction, "POST", { nom: "Accueil sans email", email: "", role: "accueil" })).statut === 400,
-  "l'accueil a besoin d'un email (poste partagé, mot de passe)",
-);
 const cree = await api("/api/gestion/equipe", direction, "POST", {
   nom: "Fatou Tresses",
   email: "",
@@ -51,7 +47,10 @@ const cree = await api("/api/gestion/equipe", direction, "POST", {
   role: "praticienne",
   competences: ["tresses"],
 });
-ok(cree.statut === 201 && typeof cree.corps.lienConnexion === "string", "praticienne créée SANS email : un lien de connexion est rendu");
+ok(cree.statut === 201 && /^\d{6}$/.test(cree.corps.motDePasse), "praticienne créée SANS email (numéro + mot de passe)");
+const l1 = await api("/api/gestion/equipe", direction, "PATCH", { uid: cree.corps.uid, lienConnexion: true });
+cree.corps.lienConnexion = l1.corps.lienConnexion;
+ok(typeof l1.corps.lienConnexion === "string", "…et, en plus, un lien de connexion WhatsApp possible");
 
 // Utilisation du lien
 const e1 = await entrer(cree.corps.lienConnexion);

@@ -29,6 +29,7 @@ export async function POST(request: Request) {
       role: String(c.role ?? "") as Role,
       competences: Array.isArray(c.competences) ? c.competences.map(String) : [],
       telephone: c.telephone === undefined ? undefined : String(c.telephone),
+      motDePasse: c.motDePasse ? String(c.motDePasse) : undefined,
     });
     return Response.json(res, { status: 201 });
   } catch (e) {
@@ -50,6 +51,7 @@ export async function PATCH(request: Request) {
         actif: typeof c.actif === "boolean" ? c.actif : undefined,
         lien: c.lien === true,
         telephone: c.telephone === undefined ? undefined : String(c.telephone),
+        motDePasse: c.motDePasse === true ? true : c.motDePasse ? String(c.motDePasse) : undefined,
       }),
     );
   } catch (e) {

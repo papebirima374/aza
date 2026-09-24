@@ -11,16 +11,9 @@
 import { getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { connectAuthEmulator, getAuth, type Auth } from "firebase/auth";
 import { connectFirestoreEmulator, getFirestore, type Firestore } from "firebase/firestore";
+import { CONFIG_INSTITUT } from "@/lib/firebase-config";
 
 const EMULATEURS = process.env.NEXT_PUBLIC_EMULATEURS === "1";
-const CONFIG_INSTITUT = {
-  apiKey: "AIzaSyAS1FNvlyW9zPBGX90C7NoAUyHDKnuvOhw",
-  authDomain: "annazen-bb41e.firebaseapp.com",
-  projectId: "annazen-bb41e",
-  storageBucket: "annazen-bb41e.firebasestorage.app",
-  messagingSenderId: "597725362306",
-  appId: "1:597725362306:web:dbb90add4e18297ad51c9b",
-};
 const CONFIG = process.env.NEXT_PUBLIC_FIREBASE_CONFIG;
 
 let cache: { app: FirebaseApp; auth: Auth; db: Firestore } | null = null;

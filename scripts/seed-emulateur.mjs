@@ -121,9 +121,12 @@ const comptes = [
   ["estheticienne1@test.aza", "Esthéticienne test 1", "praticienne", "test-estheticienne-1"],
   ["comptable@test.aza", "Comptable test", "comptable"],
 ];
+// Numéros FICTIFS 77 900 00 01, 02… : connexion par téléphone + mot de passe de test.
+let rang = 0;
 for (const [email, nom, role, praticienne] of comptes) {
+  const tel = `7790000${String(++rang).padStart(2, "0")}`;
   const u = await getAuth(app).createUser({ email, password: MOT_DE_PASSE_TEST, displayName: nom });
-  await db.doc(`comptes/${u.uid}`).set({ nom, role, ...(praticienne ? { praticienne } : {}), test: true });
+  await db.doc(`comptes/${u.uid}`).set({ nom, role, email, telephone: tel, telephoneCanonique: tel, ...(praticienne ? { praticienne } : {}), test: true });
 }
 
 // --- Quelques rendez-vous FICTIFS aujourd'hui et demain, placés par le moteur
@@ -177,7 +180,7 @@ for (const [date, debut, ids, nom, tel, statut] of RDV) {
   nbRdv++;
 }
 
-console.log(`Comptes de test (mot de passe ${MOT_DE_PASSE_TEST}) : ${comptes.map((c) => c[0]).join(", ")}`);
+console.log(`Comptes de test (mot de passe ${MOT_DE_PASSE_TEST}) : ${comptes.map((c, i) => `${c[0]} / 7790000${String(i + 1).padStart(2, "0")}`).join(", ")}`);
 console.log(`${nbRdv} rendez-vous de test aujourd'hui et demain.`);
 console.log(`Base de test « ${PROJET} » prête : ${n} prestations paramétrées, ${equipe.length} praticiennes, ${Object.keys(postes).length} postes (tous FICTIFS).`);
 process.exit(0);

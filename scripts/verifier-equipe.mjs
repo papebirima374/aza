@@ -54,22 +54,26 @@ const associee = await inscrire("associee@test.aza");
 ok((await api("/api/gestion/demarrer", associee.jeton)).statut === 403, "une seconde direction ne peut pas s'auto-attribuer le rôle");
 
 // 2. Création des comptes
-const accueil = await api("/api/gestion/equipe", patronne.jeton, "POST", { nom: "Aminata Accueil", email: "aminata@test.aza", role: "accueil" });
-ok(accueil.statut === 201 && typeof accueil.corps.lien === "string" && accueil.corps.lien.includes("oobCode"), "compte accueil créé, avec son lien de mot de passe");
 ok(
-  (await api("/api/gestion/equipe", patronne.jeton, "POST", { nom: "Awa", email: "awa@test.aza", role: "praticienne" })).statut === 400,
+  (await api("/api/gestion/equipe", patronne.jeton, "POST", { nom: "Sans numéro", email: "sans@test.aza", role: "accueil" })).statut === 400,
+  "sans numéro de téléphone : refusé (c'est l'identifiant)",
+);
+const accueil = await api("/api/gestion/equipe", patronne.jeton, "POST", { nom: "Aminata Accueil", email: "aminata@test.aza", telephone: "77 111 00 01", role: "accueil" });
+ok(accueil.statut === 201 && /^\d{6}$/.test(accueil.corps.motDePasse), `compte accueil créé, mot de passe de 6 chiffres (${accueil.corps.motDePasse})`);
+ok(
+  (await api("/api/gestion/equipe", patronne.jeton, "POST", { nom: "Awa", email: "awa@test.aza", telephone: "77 111 00 02", role: "praticienne" })).statut === 400,
   "une praticienne sans compétence est refusée",
 );
-const awa = await api("/api/gestion/equipe", patronne.jeton, "POST", { nom: "Awa Tresses", email: "awa@test.aza", role: "praticienne", competences: ["tresses", "locks"] });
+const awa = await api("/api/gestion/equipe", patronne.jeton, "POST", { nom: "Awa Tresses", email: "awa@test.aza", telephone: "77 111 00 02", role: "praticienne", competences: ["tresses", "locks"] });
 ok(awa.statut === 201, "compte praticienne créé");
 const fiches = await (await fetch(`${EMU}/praticiennes`, OWNER)).json();
 ok(fiches.documents?.length === 1 && fiches.documents[0].fields.nom.stringValue === "Awa Tresses", "…avec sa fiche pour l'agenda");
 ok(
-  (await api("/api/gestion/equipe", patronne.jeton, "POST", { nom: "Awa bis", email: "AWA@test.aza", role: "accueil" })).statut === 409,
+  (await api("/api/gestion/equipe", patronne.jeton, "POST", { nom: "Awa bis", email: "AWA@test.aza", telephone: "77 111 00 03", role: "accueil" })).statut === 409,
   "même email (majuscules comprises) : pas de second compte",
 );
 ok(
-  (await api("/api/gestion/equipe", patronne.jeton, "POST", { nom: "Faux", email: "pas-un-email", role: "accueil" })).statut === 400,
+  (await api("/api/gestion/equipe", patronne.jeton, "POST", { nom: "Faux", email: "pas-un-email", telephone: "77 111 00 04", role: "accueil" })).statut === 400,
   "email invalide refusé",
 );
 
