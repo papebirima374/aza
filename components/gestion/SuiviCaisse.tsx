@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { Compte } from "@/components/gestion/EspaceGestion";
 import { ROLES_CAISSE } from "@/lib/caisse/modes";
 import { firebaseClient } from "@/lib/client/firebase";
+import { ajouterAttente, lireAttente, marquerRefus, retirerAttente, type VenteEnAttente } from "@/lib/client/file-caisse";
 
 // Prévenir la caisse, en direct : dès qu'une praticienne touche « J'ai fini », le
 // rendez-vous apparaît à encaisser, l'onglet Caisse affiche une pastille, et un message
@@ -21,6 +22,18 @@ export type AEncaisser = {
 
 const Contexte = createContext<AEncaisser[]>([]);
 export const useAEncaisser = () => useContext(Contexte);
+
+// Ventes gardées sur l'appareil pendant une coupure (voir lib/client/file-caisse.ts).
+type File = {
+  attente: VenteEnAttente[];
+  enLigne: boolean;
+  envoi: boolean;
+  mettreEnAttente: (v: VenteEnAttente) => void;
+  synchroniser: () => void;
+  abandonner: (idLocal: string) => void;
+};
+const ContexteFile = createContext<File>({ attente: [], enLigne: true, envoi: false, mettreEnAttente: () => {}, synchroniser: () => {}, abandonner: () => {} });
+export const useFileCaisse = () => useContext(ContexteFile);
 
 function aujourdhui() {
   return new Date().toISOString().slice(0, 10);
@@ -50,6 +63,76 @@ export function SuiviCaisse({ compte, children }: { compte: Compte | null; child
   const [liste, setListe] = useState<AEncaisser[]>([]);
   const [alerte, setAlerte] = useState<AEncaisser | null>(null);
   const connus = useRef<Set<string> | null>(null);
+  const [attente, setAttente] = useState<VenteEnAttente[]>([]);
+  const [enLigne, setEnLigne] = useState(true);
+  const [envoi, setEnvoi] = useState(false);
+  const enCours = useRef(false);
+
+  // Envoie, une par une, les ventes gardées sur l'appareil. Une coupure arrête la boucle
+  // (on réessaiera) ; un refus du serveur est noté sur la vente, qui reste visible.
+  const synchroniser = useCallback(async () => {
+    if (!compte || enCours.current) return;
+    const liste = lireAttente().filter((v) => !v.refus);
+    if (liste.length === 0) return;
+    enCours.current = true;
+    setEnvoi(true);
+    try {
+      for (const v of liste) {
+        let r: Response;
+        try {
+          r = await fetch("/api/gestion/caisse", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${await compte.user.getIdToken()}` },
+            body: JSON.stringify({ ...v.corps, action: "encaisser", idLocal: v.idLocal, faitLe: v.faitLe }),
+          });
+        } catch {
+          break;
+        }
+        if (r.ok) retirerAttente(v.idLocal);
+        else if (r.status >= 400 && r.status < 500 && r.status !== 401) marquerRefus(v.idLocal, (await r.json().catch(() => ({}))).erreur ?? "Refusée");
+        else break;
+      }
+    } finally {
+      enCours.current = false;
+      setEnvoi(false);
+      setAttente(lireAttente());
+    }
+  }, [compte]);
+
+  useEffect(() => {
+    if (!actif) return;
+    const maj = () => {
+      setEnLigne(navigator.onLine);
+      setAttente(lireAttente());
+      if (navigator.onLine) synchroniser();
+    };
+    maj();
+    window.addEventListener("online", maj);
+    window.addEventListener("offline", maj);
+    const t = setInterval(() => lireAttente().some((v) => !v.refus) && synchroniser(), 20_000);
+    return () => {
+      window.removeEventListener("online", maj);
+      window.removeEventListener("offline", maj);
+      clearInterval(t);
+    };
+  }, [actif, synchroniser]);
+
+  const file: File = {
+    attente,
+    enLigne,
+    envoi,
+    mettreEnAttente: (v) => {
+      ajouterAttente(v);
+      setAttente(lireAttente());
+    },
+    synchroniser: () => void synchroniser(),
+    abandonner: (idLocal) => {
+      retirerAttente(idLocal);
+      setAttente(lireAttente());
+    },
+  };
+  // Un rendez-vous déjà encaissé sur l'appareil (en attente d'envoi) n'est plus « à encaisser ».
+  const enAttente = new Set(attente.map((v) => v.corps.rendezVous));
 
   useEffect(() => {
     if (!actif) return;
@@ -77,10 +160,18 @@ export function SuiviCaisse({ compte, children }: { compte: Compte | null; child
   }, [alerte]);
 
   return (
-    <Contexte.Provider value={actif ? liste : []}>
+    <Contexte.Provider value={actif ? liste.filter((r) => !enAttente.has(r.id)) : []}>
+      <ContexteFile.Provider value={file}>
       {children}
+      {actif && (!enLigne || attente.length > 0) && (
+        <div className={`fixed inset-x-0 bottom-0 z-40 px-3 py-2 text-center text-sm font-bold text-white print:hidden ${enLigne ? "bg-[#a34d00]" : "bg-encre"}`} role="status">
+          {!enLigne && "📴 Pas de connexion — les encaissements sont gardés sur cet appareil. "}
+          {attente.length > 0 &&
+            `⏳ ${attente.length} vente${attente.length > 1 ? "s" : ""} en attente d'envoi${envoi ? " (envoi…)" : ""}${attente.some((v) => v.refus) ? " — à vérifier dans Caisse" : ""}`}
+        </div>
+      )}
       {alerte && (
-        <div className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-md rounded-2xl border-2 border-[#0d6b37] bg-white p-4 shadow-2xl print:hidden" role="alert">
+        <div className="fixed inset-x-3 bottom-12 z-50 mx-auto max-w-md rounded-2xl border-2 border-[#0d6b37] bg-white p-4 shadow-2xl print:hidden" role="alert">
           <p className="text-lg font-bold">
             <span aria-hidden>💰 </span>
             {alerte.cliente.nom} a fini
@@ -100,6 +191,7 @@ export function SuiviCaisse({ compte, children }: { compte: Compte | null; child
           </div>
         </div>
       )}
+      </ContexteFile.Provider>
     </Contexte.Provider>
   );
 }

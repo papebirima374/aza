@@ -34,11 +34,19 @@ function trace(membre: Membre) {
 }
 
 /** La caisse d'aujourd'hui doit être ouverte (et pas encore clôturée) pour encaisser. */
-async function caisseOuverte(tx: Transaction, date: string) {
+async function caisseOuverte(tx: Transaction, date: string, horsLigne = false) {
   const caisse = await tx.get(db().doc(`caisses/${date}`));
   if (!caisse.exists) throw new Erreur("Ouvrez d'abord la caisse du jour (fond de caisse).", 409);
-  if (caisse.get("statut") !== "ouverte") throw new Erreur("La caisse du jour est clôturée.", 409);
+  // Une vente faite hors connexion avant la clôture est toujours acceptée : aucune vente perdue.
+  if (caisse.get("statut") !== "ouverte" && !horsLigne) throw new Erreur("La caisse du jour est clôturée.", 409);
   return caisse;
+}
+
+/** Vente faite hors connexion : son heure réelle (si elle est plausible : moins de 3 jours). */
+function momentDeLaVente(faitLe: unknown) {
+  const t = Number(faitLe);
+  if (Number.isFinite(t) && t <= Date.now() + 2 * 60_000 && t >= Date.now() - 72 * 3600_000) return maintenantDakar(new Date(t));
+  return maintenantDakar();
 }
 
 export async function ouvrirCaisse(membre: Membre, fondBrut: unknown) {
@@ -98,6 +106,10 @@ export type Encaissement = {
   remise?: { montant?: unknown; motif?: unknown };
   rendezVous?: string;
   cliente?: { nom?: string; telephone?: string };
+  /** Identifiant fabriqué par l'appareil : renvoyer deux fois la même vente ne crée qu'un ticket. */
+  idLocal?: string;
+  /** Moment réel de la vente (millisecondes), pour une vente envoyée après une coupure. */
+  faitLe?: unknown;
 };
 
 /**
@@ -128,13 +140,21 @@ export async function encaisser(membre: Membre, e: Encaissement) {
   const credit = paiements.find((p) => p.mode === "credit")?.montant ?? 0;
 
   const base = db();
-  const { date, minutes } = maintenantDakar();
+  const idLocal = e.idLocal && /^[A-Za-z0-9-]{8,64}$/.test(e.idLocal) ? e.idLocal : null;
+  const { date, minutes } = idLocal ? momentDeLaVente(e.faitLe) : maintenantDakar();
+  const horsLigne = Boolean(idLocal) && Number(e.faitLe) < Date.now() - 60_000;
   const rdvRef = e.rendezVous ? base.doc(`rendezVous/${e.rendezVous}`) : null;
-  const ticketRef = base.collection("tickets").doc();
+  const ticketRef = idLocal ? base.doc(`tickets/l-${idLocal}`) : base.collection("tickets").doc();
   const compteurRef = base.doc("compteurs/tickets");
 
   return base.runTransaction(async (tx) => {
-    await caisseOuverte(tx, date);
+    // Déjà reçue (renvoi après une coupure) : on rend le même ticket, sans rien refaire.
+    const deja = idLocal ? await tx.get(ticketRef) : null;
+    if (deja?.exists) {
+      return { id: ticketRef.id, reference: deja.get("reference") as string, total: deja.get("total") as number, rendu: deja.get("rendu") as number, deja: true };
+    }
+    const caisse = await caisseOuverte(tx, date, horsLigne);
+    const apresCloture = caisse.get("statut") !== "ouverte";
     const [compteur, rdv] = await Promise.all([tx.get(compteurRef), rdvRef ? tx.get(rdvRef) : Promise.resolve(null)]);
 
     let cliente: { id: string; nom: string; telephone: string } | null = null;
@@ -172,9 +192,12 @@ export async function encaisser(membre: Membre, e: Encaissement) {
       rendezVous: rdvRef?.id ?? null,
       par: trace(membre),
       creeLe: FieldValue.serverTimestamp(),
+      ...(horsLigne ? { horsLigne: true } : {}),
+      ...(apresCloture ? { apresCloture: true } : {}),
     };
     tx.set(compteurRef, { dernier: numero }, { merge: true });
     tx.set(ticketRef, ticket);
+    if (apresCloture) tx.update(caisse.ref, { ticketsApresCloture: FieldValue.arrayUnion(reference(numero)) });
     if (rdvRef) {
       tx.update(rdvRef, {
         statut: "encaisse",
@@ -313,7 +336,13 @@ export async function journal(membre: Membre, dateBrute?: string) {
     date,
     aujourdhui: date === maintenantDakar().date,
     caisse: caisse.exists
-      ? { statut: caisse.get("statut"), fond, ouvertPar: caisse.get("ouvertPar"), cloture: caisse.get("cloture") ?? null }
+      ? {
+          statut: caisse.get("statut"),
+          fond,
+          ouvertPar: caisse.get("ouvertPar"),
+          cloture: caisse.get("cloture") ?? null,
+          ticketsApresCloture: (caisse.get("ticketsApresCloture") as string[] | undefined) ?? [],
+        }
       : null,
     tickets,
     totaux: totaux(fond, tickets),

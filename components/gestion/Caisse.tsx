@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { useCatalogue } from "@/lib/client/catalogue";
-import { useAEncaisser } from "@/components/gestion/SuiviCaisse";
+import { useAEncaisser, useFileCaisse } from "@/components/gestion/SuiviCaisse";
+import { erreurReseau, nouvelIdLocal } from "@/lib/client/file-caisse";
 import { LIBELLE_MODE, MODES, ROLES_CAISSE, ROLES_REMISE, type Mode } from "@/lib/caisse/modes";
 import { dateTexte, heureTexte, lienRecuWhatsApp, type Ticket } from "@/lib/caisse/recu";
 import { formatPrix } from "@/lib/catalogue";
@@ -22,6 +23,7 @@ type Journal = {
     statut: "ouverte" | "cloturee";
     fond: number;
     ouvertPar: { nom: string };
+    ticketsApresCloture?: string[];
     cloture: null | { compte: number; attendu: number; ecart: number; justification: string; recette: number; par: { nom: string } };
   };
   tickets: Ticket[];
@@ -56,7 +58,10 @@ export function Caisse() {
   const [journal, setJournal] = useState<Journal | null>(null);
   const aEncaisser = useAEncaisser();
   const [brouillon, setBrouillon] = useState<Brouillon | null>(null);
-  const [fait, setFait] = useState<{ id: string; reference: string; rendu: number } | null>(null);
+  const [fait, setFait] = useState<{ id: string; reference: string; rendu: number; horsLigne?: boolean } | null>(null);
+  const file = useFileCaisse();
+  // Des ventes gardées sur l'appareil viennent de partir : on relit le journal.
+  const nbAttente = file.attente.length;
   const [erreur, setErreur] = useState("");
   const [version, setVersion] = useState(0);
   const tientLaCaisse = ROLES_CAISSE.includes(compte.role);
@@ -79,11 +84,11 @@ export function Caisse() {
     let actif = true;
     appel(`?date=${date}`)
       .then((j: Journal) => actif && setJournal(j))
-      .catch((e: Error) => actif && setErreur(e.message));
+      .catch((e: Error) => actif && setErreur(erreurReseau(e) ? "Pas de connexion : le journal se mettra à jour au retour d'internet." : e.message));
     return () => {
       actif = false;
     };
-  }, [appel, date, version, tientLaCaisse]);
+  }, [appel, date, version, tientLaCaisse, nbAttente]);
 
   // Arrivée depuis l'agenda (« Encaisser ») : le ticket du rendez-vous est prêt.
   const rdvDemande = params.get("rdv");
@@ -194,16 +199,31 @@ export function Caisse() {
               setBrouillon={setBrouillon}
               remisePermise={ROLES_REMISE.includes(compte.role)}
               annuler={() => setBrouillon(null)}
-              encaisser={async (corps) => {
-                const res = await action({ action: "encaisser", ...corps });
-                if (res) {
+              encaisser={async (corps, info) => {
+                // Chaque vente a son identifiant, fabriqué ici : si la connexion coupe, elle est
+                // gardée sur l'appareil et renvoyée plus tard, sans jamais faire de doublon.
+                const idLocal = nouvelIdLocal();
+                const faitLe = Date.now();
+                setErreur("");
+                try {
+                  const res = await appel("", { action: "encaisser", ...corps, idLocal, faitLe });
+                  setVersion((v) => v + 1);
                   setBrouillon(null);
                   setFait(res);
                   window.scrollTo({ top: 0, behavior: "smooth" });
+                } catch (e) {
+                  if (erreurReseau(e)) {
+                    file.mettreEnAttente({ idLocal, faitLe, corps, ...info });
+                    setBrouillon(null);
+                    setFait({ id: "", reference: "", rendu: rendu(corps, info.total), horsLigne: true });
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  } else setErreur((e as Error).message);
                 }
               }}
             />
           )}
+
+          {file.attente.length > 0 && <EnAttente />}
 
           <Tickets
             tickets={journal.tickets}
@@ -214,7 +234,7 @@ export function Caisse() {
             }}
           />
 
-          <Bilan journal={journal} cloturer={ouverte && tientLaCaisse ? (compte, justification) => action({ action: "cloturer", compte, justification }) : undefined} />
+          <Bilan journal={journal} attente={file.attente.length} cloturer={ouverte && tientLaCaisse ? (compte, justification) => action({ action: "cloturer", compte, justification }) : undefined} />
         </>
       )}
     </div>
@@ -243,7 +263,7 @@ function Editeur(props: {
   setBrouillon: (b: Brouillon) => void;
   remisePermise: boolean;
   annuler: () => void;
-  encaisser: (corps: object) => Promise<void>;
+  encaisser: (corps: Record<string, unknown>, info: { total: number; resume: string }) => Promise<void>;
 }) {
   const cat = useCatalogue();
   const b = props.brouillon;
@@ -467,6 +487,9 @@ function Editeur(props: {
             paiements: MODES.map((m) => ({ mode: m.id, montant: nombre(montants[m.id] ?? "") })).filter((p) => p.montant > 0),
             ...(remiseN > 0 ? { remise: { montant: remiseN, motif } } : {}),
             ...(!b.rendezVous && telephone.trim() ? { cliente: { nom: nom.trim() || "Cliente", telephone } } : {}),
+          }, {
+            total,
+            resume: `${b.cliente?.nom ?? (nom.trim() || "Vente")} — ${lignes.map((l) => (l.quantite > 1 ? `${l.quantite} × ${l.p.nom}` : l.p.nom)).join(" + ")}`,
           });
           setEnvoi(false);
         }}
@@ -478,8 +501,20 @@ function Editeur(props: {
   );
 }
 
-function Confirmation({ fait, ticket, fermer }: { fait: { id: string; reference: string; rendu: number }; ticket?: Ticket; fermer: () => void }) {
+function Confirmation({ fait, ticket, fermer }: { fait: { id: string; reference: string; rendu: number; horsLigne?: boolean }; ticket?: Ticket; fermer: () => void }) {
   const whatsapp = ticket ? lienRecuWhatsApp(ticket) : null;
+  if (fait.horsLigne) {
+    return (
+      <div className="mt-6 rounded-2xl border-2 border-[#a34d00]/50 bg-[#fff1e5] p-5" role="status">
+        <p className="text-lg font-bold text-[#a34d00]">📴 Vente gardée sur cet appareil.</p>
+        <p className="mt-1 text-sm">Pas de connexion : elle partira toute seule dès le retour d&apos;internet. Ne fermez pas la caisse avant.</p>
+        {fait.rendu > 0 && <p className="mt-1 text-2xl font-bold text-encre">Monnaie à rendre : {formatPrix(fait.rendu)}</p>}
+        <button onClick={fermer} className="mt-3 px-1 text-sm font-semibold text-doux underline">
+          Fermer
+        </button>
+      </div>
+    );
+  }
   return (
     <div className="mt-6 rounded-2xl border border-[#0d6b37]/40 bg-[#e7f5ec] p-5" role="status">
       <p className="text-lg font-bold text-[#0d6b37]">Ticket {fait.reference} enregistré.</p>
@@ -546,7 +581,7 @@ function Tickets({ tickets, annulable, annuler }: { tickets: Ticket[]; annulable
   );
 }
 
-function Bilan({ journal, cloturer }: { journal: Journal; cloturer?: (compte: number, justification: string) => Promise<unknown> }) {
+function Bilan({ journal, attente, cloturer }: { journal: Journal; attente: number; cloturer?: (compte: number, justification: string) => Promise<unknown> }) {
   const [compte, setCompte] = useState("");
   const [justification, setJustification] = useState("");
   const c = journal.caisse!;
@@ -578,6 +613,11 @@ function Bilan({ journal, cloturer }: { journal: Journal; cloturer?: (compte: nu
         </div>
       </dl>
 
+      {c.ticketsApresCloture && c.ticketsApresCloture.length > 0 && (
+        <p className="mt-3 rounded-xl bg-[#fff1e5] p-3 text-sm font-semibold text-[#a34d00]">
+          ⚠️ Arrivés après la clôture (ventes faites hors connexion) : {c.ticketsApresCloture.join(", ")}. Ils sont comptés dans la recette ci-dessus mais pas dans le comptage du soir.
+        </p>
+      )}
       {c.cloture && (
         <div className="mt-4 rounded-xl bg-creme p-4 text-sm">
           <p>
@@ -608,7 +648,7 @@ function Bilan({ journal, cloturer }: { journal: Journal; cloturer?: (compte: nu
             </label>
           )}
           <button
-            disabled={ecart === null || (ecart !== 0 && justification.trim().length < 3)}
+            disabled={attente > 0 || ecart === null || (ecart !== 0 && justification.trim().length < 3)}
             onClick={() => {
               if (window.confirm("Clôturer la caisse ? Plus aucun encaissement ne sera possible aujourd'hui.")) cloturer(nombre(compte), justification);
             }}
@@ -616,7 +656,59 @@ function Bilan({ journal, cloturer }: { journal: Journal; cloturer?: (compte: nu
           >
             Clôturer la caisse
           </button>
+          {attente > 0 && (
+            <p className="mt-2 text-sm font-semibold text-[#a34d00]">
+              ⏳ {attente} vente{attente > 1 ? "s" : ""} encore sur cet appareil : attendez qu&apos;elle{attente > 1 ? "s" : ""} parte{attente > 1 ? "nt" : ""} avant de clôturer.
+            </p>
+          )}
         </div>
+      )}
+    </section>
+  );
+}
+
+/** Monnaie rendue sur une vente gardée hors connexion (même calcul que le serveur). */
+function rendu(corps: Record<string, unknown>, total: number): number {
+  const paiements = (corps.paiements as { mode: string; montant: number }[] | undefined) ?? [];
+  return Math.max(0, paiements.reduce((s, p) => s + p.montant, 0) - total);
+}
+
+/** Ventes gardées sur l'appareil, pas encore envoyées (ou refusées : à traiter). */
+function EnAttente() {
+  const file = useFileCaisse();
+  return (
+    <section className="mt-8 rounded-2xl border-2 border-[#a34d00]/50 p-4">
+      <h2 className="font-serif text-2xl font-semibold text-[#a34d00]">En attente d&apos;envoi ({file.attente.length})</h2>
+      <p className="text-sm text-doux">Ventes gardées sur cet appareil pendant une coupure. Elles partent toutes seules au retour de la connexion.</p>
+      <ul className="mt-3 divide-y divide-bordure">
+        {file.attente.map((v) => (
+          <li key={v.idLocal} className="py-2">
+            <div className="flex justify-between gap-3">
+              <span className="text-sm">
+                {new Date(v.faitLe).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })} · {v.resume}
+              </span>
+              <span className="prix shrink-0 font-bold">{formatPrix(v.total)}</span>
+            </div>
+            {v.refus && (
+              <div className="mt-1 rounded-lg bg-aza/10 p-2 text-sm">
+                <p className="font-semibold text-profond">Refusée par le serveur : {v.refus}</p>
+                <button
+                  onClick={() => {
+                    if (window.confirm("Abandonner cette vente ? Elle ne sera pas enregistrée. Refaites-la à la main si besoin.")) file.abandonner(v.idLocal);
+                  }}
+                  className="mt-1 font-semibold text-aza-fonce underline"
+                >
+                  Abandonner cette vente
+                </button>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      {file.enLigne && (
+        <button onClick={file.synchroniser} disabled={file.envoi} className={`${bouton} mt-2 border border-bordure text-profond`}>
+          {file.envoi ? "Envoi…" : "Envoyer maintenant"}
+        </button>
       )}
     </section>
   );
