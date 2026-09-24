@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { IconeHorloge, IconeLieu, IconeTelephone, IconeWhatsApp } from "@/components/Icones";
-import { formatPrix, famillesDe, PRESTATIONS, prestationParId, UNIVERS } from "@/lib/catalogue";
+import { formatPrix, UNIVERS } from "@/lib/catalogue";
+import { catalogueServeur } from "@/lib/serveur/catalogue";
 import { INSTITUT, LIEN_ITINERAIRE, lienWhatsApp, TELEPHONE_PRINCIPAL } from "@/lib/institut";
 
 // Prestations mises en avant sur l'accueil (à ajuster avec la gérante).
@@ -14,8 +15,14 @@ const PHARES = [
   "maquillage--maquillage-ceremonie",
 ];
 
-export default function Accueil() {
-  const phares = PHARES.map(prestationParId).filter((p) => p !== undefined);
+
+// Prix et lignes : la plaquette + les changements de la direction (écran Catalogue),
+// relus au plus toutes les minutes.
+export const revalidate = 60;
+
+export default async function Accueil() {
+  const cat = await catalogueServeur();
+  const phares = PHARES.map(cat.parId).filter((p) => p !== undefined);
 
   return (
     <>
@@ -35,7 +42,7 @@ export default function Accueil() {
           </h1>
           <p className="mt-5 max-w-xl text-lg text-or-clair">
             Soins du visage et du corps, onglerie, épilation, tresses, tissages et locks : plus de{" "}
-            {Math.floor(PRESTATIONS.length / 10) * 10} prestations, dans une atmosphère de sérénité.
+            {Math.floor(cat.prestations.length / 10) * 10} prestations, dans une atmosphère de sérénité.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link href="/reservation" className="rounded-full bg-aza px-7 py-3.5 font-bold text-white hover:bg-aza-fonce">
@@ -53,7 +60,7 @@ export default function Accueil() {
         <h2 className="font-serif text-4xl font-semibold text-profond">Nos quatre univers</h2>
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {UNIVERS.map((u) => {
-            const nb = famillesDe(u.id).reduce((n, f) => n + f.prestations.length, 0);
+            const nb = cat.famillesDe(u.id).reduce((n, f) => n + f.prestations.length, 0);
             return (
               <Link
                 key={u.id}

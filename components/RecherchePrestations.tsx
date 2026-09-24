@@ -1,16 +1,18 @@
 "use client";
 
+import { useCatalogue } from "@/lib/client/catalogue";
 import { useState } from "react";
 import { IconeRecherche } from "@/components/Icones";
 import { LignePrestation } from "@/components/LignePrestation";
-import { PRESTATIONS } from "@/lib/catalogue";
+
 import { correspond } from "@/lib/recherche";
 
 // Recherche instantanée dans les 130+ prestations (cahier des charges §3.3).
 export function RecherchePrestations() {
+  const cat = useCatalogue();
   const [requete, setRequete] = useState("");
   const resultats = requete.trim().length >= 2
-    ? PRESTATIONS.filter((p) => correspond(`${p.nom} ${p.famille}`, requete))
+    ? cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, requete))
     : [];
 
   return (

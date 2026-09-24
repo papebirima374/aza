@@ -1,9 +1,10 @@
 "use client";
 
+import { useCatalogue } from "@/lib/client/catalogue";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { IconeRecherche, IconeWhatsApp } from "@/components/Icones";
-import { famillesDe, formatPrix, PRESTATIONS, prestationParId, UNIVERS, type UniversId } from "@/lib/catalogue";
+import { construireCatalogue, formatPrix, UNIVERS, type UniversId } from "@/lib/catalogue";
 import { lienWhatsApp } from "@/lib/institut";
 import { correspond } from "@/lib/recherche";
 
@@ -35,16 +36,17 @@ function jourLisible(date: string): string {
 }
 
 export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }: { enLigne?: boolean; idsEnLigne?: string[] }) {
+  const cat = useCatalogue();
   const params = useSearchParams();
   const [choix, setChoix] = useState<string[]>(() =>
-    params.getAll("p").filter((id) => prestationParId(id)),
+    params.getAll("p").slice(0, 6),
   );
   // Créneaux en direct seulement si TOUTES les prestations choisies sont paramétrées ;
   // sinon, la demande part sur WhatsApp comme avant.
   const enLigne = ouverte && choix.length > 0 && choix.every((id) => idsEnLigne.includes(id));
   const [etape, setEtape] = useState(0);
   const [univers, setUnivers] = useState<UniversId>(
-    () => prestationParId(params.get("p") ?? "")?.univers ?? "institut",
+    () => construireCatalogue().parId(params.get("p") ?? "")?.univers ?? "institut",
   );
   const [requete, setRequete] = useState("");
   const [date, setDate] = useState("");
@@ -112,15 +114,15 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
     }
   }
 
-  const selection = choix.map((id) => prestationParId(id)).filter((p) => p !== undefined);
+  const selection = choix.map((id) => cat.parId(id)).filter((p) => p !== undefined);
   const total = selection.reduce((s, p) => s + p.prix, 0);
 
   const liste = useMemo(
     () =>
       requete.trim().length >= 2
-        ? [{ id: "resultats", nom: "Résultats", prestations: PRESTATIONS.filter((p) => correspond(`${p.nom} ${p.famille}`, requete)) }]
-        : famillesDe(univers),
-    [requete, univers],
+        ? [{ id: "resultats", nom: "Résultats", prestations: cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, requete)) }]
+        : cat.famillesDe(univers),
+    [requete, univers, cat],
   );
 
   function basculer(id: string) {

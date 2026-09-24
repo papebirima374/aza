@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
+import { useCatalogue } from "@/lib/client/catalogue";
+import { useAEncaisser } from "@/components/gestion/SuiviCaisse";
 import { LIBELLE_MODE, MODES, ROLES_CAISSE, ROLES_REMISE, type Mode } from "@/lib/caisse/modes";
 import { dateTexte, heureTexte, lienRecuWhatsApp, type Ticket } from "@/lib/caisse/recu";
-import { formatPrix, PRESTATIONS, prestationParId } from "@/lib/catalogue";
+import { formatPrix } from "@/lib/catalogue";
 import { correspond } from "@/lib/recherche";
 
 // Écran « Caisse » (cahier des charges M-05) : ouverture avec fond de caisse, tickets
@@ -52,7 +54,7 @@ export function Caisse() {
   const params = useSearchParams();
   const [date, setDate] = useState(aujourdhui);
   const [journal, setJournal] = useState<Journal | null>(null);
-  const [aEncaisser, setAEncaisser] = useState<RdvAEncaisser[]>([]);
+  const aEncaisser = useAEncaisser();
   const [brouillon, setBrouillon] = useState<Brouillon | null>(null);
   const [fait, setFait] = useState<{ id: string; reference: string; rendu: number } | null>(null);
   const [erreur, setErreur] = useState("");
@@ -78,11 +80,6 @@ export function Caisse() {
     appel(`?date=${date}`)
       .then((j: Journal) => actif && setJournal(j))
       .catch((e: Error) => actif && setErreur(e.message));
-    if (tientLaCaisse && date === aujourdhui()) {
-      appel("?a-encaisser=1")
-        .then((l: RdvAEncaisser[]) => actif && setAEncaisser(l))
-        .catch(() => {});
-    }
     return () => {
       actif = false;
     };
@@ -248,6 +245,7 @@ function Editeur(props: {
   annuler: () => void;
   encaisser: (corps: object) => Promise<void>;
 }) {
+  const cat = useCatalogue();
   const b = props.brouillon;
   const [recherche, setRecherche] = useState("");
   const [nom, setNom] = useState(b.cliente?.nom ?? "");
@@ -259,10 +257,10 @@ function Editeur(props: {
   const [envoi, setEnvoi] = useState(false);
 
   const resultats = useMemo(
-    () => (recherche.trim().length < 2 ? [] : PRESTATIONS.filter((p) => correspond(`${p.nom} ${p.famille}`, recherche)).slice(0, 8)),
-    [recherche],
+    () => (recherche.trim().length < 2 ? [] : cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, recherche)).slice(0, 8)),
+    [recherche, cat],
   );
-  const lignes = b.lignes.map((l) => ({ ...l, p: prestationParId(l.id)! })).filter((l) => l.p);
+  const lignes = b.lignes.map((l) => ({ ...l, p: cat.parId(l.id)! })).filter((l) => l.p);
   const sousTotal = lignes.reduce((s, l) => s + l.p.prix * l.quantite, 0);
   const remiseN = Math.min(nombre(remise), sousTotal);
   const total = sousTotal - remiseN;

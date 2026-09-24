@@ -2,10 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { LignePrestation } from "@/components/LignePrestation";
-import { famillesDe, formatPrix, UNIVERS, universParId } from "@/lib/catalogue";
+import { formatPrix, UNIVERS, universParId } from "@/lib/catalogue";
+import { catalogueServeur } from "@/lib/serveur/catalogue";
 import { INSTITUT } from "@/lib/institut";
 
 export const dynamicParams = false;
+
+// Prix et lignes : la plaquette + les changements de la direction (écran Catalogue),
+// relus au plus toutes les minutes.
+export const revalidate = 60;
+
 
 export function generateStaticParams() {
   return UNIVERS.map((u) => ({ univers: u.id }));
@@ -24,7 +30,7 @@ export async function generateMetadata({ params }: PageProps<"/prestations/[univ
 export default async function PageUnivers({ params }: PageProps<"/prestations/[univers]">) {
   const u = universParId((await params).univers);
   if (!u) notFound();
-  const familles = famillesDe(u.id);
+  const familles = (await catalogueServeur()).famillesDe(u.id);
 
   // Données « Service » pour Google : chaque prestation avec son prix.
   const donnees = {

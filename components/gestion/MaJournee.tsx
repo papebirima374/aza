@@ -3,8 +3,9 @@
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
+import { useCatalogue } from "@/lib/client/catalogue";
 import { statutsPermis, type Statut } from "@/lib/agenda/statuts";
-import { prestationParId, type UniversId } from "@/lib/catalogue";
+import { type UniversId } from "@/lib/catalogue";
 import { firebaseClient } from "@/lib/client/firebase";
 
 // « Ma journée » : l'écran d'une praticienne sur son téléphone. Pensé pour une équipe qui
@@ -136,11 +137,12 @@ export function MaJournee() {
 
 function Carte({ r }: { r: Rdv }) {
   const compte = useCompte();
+  const cat = useCatalogue();
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState("");
   const possibles = statutsPermis(r.statut, compte.role, true);
   const etat = ETAT[r.statut];
-  const images = [...new Set(r.prestations.map((p) => prestationParId(p.id)?.univers).filter(Boolean) as UniversId[])];
+  const images = [...new Set(r.prestations.map((p) => cat.parId(p.id)?.univers).filter(Boolean) as UniversId[])];
 
   async function changer(statut: Statut) {
     setEnvoi(true);

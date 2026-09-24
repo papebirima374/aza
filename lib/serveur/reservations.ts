@@ -13,7 +13,7 @@
 //   jours/{date}             verrou du jour (voir creerReservation)
 
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { prestationParId } from "@/lib/catalogue";
+import { catalogueServeur } from "@/lib/serveur/catalogue";
 import {
   acompteRequis,
   creneauxDisponibles,
@@ -67,14 +67,15 @@ async function lireReglages(): Promise<Reglages> {
  *  sont pas réservables en ligne (pas encore paramétrées, ou sur devis). */
 export async function prestationsDemandees(ids: string[]): Promise<PrestationEnLigne[]> {
   if (ids.length === 0 || ids.length > 6) throw new ErreurReservation("Choisissez entre 1 et 6 prestations.", 400);
-  const [snaps, postes] = await Promise.all([
+  const [snaps, postes, cat] = await Promise.all([
     db().getAll(...ids.map((id) => db().doc(`prestationsResa/${id}`))),
     db().collection("postes").get(),
+    catalogueServeur(),
   ]);
   // Un poste demandé mais jamais créé (écran Réglages → Postes) est ignoré, comme au comptoir.
   const typesPresents = new Set(postes.docs.filter((d) => d.get("actif") !== false).map((d) => d.get("type") as string));
   return snaps.map((s, i) => {
-    const catalogue = prestationParId(ids[i]);
+    const catalogue = cat.parId(ids[i]);
     const d = s.data();
     if (!catalogue || !s.exists || !d || d.enLigne === false) {
       throw new ErreurReservation(`« ${catalogue?.nom ?? ids[i]} » se réserve par téléphone ou WhatsApp.`, 422);
@@ -287,13 +288,14 @@ export type LigneComptoir = { id: string; duree?: number };
  */
 export async function prestationsComptoir(lignes: LigneComptoir[]): Promise<PrestationEnLigne[]> {
   if (lignes.length === 0 || lignes.length > 6) throw new ErreurReservation("Choisissez entre 1 et 6 prestations.", 400);
-  const [snaps, postes] = await Promise.all([
+  const [snaps, postes, cat] = await Promise.all([
     db().getAll(...lignes.map((l) => db().doc(`prestationsResa/${l.id}`))),
     db().collection("postes").get(),
+    catalogueServeur(),
   ]);
   const typesPresents = new Set(postes.docs.filter((d) => d.get("actif") !== false).map((d) => d.get("type") as string));
   return lignes.map((l, i) => {
-    const catalogue = prestationParId(l.id);
+    const catalogue = cat.parId(l.id);
     if (!catalogue || catalogue.note === "Produit") throw new ErreurReservation("Prestation inconnue.", 400);
     const d = snaps[i].exists ? snaps[i].data() : undefined;
     const duree = Math.round(Number(l.duree));

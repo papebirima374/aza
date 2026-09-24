@@ -397,3 +397,56 @@ export function prestationParId(id: string) {
 export function formatPrix(prix: number): string {
   return `${new Intl.NumberFormat("fr-FR").format(prix).replace(/ | /g, " ")} F`;
 }
+
+// ——— Catalogue vivant : la plaquette + les changements de la direction ———
+// La plaquette ci-dessus reste la base. La direction peut, depuis l'écran « Catalogue » :
+// changer un prix, masquer une ligne, ajouter une prestation ou un produit. Ces changements
+// sont gardés dans la base (collection catalogue/{id}) et appliqués partout par
+// construireCatalogue() : site public, réservation, caisse, agenda.
+
+export type ModifCatalogue = {
+  prix?: number;
+  masque?: boolean;
+  /** Ligne ajoutée par la direction (absente de la plaquette). */
+  ajoute?: boolean;
+  nom?: string;
+  familleId?: string;
+  note?: string;
+};
+
+export type PrestationComplete = Prestation & { famille: string; familleId: string; univers: UniversId; masque?: boolean; ajoute?: boolean };
+
+export type Catalogue = {
+  familles: Famille[];
+  prestations: PrestationComplete[];
+  parId: (id: string) => PrestationComplete | undefined;
+  famillesDe: (u: UniversId) => Famille[];
+};
+
+/** La plaquette avec les changements appliqués. `avecMasquees` : pour l'écran Catalogue. */
+export function construireCatalogue(modifs: Record<string, ModifCatalogue> = {}, avecMasquees = false): Catalogue {
+  const familles: Famille[] = FAMILLES.map((f) => {
+    const base = f.prestations.map((p) => {
+      const m = modifs[p.id];
+      return { ...p, ...(m?.prix !== undefined ? { prix: m.prix } : {}), ...(m?.masque ? { masque: true } : {}) };
+    });
+    const ajouts = Object.entries(modifs)
+      .filter(([, m]) => m.ajoute && m.familleId === f.id && m.nom && m.prix !== undefined)
+      .map(([id, m]) => ({ id, nom: m.nom!, prix: m.prix!, ajoute: true, ...(m.note ? { note: m.note } : {}), ...(m.masque ? { masque: true } : {}) }))
+      .sort((a, b) => a.nom.localeCompare(b.nom));
+    return { ...f, prestations: [...base, ...ajouts].filter((p) => avecMasquees || !("masque" in p && p.masque)) };
+  });
+  const prestations = familles.flatMap((f) => f.prestations.map((p) => ({ ...p, famille: f.nom, familleId: f.id, univers: f.univers })));
+  const index = new Map(prestations.map((p) => [p.id, p]));
+  return {
+    familles,
+    prestations,
+    parId: (id) => index.get(id),
+    famillesDe: (u) => familles.filter((f) => f.univers === u && f.prestations.length > 0),
+  };
+}
+
+/** Identifiant d'une ligne ajoutée : famille + nom, plus un suffixe pour ne jamais écraser. */
+export function nouvelIdentifiant(familleId: string, nom: string): string {
+  return `${familleId}--${slug(nom)}-${Math.random().toString(36).slice(2, 6)}`;
+}

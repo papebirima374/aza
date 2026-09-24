@@ -4,10 +4,11 @@ import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from "fire
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
+import { useCatalogue } from "@/lib/client/catalogue";
 import { NouveauRendezVous } from "@/components/gestion/NouveauRendezVous";
 import { ROLES_CAISSE } from "@/lib/caisse/modes";
 import { LIBELLES, ROLES_AGENDA, statutsPermis, type Statut } from "@/lib/agenda/statuts";
-import { formatPrix, prestationParId, UNIVERS, type UniversId } from "@/lib/catalogue";
+import { formatPrix, UNIVERS, type UniversId } from "@/lib/catalogue";
 import { firebaseClient } from "@/lib/client/firebase";
 
 // Agenda du jour (cahier des charges M-01) : colonnes par praticienne ou par poste,
@@ -66,6 +67,7 @@ function heure(minutes: number): string {
 
 export function Agenda() {
   const compte = useCompte();
+  const cat = useCatalogue();
   const gere = ROLES_AGENDA.includes(compte.role);
   const [date, setDate] = useState(aujourdhuiDakar);
   const [vue, setVue] = useState<"praticiennes" | "postes">("praticiennes");
@@ -229,7 +231,7 @@ export function Agenda() {
                   {blocs
                     .filter((b) => b.colonne === c.id)
                     .map(({ r, a }) => {
-                      const univers = prestationParId(a.prestation)?.univers ?? "institut";
+                      const univers = cat.parId(a.prestation)?.univers ?? "institut";
                       const hauteur = Math.max(22, (a.fin - a.debut) * PX_PAR_MINUTE - 2);
                       const court = hauteur < 60;
                       return (
@@ -241,13 +243,13 @@ export function Agenda() {
                             top: (a.debut - ouverture) * PX_PAR_MINUTE,
                             height: hauteur,
                           }}
-                          title={`${heure(a.debut)}–${heure(a.fin)} · ${r.cliente.nom} · ${prestationParId(a.prestation)?.nom ?? ""} · ${LIBELLES[r.statut]}`}
+                          title={`${heure(a.debut)}–${heure(a.fin)} · ${r.cliente.nom} · ${cat.parId(a.prestation)?.nom ?? ""} · ${LIBELLES[r.statut]}`}
                         >
                           <span className="block truncate font-bold">
                             {heure(a.debut)} · {r.cliente.nom}
                             {court && <span className="font-semibold"> · {LIBELLES[r.statut]}</span>}
                           </span>
-                          <span className="block truncate">{prestationParId(a.prestation)?.nom ?? a.prestation}</span>
+                          <span className="block truncate">{cat.parId(a.prestation)?.nom ?? a.prestation}</span>
                           {!court && <span className="block font-semibold">{LIBELLES[r.statut]}</span>}
                         </button>
                       );

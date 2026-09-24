@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Donnees } from "@/components/gestion/Donnees";
 import { useCompte } from "@/components/gestion/EspaceGestion";
-import { FAMILLES, formatPrix, prestationParId, UNIVERS } from "@/lib/catalogue";
+import { formatPrix, UNIVERS } from "@/lib/catalogue";
+import { useCatalogue } from "@/lib/client/catalogue";
 import { correspond } from "@/lib/recherche";
 
 // Écran « Réglages » (direction, manager) : tout ce que la réservation a besoin de savoir,
@@ -51,6 +52,7 @@ function Carte({ titre, aide, children, id }: { titre: string; aide?: string; ch
 
 export function Reglages() {
   const compte = useCompte();
+  const cat = useCatalogue();
   const [donnees, setDonnees] = useState<Donnees | null>(null);
   const [erreur, setErreur] = useState("");
   const [info, setInfo] = useState("");
@@ -110,7 +112,7 @@ export function Reglages() {
 
   const r = donnees.reglages;
   const renseignees = Object.keys(donnees.parametres).length;
-  const total = FAMILLES.reduce((n, f) => n + f.prestations.filter((p) => p.note !== "Produit").length, 0);
+  const total = cat.familles.reduce((n, f) => n + f.prestations.filter((p) => p.note !== "Produit").length, 0);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
@@ -141,7 +143,7 @@ export function Reglages() {
           actif={r.reservationEnLigne === true}
           renseignees={renseignees}
           bloquees={Object.entries(donnees.parametres).filter(([id, p]) => {
-            const n = (donnees.equipeParFamille ?? {})[prestationParId(id)?.familleId ?? ""] ?? 0;
+            const n = (donnees.equipeParFamille ?? {})[cat.parId(id)?.familleId ?? ""] ?? 0;
             return p.enLigne && (n === 0 || (p.praticiennes === 2 && n < 2));
           }).length}
           direction={compte.role === "direction"}
@@ -376,13 +378,14 @@ function Durees(props: {
   enregistrer: (id: string, p: Param) => Promise<boolean>;
   enregistrerLot: (ids: string[], p: Param) => Promise<boolean>;
 }) {
+  const cat = useCatalogue();
   const [requete, setRequete] = useState("");
   const [ouvertes, setOuvertes] = useState<string[]>([]);
   const recherche = requete.trim().length >= 2;
   const [manquantes, setManquantes] = useState(false);
   const familles = useMemo(
     () =>
-      FAMILLES.map((f) => ({
+      cat.familles.map((f) => ({
         ...f,
         prestations: f.prestations.filter(
           (p) =>
@@ -391,7 +394,7 @@ function Durees(props: {
             (requete.trim().length < 2 || correspond(`${p.nom} ${f.nom}`, requete)),
         ),
       })).filter((f) => f.prestations.length > 0),
-    [requete, manquantes, props.parametres],
+    [requete, manquantes, props.parametres, cat],
   );
   return (
     <Carte

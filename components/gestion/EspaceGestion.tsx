@@ -8,6 +8,7 @@ import { onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword,
 import { doc, getDoc } from "firebase/firestore";
 import type { Role } from "@/lib/agenda/statuts";
 import { firebaseClient } from "@/lib/client/firebase";
+import { PastilleCaisse, SuiviCaisse } from "@/components/gestion/SuiviCaisse";
 
 export type Compte = { uid: string; nom: string; role: Role; praticienne?: string; user: User };
 
@@ -120,6 +121,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
 
   return (
     <ContexteCompte.Provider value={compte}>
+      <SuiviCaisse compte={compte}>
       {/* Téléphone : logo + Déconnexion en haut, onglets sur une 2e ligne. Écran large : une ligne. */}
       <header className="sticky top-0 z-30 flex print:hidden flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-bordure bg-bordeaux px-4 py-2 text-or-clair sm:h-14 sm:flex-nowrap sm:py-0">
         <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} className="h-8 w-auto" />
@@ -127,6 +129,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
           {[
             { href: "/gestion", libelle: telephonePerso ? "Ma journée" : "Agenda", visible: true },
             { href: "/gestion/caisse", libelle: "Caisse", visible: ["direction", "manager", "accueil", "comptable"].includes(compte?.role ?? "") },
+            { href: "/gestion/catalogue", libelle: "Catalogue", visible: compte?.role === "direction" },
             { href: "/gestion/equipe", libelle: "Équipe", visible: compte?.role === "direction" || compte?.role === "manager" },
             { href: "/gestion/reglages", libelle: "Réglages", visible: compte?.role === "direction" || compte?.role === "manager" },
           ]
@@ -138,6 +141,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
                 className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 ${chemin === l.href || (l.href !== "/gestion" && chemin.startsWith(l.href)) ? "bg-white/15 text-white" : "hover:text-white"}`}
               >
                 {l.libelle}
+                {l.href === "/gestion/caisse" && <PastilleCaisse />}
               </Link>
             ))}
         </nav>
@@ -157,6 +161,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       {children}
+      </SuiviCaisse>
     </ContexteCompte.Provider>
   );
 }

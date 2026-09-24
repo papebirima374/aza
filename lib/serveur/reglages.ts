@@ -3,7 +3,8 @@
 // de la réservation en ligne (direction seulement).
 
 import { FieldValue } from "firebase-admin/firestore";
-import { PRESTATIONS, prestationParId } from "@/lib/catalogue";
+import type { Catalogue } from "@/lib/catalogue";
+import { catalogueServeur } from "@/lib/serveur/catalogue";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation } from "@/lib/serveur/reservations";
@@ -89,8 +90,8 @@ const entier = (v: unknown, min: number, max: number, libelle: string) => {
   return n;
 };
 
-function parametreValide(id: string, c: Record<string, unknown>) {
-  const p = prestationParId(id);
+function parametreValide(id: string, c: Record<string, unknown>, cat: Catalogue) {
+  const p = cat.parId(id);
   if (!p || p.note === "Produit") throw new ErreurReservation("Prestation inconnue.", 400);
   const duree = entier(c.duree, 5, 720, "Durée");
   const pose = entier(c.pose ?? 0, 0, duree - 5, "Temps de pose");
@@ -182,7 +183,7 @@ export async function modifierReglages(membre: Membre, c: Record<string, unknown
     case "prestation": {
       exiger(membre);
       const id = String(c.id ?? "");
-      await base.doc(`prestationsResa/${id}`).set({ ...parametreValide(id, c), ...trace });
+      await base.doc(`prestationsResa/${id}`).set({ ...parametreValide(id, c, await catalogueServeur()), ...trace });
       return { ok: true };
     }
     case "prestations-lot": {
@@ -190,7 +191,8 @@ export async function modifierReglages(membre: Membre, c: Record<string, unknown
       exiger(membre);
       const ids = Array.isArray(c.ids) ? [...new Set(c.ids.map(String))] : [];
       if (ids.length === 0 || ids.length > 200) throw new ErreurReservation("Aucune prestation choisie.", 400);
-      const valeurs = ids.map((id) => [id, parametreValide(id, c)] as const);
+      const cat = await catalogueServeur();
+      const valeurs = ids.map((id) => [id, parametreValide(id, c, cat)] as const);
       const lot = base.batch();
       for (const [id, v] of valeurs) lot.set(base.doc(`prestationsResa/${id}`), { ...v, ...trace });
       await lot.commit();
@@ -220,6 +222,6 @@ export async function etatReservationEnLigne(): Promise<{ actif: boolean; ids: s
   const base = db();
   const [reglages, params] = await Promise.all([base.doc("reglages/institut").get(), base.collection("prestationsResa").get()]);
   const actif = reglages.get("reservationEnLigne") === true || process.env.RESERVATION_EN_LIGNE === "1";
-  const connus = new Set(PRESTATIONS.map((p) => p.id));
+  const connus = new Set((await catalogueServeur()).prestations.map((p) => p.id));
   return { actif, ids: params.docs.filter((d) => d.get("enLigne") !== false && connus.has(d.id)).map((d) => d.id) };
 }

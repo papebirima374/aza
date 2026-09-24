@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
-import { formatPrix, PRESTATIONS, prestationParId } from "@/lib/catalogue";
+import { useCatalogue } from "@/lib/client/catalogue";
+import { formatPrix } from "@/lib/catalogue";
 import { correspond } from "@/lib/recherche";
 
 // Prise de rendez-vous au comptoir (cahier des charges M-01) : l'accueil réserve pour une
@@ -34,6 +35,7 @@ export function NouveauRendezVous({
   fermer: () => void;
   reserve: (date: string) => void;
 }) {
+  const cat = useCatalogue();
   const compte = useCompte();
   const [requete, setRequete] = useState("");
   const [lignes, setLignes] = useState<Ligne[]>([]);
@@ -62,9 +64,9 @@ export function NouveauRendezVous({
   const resultats = useMemo(
     () =>
       requete.trim().length >= 2
-        ? PRESTATIONS.filter((p) => p.note !== "Produit" && correspond(`${p.nom} ${p.famille}`, requete)).slice(0, 8)
+        ? cat.prestations.filter((p) => p.note !== "Produit" && correspond(`${p.nom} ${p.famille}`, requete)).slice(0, 8)
         : [],
-    [requete],
+    [requete, cat],
   );
 
   async function ajouter(id: string) {
@@ -140,7 +142,7 @@ export function NouveauRendezVous({
     }
   }
 
-  const total = lignes.reduce((s, l) => s + (prestationParId(l.id)?.prix ?? 0), 0);
+  const total = lignes.reduce((s, l) => s + (cat.parId(l.id)?.prix ?? 0), 0);
   const nomsEquipe = Object.fromEntries(equipe.map((e) => [e.id, e.nom]));
   const choisi = dispo?.creneaux.find((c) => c.debut === debut);
   const choixPraticiennes = dispo?.praticiennes ?? equipe;
@@ -190,7 +192,7 @@ export function NouveauRendezVous({
             <ul className="mt-3 space-y-2">
               {lignes.map((l) => (
                 <li key={l.id} className="flex items-center gap-2 rounded-xl bg-creme px-3 py-2">
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{prestationParId(l.id)?.nom}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{cat.parId(l.id)?.nom}</span>
                   <label className="flex items-center gap-1 text-sm">
                     <input
                       type="number"
@@ -201,7 +203,7 @@ export function NouveauRendezVous({
                       value={l.duree}
                       onChange={(e) => setLignes((ls) => ls.map((x) => (x.id === l.id ? { ...x, duree: e.target.value } : x)))}
                       className={`w-20 rounded-lg border px-2 py-1.5 text-right ${Number(l.duree) >= 5 ? "border-bordure" : "border-aza"}`}
-                      aria-label={`Durée de ${prestationParId(l.id)?.nom} en minutes`}
+                      aria-label={`Durée de ${cat.parId(l.id)?.nom} en minutes`}
                     />
                     min
                   </label>

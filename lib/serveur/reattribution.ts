@@ -5,7 +5,7 @@
 
 import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
 import { ROLES_AGENDA, type Statut } from "@/lib/agenda/statuts";
-import { prestationParId } from "@/lib/catalogue";
+import { catalogueServeur } from "@/lib/serveur/catalogue";
 import type { Affectation, Horaires } from "@/lib/reservation/disponibilites";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
@@ -30,7 +30,8 @@ async function lire(tx: Transaction, id: string) {
   const affectations = rdv.get("affectations") as Affectation[];
   const ids = [...new Set(affectations.map((a) => a.prestation))];
   const resa = ids.length ? await tx.getAll(...ids.map((p) => base.doc(`prestationsResa/${p}`))) : [];
-  const competence = new Map(ids.map((p, i) => [p, (resa[i].get("competence") as string | undefined) ?? prestationParId(p)?.familleId ?? ""]));
+  const cat = await catalogueServeur(true);
+  const competence = new Map(ids.map((p, i) => [p, (resa[i].get("competence") as string | undefined) ?? cat.parId(p)?.familleId ?? ""]));
   return {
     rdv,
     date,

@@ -10,7 +10,8 @@
 
 import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
 import { ROLES_JOURNAL, ROLES_CAISSE, ROLES_REMISE, MODES, reference, type Mode } from "@/lib/caisse/modes";
-import { prestationParId } from "@/lib/catalogue";
+import type { Catalogue } from "@/lib/catalogue";
+import { catalogueServeur } from "@/lib/serveur/catalogue";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation, maintenantDakar } from "@/lib/serveur/reservations";
@@ -52,11 +53,11 @@ export async function ouvrirCaisse(membre: Membre, fondBrut: unknown) {
   return { ok: true, date };
 }
 
-function lignesValides(brutes: unknown): LigneTicket[] {
+function lignesValides(brutes: unknown, catalogue: Catalogue): LigneTicket[] {
   if (!Array.isArray(brutes) || brutes.length === 0) throw new Erreur("Le ticket est vide.", 400);
   if (brutes.length > 50) throw new Erreur("Trop de lignes.", 400);
   return brutes.map((l) => {
-    const p = prestationParId(String(l?.id ?? ""));
+    const p = catalogue.parId(String(l?.id ?? ""));
     if (!p) throw new Erreur("Prestation ou produit inconnu.", 400);
     const quantite = entier(l?.quantite ?? 1);
     if (!Number.isInteger(quantite) || quantite < 1 || quantite > 99) throw new Erreur("Quantité invalide.", 400);
@@ -104,7 +105,7 @@ export type Encaissement = {
  */
 export async function encaisser(membre: Membre, e: Encaissement) {
   exiger(membre, ROLES_CAISSE);
-  const lignes = lignesValides(e.lignes);
+  const lignes = lignesValides(e.lignes, await catalogueServeur());
   const sousTotal = lignes.reduce((s, l) => s + l.montant, 0);
 
   const remiseMontant = entier(e.remise?.montant ?? 0) || 0;

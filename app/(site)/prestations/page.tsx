@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { RecherchePrestations } from "@/components/RecherchePrestations";
-import { famillesDe, PRESTATIONS, UNIVERS } from "@/lib/catalogue";
+import { UNIVERS } from "@/lib/catalogue";
+import { catalogueServeur } from "@/lib/serveur/catalogue";
 
 export const metadata: Metadata = {
   title: "Prestations et tarifs",
@@ -10,12 +11,18 @@ export const metadata: Metadata = {
   alternates: { canonical: "/prestations" },
 };
 
-export default function Prestations() {
+
+// Prix et lignes : la plaquette + les changements de la direction (écran Catalogue),
+// relus au plus toutes les minutes.
+export const revalidate = 60;
+
+export default async function Prestations() {
+  const cat = await catalogueServeur();
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
       <h1 className="font-serif text-5xl font-semibold text-profond">Prestations et tarifs</h1>
       <p className="mt-3 max-w-2xl text-doux">
-        {PRESTATIONS.length} prestations réparties en quatre univers. Cherchez directement, ou parcourez par univers.
+        {cat.prestations.length} prestations réparties en quatre univers. Cherchez directement, ou parcourez par univers.
       </p>
 
       <div className="mt-8 max-w-2xl">
@@ -32,7 +39,7 @@ export default function Prestations() {
             </h2>
             <p className="mt-1 text-sm text-doux">{u.accroche}</p>
             <ul className="mt-4 flex flex-wrap gap-2">
-              {famillesDe(u.id).map((f) => (
+              {cat.famillesDe(u.id).map((f) => (
                 <li key={f.id}>
                   <Link
                     href={`/prestations/${u.id}#${f.id}`}

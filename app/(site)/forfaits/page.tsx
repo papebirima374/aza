@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { formatPrix, PRESTATIONS } from "@/lib/catalogue";
+import { formatPrix } from "@/lib/catalogue";
+import { catalogueServeur } from "@/lib/serveur/catalogue";
 import { lienWhatsApp } from "@/lib/institut";
 
 export const metadata: Metadata = {
@@ -10,8 +11,13 @@ export const metadata: Metadata = {
   alternates: { canonical: "/forfaits" },
 };
 
-export default function Forfaits() {
-  const forfaits = PRESTATIONS.filter((p) => p.note === "Forfait");
+
+// Prix et lignes : la plaquette + les changements de la direction (écran Catalogue),
+// relus au plus toutes les minutes.
+export const revalidate = 60;
+
+export default async function Forfaits() {
+  const forfaits = (await catalogueServeur()).prestations.filter((p) => p.note === "Forfait");
 
   return (
     <div>
