@@ -16,9 +16,9 @@ const Erreur = ErreurReservation;
 const PROTEGEES = new Set(["journalDonnees", "securite"]);
 
 export const PARTIES = {
-  activite: ["rendezVous", "occupations", "jours", "clientes", "tickets", "caisses", "compteurs", "liensConnexion"],
+  activite: ["commandes", "rendezVous", "occupations", "jours", "clientes", "tickets", "caisses", "compteurs", "liensConnexion"],
   reglages: ["reglages", "prestationsResa", "postes", "catalogue"],
-  stock: ["articles", "mouvementsStock", "consommations"],
+  stock: ["articles", "mouvementsStock", "consommations", "photosProduits"],
   equipe: ["praticiennes"],
 } as const;
 export type Partie = keyof typeof PARTIES;

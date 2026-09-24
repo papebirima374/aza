@@ -78,6 +78,7 @@ export async function lireStock(membre: Membre) {
         produitNom: produit?.nom ?? null,
         prixVente: produit?.prix ?? null,
         peremption: x.peremption ?? null,
+        boutique: x.boutique ?? null,
         joursCouverture: parJour > 0 ? Math.floor(Math.max(0, x.quantite ?? 0) / parJour) : null,
         alerteSeuil: (x.quantite ?? 0) <= (x.seuil ?? 0),
         alertePeremption: x.peremption ? (x.peremption <= aujourdhui ? "perime" : x.peremption <= limite ? "bientot" : null) : null,
@@ -190,6 +191,48 @@ export async function modifierStock(membre: Membre, c: Record<string, unknown>) 
         return { ok: true, quantite: maj.quantite };
       });
     }
+    case "boutique": {
+      // Publication sur la boutique en ligne (seulement un article à vendre, relié à la caisse).
+      const a = await ref(c.id).get();
+      if (!a.exists || a.get("type") !== "revente") throw new Erreur("Seuls les produits à vendre vont en boutique.", 400);
+      if (c.visible === true && !a.get("produit")) throw new Erreur("Reliez d'abord l'article à sa ligne de caisse (prix de vente).", 400);
+      const rayons = ["capillaire", "soin", "perruques", "mode", "autres"];
+      const rayon = String(c.rayon ?? "autres");
+      await ref(c.id).set(
+        {
+          boutique: {
+            visible: c.visible === true,
+            titre: String(c.titre ?? "").trim().slice(0, 80) || a.get("nom"),
+            variante: String(c.variante ?? "").trim().slice(0, 40),
+            rayon: rayons.includes(rayon) ? rayon : "autres",
+            description: String(c.description ?? "").trim().slice(0, 1500),
+            photos: (a.get("boutique.photos") as string[] | undefined) ?? [],
+          },
+        },
+        { merge: true },
+      );
+      return { ok: true };
+    }
+    case "photo-ajout": {
+      // Photo déjà réduite par l'écran (WebP ~1000 px) : gardée dans la base, servie avec cache.
+      const m = /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/.exec(String(c.image ?? ""));
+      if (!m) throw new Erreur("Image invalide.", 400);
+      if (m[2].length > 900_000) throw new Erreur("Photo trop lourde : réessayez (elle est réduite automatiquement).", 400);
+      const a = await ref(c.id).get();
+      if (!a.exists) throw new Erreur("Article introuvable.", 404);
+      const photos = (a.get("boutique.photos") as string[] | undefined) ?? [];
+      if (photos.length >= 6) throw new Erreur("6 photos au maximum.", 400);
+      const photo = await base.collection("photosProduits").add({ article: a.id, type: m[1], data: m[2], creeLe: FieldValue.serverTimestamp() });
+      await ref(c.id).set({ boutique: { photos: [...photos, photo.id] } }, { merge: true });
+      return { ok: true, photo: photo.id };
+    }
+    case "photo-retrait": {
+      const a = await ref(c.id).get();
+      const photos = ((a.get("boutique.photos") as string[] | undefined) ?? []).filter((p) => p !== c.photo);
+      await ref(c.id).set({ boutique: { photos } }, { merge: true });
+      await base.doc(`photosProduits/${String(c.photo ?? "-")}`).delete();
+      return { ok: true };
+    }
     case "consommation": {
       // Ce qu'un soin consomme dans le stock cabine (sort automatiquement à l'encaissement).
       const prestation = String(c.prestation ?? "");
@@ -213,7 +256,7 @@ export async function modifierStock(membre: Membre, c: Record<string, unknown>) 
 
 // ——— Sorties automatiques à l'encaissement (appelées DANS la transaction de la caisse) ———
 
-type LigneVendue = { id: string; type: "prestation" | "produit"; quantite: number };
+type LigneVendue = { id: string; type: "prestation" | "produit" | "livraison"; quantite: number };
 export type PlanStock = { article: FirebaseFirestore.DocumentReference; nom: string; avant: number; delta: number; cout: number; type: "vente" | "consommation" }[];
 
 /** Lectures (à faire AVANT toute écriture de la transaction) : ce qui doit sortir du stock. */

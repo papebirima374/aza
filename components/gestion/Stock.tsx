@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
+import { RAYONS } from "@/lib/boutique";
 import { formatPrix } from "@/lib/catalogue";
 import { useCatalogue } from "@/lib/client/catalogue";
 import { correspond } from "@/lib/recherche";
@@ -23,6 +24,7 @@ type Article = {
   produitNom: string | null;
   prixVente: number | null;
   peremption: string | null;
+  boutique: { visible?: boolean; titre?: string; variante?: string; rayon?: string; description?: string; photos?: string[] } | null;
   joursCouverture: number | null;
   alerteSeuil: boolean;
   alertePeremption: "perime" | "bientot" | null;
@@ -188,7 +190,7 @@ export function Stock() {
 type Envoyer = (corps: object, ok: string) => Promise<boolean>;
 
 function CarteArticle({ a, peutModifier, produits, liees, envoyer }: { a: Article; peutModifier: boolean; produits: Donnees["produitsCatalogue"]; liees: Article[]; envoyer: Envoyer }) {
-  const [action, setAction] = useState<"" | "reception" | "perte" | "inventaire" | "modifier" | "historique">("");
+  const [action, setAction] = useState<"" | "reception" | "perte" | "inventaire" | "modifier" | "boutique" | "historique">("");
   const bas = a.quantite <= a.seuil;
   return (
     <li className={`rounded-2xl border-2 p-4 ${a.quantite < 0 ? "border-[#b3261e]" : bas ? "border-aza/50" : "border-bordure"}`}>
@@ -220,6 +222,7 @@ function CarteArticle({ a, peutModifier, produits, liees, envoyer }: { a: Articl
               ["perte", "➖ Perte"],
               ["inventaire", "🔢 Inventaire"],
               ["modifier", "✏️ Modifier"],
+              ...(a.type === "revente" ? ([["boutique", a.boutique?.visible ? "🛍️ En boutique ✓" : "🛍️ Boutique"]] as const) : []),
             ] as const
           ).map(([id, libelle]) => (
             <button
@@ -239,6 +242,7 @@ function CarteArticle({ a, peutModifier, produits, liees, envoyer }: { a: Articl
       {action === "perte" && <FormPerte a={a} envoyer={envoyer} fermer={() => setAction("")} />}
       {action === "inventaire" && <FormInventaire a={a} envoyer={envoyer} fermer={() => setAction("")} />}
       {action === "modifier" && <FormArticle article={a} type={a.type} produits={produits} liees={liees} envoyer={envoyer} fermer={() => setAction("")} />}
+      {action === "boutique" && <FormBoutique a={a} envoyer={envoyer} fermer={() => setAction("")} />}
       {action === "historique" && (
         <ol className="mt-3 space-y-1 text-sm">
           {a.mouvements.length === 0 && <li className="text-doux">Aucun mouvement ces 30 derniers jours.</li>}
@@ -590,6 +594,111 @@ function EditeurRecette(props: {
         libelle="Enregistrer"
         fermer={props.fermer}
         valider={() => go({ action: "consommation", prestation: props.id, lignes: valides }, `« ${props.nom} » : consommation enregistrée.`)}
+      />
+    </div>
+  );
+}
+
+/** Réduit une photo dans le téléphone (1000 px, WebP) avant l'envoi : rapide même en 3G. */
+async function reduire(fichier: File): Promise<string> {
+  const img = await createImageBitmap(fichier);
+  const echelle = Math.min(1, 1000 / Math.max(img.width, img.height));
+  const toile = document.createElement("canvas");
+  toile.width = Math.round(img.width * echelle);
+  toile.height = Math.round(img.height * echelle);
+  toile.getContext("2d")!.drawImage(img, 0, 0, toile.width, toile.height);
+  const webp = toile.toDataURL("image/webp", 0.8);
+  return webp.startsWith("data:image/webp") ? webp : toile.toDataURL("image/jpeg", 0.8);
+}
+
+function FormBoutique({ a, envoyer, fermer }: { a: Article; envoyer: Envoyer; fermer: () => void }) {
+  const b = a.boutique ?? {};
+  const [visible, setVisible] = useState(b.visible ?? false);
+  const [titre, setTitre] = useState(b.titre ?? a.nom);
+  const [variante, setVariante] = useState(b.variante ?? "");
+  const [rayon, setRayon] = useState(b.rayon ?? "capillaire");
+  const [description, setDescription] = useState(b.description ?? "");
+  const [photo, setPhoto] = useState(false);
+  const { envoi, go } = useEnvoi(envoyer, fermer);
+  return (
+    <div className="mt-3 rounded-xl bg-creme p-3">
+      <p className="text-sm font-semibold">🛍️ Boutique en ligne</p>
+      {!a.produit && <p className="mt-1 text-sm font-semibold text-aza-fonce">Reliez d&apos;abord l&apos;article à sa ligne de caisse (✏️ Modifier) : c&apos;est elle qui donne le prix.</p>}
+      <label className="mt-2 flex items-center gap-2 font-semibold">
+        <input type="checkbox" checked={visible} onChange={(e) => setVisible(e.target.checked)} className="h-5 w-5 accent-[#7E0A4C]" />
+        Visible sur le site
+      </label>
+      <div className="mt-2 grid gap-2 sm:grid-cols-2">
+        <label className="text-xs font-semibold">
+          Nom affiché sur le site
+          <input value={titre} onChange={(e) => setTitre(e.target.value)} className={champ} />
+        </label>
+        <label className="text-xs font-semibold">
+          Déclinaison (taille, couleur, longueur…)
+          <input value={variante} onChange={(e) => setVariante(e.target.value)} placeholder="facultatif, ex. 250 ml" className={champ} />
+        </label>
+        <label className="text-xs font-semibold">
+          Rayon
+          <select value={rayon} onChange={(e) => setRayon(e.target.value)} className={`${champ} bg-white`}>
+            {RAYONS.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.nom}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <p className="mt-1 text-xs text-doux">Deux articles avec le même nom affiché deviennent un seul produit sur le site, avec un choix de déclinaison.</p>
+      <label className="mt-2 block text-xs font-semibold">
+        Description
+        <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className={champ} />
+      </label>
+      <div className="mt-3">
+        <p className="text-xs font-semibold">Photos ({b.photos?.length ?? 0}/6)</p>
+        <div className="mt-1 flex flex-wrap gap-2">
+          {(b.photos ?? []).map((p) => (
+            <div key={p} className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/api/boutique/photo/${p}`} alt="" className="h-20 w-20 rounded-lg object-cover" />
+              <button
+                onClick={() => window.confirm("Retirer cette photo ?") && envoyer({ action: "photo-retrait", id: a.id, photo: p }, "Photo retirée.")}
+                className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-white text-sm shadow"
+                aria-label="Retirer la photo"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {(b.photos?.length ?? 0) < 6 && (
+            <label className={`flex h-20 w-20 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed border-bordure text-2xl ${photo ? "opacity-50" : ""}`}>
+              {photo ? "⏳" : "📷"}
+              <input
+                type="file"
+                accept="image/*"
+                className="sr-only"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!f) return;
+                  setPhoto(true);
+                  try {
+                    await envoyer({ action: "photo-ajout", id: a.id, image: await reduire(f) }, "Photo ajoutée.");
+                  } finally {
+                    setPhoto(false);
+                  }
+                }}
+              />
+            </label>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-doux">Une belle photo, sur fond clair, bien éclairée : une boutique se juge sur ses photos.</p>
+      </div>
+      <Boutons
+        pret={titre.trim().length >= 2}
+        envoi={envoi}
+        libelle="Enregistrer"
+        fermer={fermer}
+        valider={() => go({ action: "boutique", id: a.id, visible, titre, variante, rayon, description }, visible ? `${titre.trim()} : visible sur le site.` : `${titre.trim()} : retiré du site.`)}
       />
     </div>
   );

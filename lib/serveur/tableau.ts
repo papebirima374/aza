@@ -33,7 +33,7 @@ function recette(tickets: TicketLu[]) {
     if (t.rendu) parMode.especes = (parMode.especes ?? 0) - t.rendu;
     for (const l of t.lignes) {
       if (l.type === "produit") produits += l.montant;
-      else prestations += l.montant;
+      else if (l.type === "prestation") prestations += l.montant;
     }
   }
   const nombre = ventes.length - tickets.filter((t) => t.type === "avoir").length;

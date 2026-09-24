@@ -20,7 +20,7 @@ import { telephoneCanonique, telephoneValide } from "@/lib/telephone";
 
 const Erreur = ErreurReservation;
 
-export type LigneTicket = { id: string; nom: string; type: "prestation" | "produit"; prixUnitaire: number; quantite: number; montant: number };
+export type LigneTicket = { id: string; nom: string; type: "prestation" | "produit" | "livraison"; prixUnitaire: number; quantite: number; montant: number };
 export type Paiement = { mode: Mode; montant: number };
 
 function exiger(membre: Membre, roles: string[], message = "Réservé à l'accueil et à la direction.") {
@@ -459,5 +459,90 @@ export async function reglerCredit(membre: Membre, clienteId: string, paiementsB
     });
     tx.update(clienteRef, { credit: FieldValue.increment(-montant) });
     return { id: ticketRef.id, reference: reference(numero), reste: du - montant };
+  });
+}
+
+/**
+ * Remise d'une commande de la boutique en ligne : la cliente paie (au retrait ou au livreur).
+ * Le stock est déjà sorti à la commande ; ses mouvements sont rattachés au ticket, pour
+ * qu'un avoir remette bien les produits en stock.
+ */
+export async function encaisserCommande(membre: Membre, commandeId: string, paiementsBruts: unknown) {
+  exiger(membre, ROLES_CAISSE);
+  const paiements = paiementsValides(paiementsBruts);
+  const base = db();
+  const { date, minutes } = maintenantDakar();
+  const cmdRef = base.doc(`commandes/${commandeId}`);
+  const ticketRef = base.collection("tickets").doc();
+  const compteurRef = base.doc("compteurs/tickets");
+  return base.runTransaction(async (tx) => {
+    await caisseOuverte(tx, date);
+    const [cmd, compteur, mouvements] = await Promise.all([
+      tx.get(cmdRef),
+      tx.get(compteurRef),
+      tx.get(base.collection("mouvementsStock").where("commande", "==", commandeId)),
+    ]);
+    if (!cmd.exists) throw new Erreur("Commande introuvable.", 404);
+    if (!["confirmee", "prete", "en-livraison"].includes(cmd.get("statut"))) throw new Erreur("Cette commande n'est pas prête à être remise (ou déjà payée).", 409);
+    const total = cmd.get("total") as number;
+    const recu = paiements.reduce((s, p) => s + p.montant, 0);
+    const especes = paiements.find((p) => p.mode === "especes")?.montant ?? 0;
+    const rendu = recu - total;
+    if (rendu < 0) throw new Erreur(`Il manque ${new Intl.NumberFormat("fr-FR").format(-rendu)} F dans le paiement.`, 400);
+    if (rendu > especes) throw new Erreur("Le paiement dépasse le total (seules les espèces peuvent rendre la monnaie).", 400);
+    const credit = paiements.find((p) => p.mode === "credit")?.montant ?? 0;
+    const cliente = cmd.get("cliente") as { id: string; nom: string; telephone: string };
+    const fiche = await tx.get(base.doc(`clientes/${cliente.id}`));
+    const livraison = cmd.get("livraison") as { mode: string; zone: string; prix: number };
+    const lignes: LigneTicket[] = [
+      ...(cmd.get("lignes") as { produit: string; nom: string; variante: string; prixUnitaire: number; quantite: number; montant: number }[]).map((l) => ({
+        id: l.produit,
+        nom: l.variante ? `${l.nom} — ${l.variante}` : l.nom,
+        type: "produit" as const,
+        prixUnitaire: l.prixUnitaire,
+        quantite: l.quantite,
+        montant: l.montant,
+      })),
+      ...(livraison.prix > 0 ? [{ id: "livraison", nom: `Livraison ${livraison.zone}`, type: "livraison" as const, prixUnitaire: livraison.prix, quantite: 1, montant: livraison.prix }] : []),
+    ];
+    const numero = ((compteur.get("dernier") as number | undefined) ?? 0) + 1;
+    tx.set(compteurRef, { dernier: numero }, { merge: true });
+    tx.set(ticketRef, {
+      numero,
+      reference: reference(numero),
+      type: "vente",
+      date,
+      heure: minutes,
+      lignes,
+      sousTotal: total,
+      total,
+      paiements,
+      rendu,
+      credit,
+      cliente,
+      rendezVous: null,
+      commande: { id: commandeId, reference: cmd.get("reference") },
+      par: trace(membre),
+      creeLe: FieldValue.serverTimestamp(),
+    });
+    for (const m of mouvements.docs) tx.update(m.ref, { ticket: ticketRef.id });
+    tx.update(cmdRef, {
+      statut: "remise",
+      ticket: { id: ticketRef.id, reference: reference(numero) },
+      historique: FieldValue.arrayUnion({ statut: "remise", le: Timestamp.now(), par: membre.uid, nom: membre.nom, motif: reference(numero) }),
+    });
+    tx.set(
+      fiche.ref,
+      {
+        totalAchats: FieldValue.increment(total),
+        ...(credit > 0 ? { credit: FieldValue.increment(credit) } : {}),
+        nbTickets: FieldValue.increment(1),
+        derniereVisite: date,
+        premiereVisite: (fiche.get("premiereVisite") as string | undefined) ?? date,
+        dernierTicket: ticketRef.id,
+      },
+      { merge: true },
+    );
+    return { id: ticketRef.id, reference: reference(numero), total, rendu };
   });
 }

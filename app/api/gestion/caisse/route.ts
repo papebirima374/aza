@@ -1,5 +1,5 @@
 import { membreConnecte } from "@/lib/serveur/agenda";
-import { aEncaisser, annulerTicket, reglerCredit, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
+import { aEncaisser, annulerTicket, encaisserCommande, reglerCredit, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
 
@@ -48,6 +48,8 @@ export async function POST(request: Request) {
         );
       case "annuler":
         return Response.json(await annulerTicket(membre, String(c.id ?? "-"), c.motif), { status: 201 });
+      case "commande":
+        return Response.json(await encaisserCommande(membre, String(c.commande ?? "-"), c.paiements), { status: 201 });
       case "reglement":
         return Response.json(await reglerCredit(membre, String(c.cliente ?? "-"), c.paiements), { status: 201 });
       case "cloturer":
