@@ -1,46 +1,79 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BoutonPanier } from "@/components/boutique/BoutonPanier";
 import { AjoutCouture } from "@/components/couture/AjoutCouture";
-import { boutiqueOuverte, modelesCouture } from "@/lib/serveur/boutique";
+import { Collection } from "@/components/couture/Collection";
+import { GalerieModele } from "@/components/couture/GalerieModele";
+import { formatPrix } from "@/lib/catalogue";
+import { boutiqueOuverte, livraisonInternationale } from "@/lib/serveur/boutique";
+import { guideDesTailles, modelesCouture } from "@/lib/serveur/collection";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 
-// Prix (écran Catalogue) et ouverture de la boutique relus à chaque visite.
+// Modèle, photos et prix de l'écran Collection, relus à chaque visite.
 export const dynamic = "force-dynamic";
 
-async function modele(ref: string) {
-  return (await modelesCouture()).find((m) => m.ref === ref.toUpperCase());
+async function charger(ref: string) {
+  const modeles = await modelesCouture();
+  const m = modeles.find((x) => x.ref === ref.toUpperCase());
+  return m ? { m, autres: modeles.filter((x) => x.id !== m.id).slice(0, 4) } : null;
 }
 
 export async function generateMetadata({ params }: PageProps<"/boutique/couture/[ref]">): Promise<Metadata> {
-  const m = await modele((await params).ref);
-  if (!m) return {};
-  return { title: `Modèle ${m.ref} — Anna Zen Couture`, description: `Anna Zen Couture, modèle ${m.ref} : fait sur commande, à retirer à l'institut Anna Zen Attitude (Point-E, Dakar) ou livré.` };
+  const r = await charger((await params).ref);
+  if (!r) return {};
+  return {
+    title: `${r.m.nom} — Anna Zen Couture`,
+    description: r.m.description.slice(0, 150) || `${r.m.nom}, Anna Zen Couture : fait sur commande à votre taille. Retrait à l'institut (Point-E, Dakar) ou livraison.`,
+  };
 }
 
 export default async function PageModele({ params }: PageProps<"/boutique/couture/[ref]">) {
-  const m = await modele((await params).ref);
-  if (!m) notFound();
-  const ouverte = firebaseConfigure() ? await boutiqueOuverte() : false;
+  const r = await charger((await params).ref);
+  if (!r) notFound();
+  const { m, autres } = r;
+  const [ouverte, guide, monde] = firebaseConfigure() ? await Promise.all([boutiqueOuverte(), guideDesTailles(), livraisonInternationale()]) : [false, "", false];
+  const pli = "border-b border-bordure py-4";
   return (
-    <div className="mx-auto max-w-5xl px-4 pt-10 pb-32">
-      <Link href="/boutique/couture" className="text-sm font-semibold text-doux underline">
+    <div className="mx-auto max-w-6xl px-4 pt-6 pb-32 md:pt-10">
+      <Link href="/boutique/couture" className="text-sm text-doux hover:text-encre">
         ← Anna Zen Couture
       </Link>
-      <div className="mt-4 grid gap-8 md:grid-cols-2">
-        <Image src={m.src} alt={`Anna Zen Couture, modèle ${m.ref}`} width={720} height={1080} unoptimized priority className="w-full rounded-3xl bg-creme object-cover" />
-        <div>
-          <p className="text-sm font-semibold tracking-[0.2em] text-or uppercase">Anna Zen Couture</p>
-          <h1 className="mt-1 font-serif text-4xl font-semibold text-profond">Modèle {m.ref}</h1>
-          <AjoutCouture modele={m.ref} prix={m.prix} ouverte={ouverte} />
-          <p className="mt-6 rounded-2xl bg-creme p-4 text-sm">
-            🏠 <strong>Retrait gratuit</strong> à l&apos;institut, Point-E · 🛵 ou livraison à Dakar. Paiement au retrait, à la livraison, par Wave ou Orange
-            Money.
-          </p>
+      <div className="mt-4 grid gap-8 md:grid-cols-[1.35fr_1fr] md:gap-12">
+        <GalerieModele photos={m.photos} nom={m.nom} />
+        <div className="md:sticky md:top-24 md:self-start">
+          <h1 className="font-serif text-3xl tracking-[0.08em] text-encre uppercase md:text-4xl">{m.nom}</h1>
+          <p className="prix mt-2 text-lg text-encre">{formatPrix(m.prix)}</p>
+          <p className="mt-1 text-xs text-doux">Frais de livraison calculés à la commande · Fait sur commande · Réf. {m.ref}</p>
+          <AjoutCouture modele={m.ref} nom={m.nom} tailles={m.tailles} couleurs={m.couleurs} ouverte={ouverte} />
+
+          <div className="mt-8 border-t border-bordure text-sm">
+            {guide && (
+              <details className={pli}>
+                <summary className="cursor-pointer list-none font-semibold">📏 Tableau des tailles</summary>
+                <p className="mt-3 whitespace-pre-line text-doux">{guide}</p>
+              </details>
+            )}
+            <details className={pli}>
+              <summary className="cursor-pointer list-none font-semibold">✂️ Personnalisez votre coupe</summary>
+              <p className="mt-3 text-doux">
+                Choisissez « Sur mesure » : nous prenons vos mesures à l&apos;institut ou par message. Une longueur, des manches longues, une autre
+                couleur ? Écrivez-le dans « Une précision » au moment de commander.
+              </p>
+            </details>
+            <p className={pli}>
+              {monde ? "🌍 Livraison à Dakar et à l'international" : "🛵 Livraison à Dakar"} · 🏠 Retrait gratuit à l&apos;institut (Point-E)
+            </p>
+          </div>
+          {m.description && <p className="mt-6 leading-relaxed whitespace-pre-line text-doux">{m.description}</p>}
         </div>
       </div>
+      {autres.length > 0 && (
+        <section className="mt-16">
+          <h2 className="mb-6 text-center font-serif text-2xl tracking-[0.12em] text-encre uppercase">Vous aimerez aussi</h2>
+          <Collection modeles={autres} />
+        </section>
+      )}
       <BoutonPanier />
     </div>
   );

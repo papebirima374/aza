@@ -311,9 +311,46 @@ pages.append(page(f"""
 <li>La cliente accepte : <span class="touche">✅ Elle accepte</span>, puis <span class="touche">🎀 Perruque prête</span>.</li>
 <li>À la remise : encaissez à la Caisse (vente libre), puis <span class="touche">🤝 Remise à la cliente</span>.</li>
 </ol>
-<div class="encadre or"><b>Prix des modèles Couture</b> : Catalogue → cherchez « modèle » → tapez le prix → Enregistrer. « Masquer » retire un modèle de la vente.</div>
+<div class="encadre or"><b>Ajouter ou changer un modèle</b> (photos, nom, prix, tailles) : écran <b>👗 Collection</b>, page suivante.</div>
 </div>
 <div style="display:flex;gap:10mm;justify-content:center;margin-top:3mm">{figure("58-devis-gestion","Une demande de perruque")}{figure("59-commande-couture","Une commande Couture")}</div>
+""", P))
+
+# 7ter. Collection et international
+pages.append(page(f"""
+<span class="etiquette">7 · La boutique en ligne</span>
+<h2>Ajouter un modèle à la collection</h2>
+<div>
+<p>Commandes → <span class="touche">👗 Collection</span> (aussi depuis Catalogue). Direction et manager.</p>
+<ol class="etapes">
+<li><span class="bouton">+ Nouveau modèle</span> (direction) : le <b>nom</b> (ex. « Robe Dijah »), le <b>prix</b>, les <b>tailles</b> proposées (touchez pour cocher), les <b>couleurs</b> si le modèle en a plusieurs (séparées par des virgules), la <b>description</b> (tissu, coupe, entretien).</li>
+<li><span class="bouton" style="background:#7E0A4C">Enregistrer</span> : le modèle reçoit sa référence (C-30, C-31…).</li>
+<li><b>📷 Ajouter</b> : choisissez une ou plusieurs photos dans le téléphone (10 au maximum). Elles sont réduites toutes seules.</li>
+<li>La <b>1re photo</b> est celle de la vitrine ; « ⭐ 1re » change l'ordre, ✕ retire une photo.</li>
+</ol>
+<p>Le modèle est en ligne <b>aussitôt</b>, en tête de la collection (« Nouveautés »). Il se vend aussi à la caisse.</p>
+<div class="encadre"><b>Retirer un modèle</b> : ouvrez-le → « Retirer de la boutique ». Il reste dans la liste (« Masqué ») et peut revenir en vente. <b>📏 Tableau des tailles</b> : en haut de l'écran, les mesures de l'atelier, affichées sur chaque modèle.</div>
+</div>
+<div style="display:flex;gap:10mm;justify-content:center;margin-top:2mm">{figure("69-collection-admin","La Collection")}{figure("70-collection-modele","Photos et fiche d'un modèle")}</div>
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">7 · La boutique en ligne</span>
+<h2>Livraison à Dakar et à l'international</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
+<p>Commandes → la ligne « Boutique en ligne » → <b>Réglages</b> (direction et manager).</p>
+<ol class="etapes">
+<li><b>🛵 Livraison à Dakar</b> : un quartier par ligne, avec son prix.</li>
+<li><b>🌍 Livraison à l'international</b> : un pays (ou une région) par ligne, avec le prix de l'envoi. Laissez le prix <b>vide</b> pour le confirmer à la cliente sur WhatsApp après sa commande.</li>
+<li><span class="bouton">Enregistrer les zones</span>. Dès qu'un pays existe, le site annonce « livraison à l'international » et le panier propose ce choix.</li>
+</ol>
+<h3>Une commande pour l'étranger</h3>
+<ul class="puces">
+<li>La cliente donne son pays et son adresse complète. Elle <b>paie avant l'envoi</b> (Wave, Orange Money, virement).</li>
+<li>Frais « à confirmer » : le message WhatsApp de confirmation prévoit la place pour les écrire.</li>
+<li>À l'envoi : <span class="bouton">📦 Expédiée</span>, avec le transporteur et le numéro de suivi (ex. DHL 1234567890).</li>
+</ul>
+</div>{figure("71-zones-international","Les zones de livraison")}{figure("67-panier-international","Le panier de la cliente")}</div>
 """, P))
 
 # 8. Stock
@@ -483,9 +520,9 @@ pages.append(page(f"""
 pages.append(page(f"""
 <span class="etiquette">14 · Ce que voient les clientes</span>
 <h2>Anna Zen Couture et perruques sur mesure</h2>
-<div class="quatre">{figure("54-couture-liste","La collection","tel-petit")}{figure("55-couture-modele","Taille et « Commander »","tel-petit")}{figure("56-panier-couture","Le panier","tel-petit")}{figure("57-perruques","Le devis perruque","tel-petit")}</div>
+<div class="quatre">{figure("64-collection-grille","La collection","tel-petit")}{figure("66-fiche-options","Couleur, taille, Commander","tel-petit")}{figure("67-panier-international","Le panier","tel-petit")}{figure("57-perruques","Le devis perruque","tel-petit")}</div>
 <ul class="puces">
-<li><b>Anna Zen Couture</b> : 29 modèles avec photo et prix. Elle choisit sa taille (ou « Sur mesure »), touche <b>Commander</b>, puis termine dans le panier : retrait gratuit ou livraison.</li>
+<li><b>Anna Zen Couture</b> : une vitrine de maison de couture (nom en capitales, prix, tri par nouveautés ou par prix). Sur chaque modèle : plusieurs photos, la couleur, la taille (ou « Sur mesure »), le tableau des tailles, puis <b>Ajouter au panier</b> ou <b>Commander</b>. Retrait gratuit, livraison à Dakar ou à l'international.</li>
 <li>Si la boutique en ligne est fermée, le bouton devient « Commander sur WhatsApp » avec le modèle et la taille déjà écrits.</li>
 <li><b>Perruques sur mesure</b> : elle touche ses choix (type, texture), ajoute ses envies et son numéro. Devis gratuit, réponse sur WhatsApp.</li>
 <li><b>Cartes cadeaux</b> : un encart dans la boutique l'invite à en commander une sur WhatsApp ou à l'accueil.</li>
@@ -501,6 +538,12 @@ pages.append(page("""
 <p>Réglages → Durées : une famille marquée « ⚠️ personne ne sait le faire » ; ou « 4 mains » coché avec une seule praticienne compétente ; ou la réservation en ligne est fermée.</p>
 <h3>J'ai oublié mon mot de passe</h3>
 <p>La direction : Équipe → Modifier → 🔑 Nouveau mot de passe, puis vous l'envoie par WhatsApp. Changez-le ensuite dans Mon compte.</p>
+<div class="encadre" style="margin-top:6mm">Suite des questions page suivante.</div>
+""", P))
+
+pages.append(page("""
+<span class="etiquette">15 · Questions fréquentes</span>
+<h2>Questions fréquentes (suite)</h2>
 <h3>Je me suis trompée de ticket</h3>
 <p>La direction ou le manager : Caisse → Tickets du jour → « Annuler par un avoir » (motif). Puis encaissez à nouveau correctement.</p>
 <h3>Internet a coupé pendant un encaissement</h3>
@@ -509,6 +552,8 @@ pages.append(page("""
 <p>Agenda → le rendez-vous → « Absente ». L'heure est libérée. Après 2 absences, un acompte lui sera demandé pour réserver en ligne.</p>
 <h3>Changer un prix (prestation, produit, modèle Couture)</h3>
 <p>Catalogue → cherchez la ligne → tapez le nouveau prix → Enregistrer le prix. Le site et la caisse sont à jour en moins d'une minute.</p>
+<h3>Ajouter une nouvelle robe au site</h3>
+<p>Commandes → 👗 Collection → + Nouveau modèle : nom, prix, tailles, puis les photos. Elle est en ligne aussitôt.</p>
 <h3>Une cliente présente une carte cadeau expirée</h3>
 <p>La caisse la refuse : une carte est valable 1 an. La direction peut décider d'un geste (remise avec motif).</p>
 <div class="encadre" style="margin-top:6mm"><b>Besoin d'aide ?</b> Contactez Kër Salaatu Tech (Birima Gueye).</div>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Panier } from "@/components/boutique/Panier";
-import { articleCouture, TAILLES, libelleTaille } from "@/lib/couture";
+import { articleCouture, libelleVariante } from "@/lib/couture";
 import { etatBoutique, modelesCouture } from "@/lib/serveur/boutique";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 
@@ -23,12 +23,14 @@ export default async function PagePanier() {
         },
       ]),
     ),
-    // Anna Zen Couture : une ligne par modèle et par taille, faite sur commande.
+    // Anna Zen Couture : une ligne par modèle, taille et couleur, faite sur commande.
     ...couture.flatMap((m) =>
-      TAILLES.map((t) => [
-        articleCouture(m.ref, t),
-        { titre: m.titre, variante: libelleTaille(t), prix: m.prix, disponible: 20, image: m.src, lien: `/boutique/couture/${m.ref}`, surCommande: true },
-      ]),
+      m.tailles.flatMap((t) =>
+        (m.couleurs.length ? m.couleurs : [""]).map((c) => [
+          articleCouture(m.ref, t, c),
+          { titre: m.nom, variante: libelleVariante(t, c), prix: m.prix, disponible: 20, image: m.photos[0] ?? null, lien: `/boutique/couture/${m.ref}`, surCommande: true },
+        ]),
+      ),
     ),
   ]);
   return (

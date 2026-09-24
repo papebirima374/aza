@@ -54,6 +54,9 @@ export function Catalogue() {
         <Link href="/gestion/photos" className="min-h-11 rounded-full border border-bordure px-4 py-2.5 text-sm font-bold text-profond">
           🖼️ Photos du site
         </Link>
+        <Link href="/gestion/collection" className="min-h-11 rounded-full border border-bordure px-4 py-2.5 text-sm font-bold text-profond">
+          👗 Collection Couture
+        </Link>
       </div>
       <p className="mt-1 text-doux">
         Changez un prix, masquez une ligne ou ajoutez une prestation ou un produit. C&apos;est appliqué partout (site, réservation, caisse) en

@@ -32,7 +32,7 @@ const html = await page.text();
 ok(page.status === 200 && html.includes("8 000") && html.includes("Sur mesure"), "page du modèle C-07 : prix 8 000 F et choix des tailles");
 ok((await fetch(`${SITE}/boutique/couture/C-99`)).status === 404, "modèle inexistant : page introuvable");
 const liste = await (await fetch(`${SITE}/boutique/couture`)).text();
-ok(liste.includes("2 000") && liste.includes("30 000") && (liste.match(/Commander/g) ?? []).length >= 29, "collection : 29 modèles de 2 000 à 30 000 F, bouton « Commander »");
+ok(liste.includes("2 000") && liste.includes("30 000") && (liste.match(/href="\/boutique\/couture\/C-/g) ?? []).length >= 29, "collection : 29 modèles de 2 000 à 30 000 F, chacun avec sa page");
 
 // Commande
 ok((await commander({ lignes: [{ article: "couture:C-07:M", quantite: 1 }] })).statut === 503, "boutique fermée : pas de commande");

@@ -4,7 +4,8 @@ import { IconeHorloge, IconeLieu, IconeTelephone, IconeWhatsApp } from "@/compon
 import { formatPrix, UNIVERS } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import { type Emplacement, photosEmplacement, urlPhotoSite } from "@/lib/photos-site";
-import { PHOTOS_GROUPE, MODELES } from "@/lib/couture";
+import { PHOTOS_GROUPE } from "@/lib/couture";
+import { modelesCouture } from "@/lib/serveur/collection";
 import { photosDuSite } from "@/lib/serveur/photos-site";
 import { INSTITUT, LIEN_ITINERAIRE, lienWhatsApp, TELEPHONE_PRINCIPAL } from "@/lib/institut";
 
@@ -24,7 +25,9 @@ const PHARES = [
 export const revalidate = 60;
 
 export default async function Accueil() {
-  const [cat, photos] = await Promise.all([catalogueServeur(), photosDuSite()]);
+  const [cat, photos, couture] = await Promise.all([catalogueServeur(), photosDuSite(), modelesCouture()]);
+  // La maison Anna Zen : une photo de groupe, puis les modèles les plus récents.
+  const vitrineCouture = [PHOTOS_GROUPE[0], ...couture.flatMap((m) => m.photos.slice(0, 1))].slice(0, 4);
   const bandeau = photos.find((p) => p.emplacement === "accueil");
   const photoUnivers = (u: string) => photosEmplacement(photos, `univers-${u}` as Emplacement)[0];
   const galerie = photosEmplacement(photos, "galerie");
@@ -169,7 +172,7 @@ export default async function Accueil() {
         <h2 className="mt-2 font-serif text-4xl font-semibold text-profond">Anna Zen Couture</h2>
         <p className="mt-3 max-w-2xl text-doux">Robes et tenues de la collection, faites sur commande à votre taille. Choisissez votre modèle et commandez en ligne.</p>
         <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
-          {[PHOTOS_GROUPE[0], MODELES[13].src, MODELES[19].src, MODELES[25].src].map((src) => (
+          {vitrineCouture.map((src) => (
             <Image key={src} src={src} alt="Anna Zen Couture" width={720} height={1080} unoptimized loading="lazy" className="aspect-[2/3] w-full rounded-2xl object-cover" />
           ))}
         </div>

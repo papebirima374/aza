@@ -19,7 +19,7 @@ type Commande = {
   statut: StatutCommande;
   lignes: { article: string; nom: string; variante: string; prixUnitaire: number; quantite: number; montant: number }[];
   sousTotal: number;
-  livraison: { mode: "retrait" | "livraison"; zone: string; prix: number; adresse: string };
+  livraison: { mode: "retrait" | "livraison" | "international"; zone: string; prix: number; adresse: string; aConfirmer?: boolean };
   total: number;
   paiement: "sur-place" | "mobile";
   cliente: { nom: string; telephone: string };
@@ -44,13 +44,15 @@ function messageCliente(c: Commande): string {
   switch (c.statut) {
     case "nouvelle":
     case "confirmee":
-      return `Bonjour ${nom} 🌸 Votre commande ${c.reference} (${formatPrix(c.total)}) est confirmée ✅.${
+      return `Bonjour ${nom} 🌸 Votre commande ${c.reference} (${formatPrix(c.total)}${c.livraison.aConfirmer ? ` + frais d'envoi vers ${c.livraison.zone} : … F` : ""}) est confirmée ✅.${
         c.paiement === "mobile" ? ` Pour payer par Wave ou Orange Money : ${INSTITUT.telephones[1].affiche}.` : ""
       } Nous vous prévenons dès qu'elle est prête. ${INSTITUT.nom}`;
     case "prete":
       return `Bonjour ${nom} 🎁 Votre commande ${c.reference} est prête ! Vous pouvez la retirer à l'institut : ${INSTITUT.adresse.rue}, ${INSTITUT.adresse.repere.toLowerCase()}. Total : ${formatPrix(c.total)}. À très vite !`;
     case "en-livraison":
-      return `Bonjour ${nom} 🛵 Votre commande ${c.reference} est en route${c.livreur ? ` avec ${c.livreur}` : ""}. Total à régler : ${formatPrix(c.total)}. Merci !`;
+      return c.livraison.mode === "international"
+        ? `Bonjour ${nom} 📦 Votre commande ${c.reference} est partie vers ${c.livraison.zone}${c.livreur ? ` (${c.livreur})` : ""}. Merci pour votre confiance !`
+        : `Bonjour ${nom} 🛵 Votre commande ${c.reference} est en route${c.livreur ? ` avec ${c.livreur}` : ""}. Total à régler : ${formatPrix(c.total)}. Merci !`;
     case "remise":
       return `Merci ${nom} pour votre achat 🌸 À bientôt chez ${INSTITUT.nom} !`;
     case "annulee":
@@ -121,7 +123,14 @@ export function Commandes() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
-      <h1 className="font-serif text-4xl font-semibold text-profond">Commandes</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="font-serif text-4xl font-semibold text-profond">Commandes</h1>
+        {(compte.role === "direction" || compte.role === "manager") && (
+          <a href="/gestion/collection" className="flex min-h-12 items-center rounded-full border border-bordure px-5 font-semibold text-profond hover:border-profond">
+            👗 Collection
+          </a>
+        )}
+      </div>
       <p className="text-sm text-doux">Les commandes de la boutique en ligne et les demandes de perruques sur mesure. La liste se met à jour toute seule.</p>
       {(compte.role === "direction" || compte.role === "manager") && <ReglagesBoutique direction={compte.role === "direction"} appel={appel} />}
 
@@ -166,7 +175,8 @@ function CarteCommande({ c, agir, imprimer }: { c: Commande; agir: (chemin: stri
     agir("/api/gestion/commandes", { id: c.id, statut, ...extra }, ok).finally(() => setEnvoi(false));
   };
   const bouton = "min-h-11 rounded-full px-4 text-sm font-bold disabled:opacity-40";
-  const livree = c.livraison.mode === "livraison";
+  const livree = c.livraison.mode !== "retrait";
+  const monde = c.livraison.mode === "international";
 
   return (
     <li className={`rounded-2xl border-2 p-4 ${c.statut === "nouvelle" ? "border-aza" : "border-bordure"}`}>
@@ -194,8 +204,10 @@ function CarteCommande({ c, agir, imprimer }: { c: Commande; agir: (chemin: stri
         ))}
         {livree && (
           <li className="flex justify-between gap-2 text-doux">
-            <span>Livraison {c.livraison.zone}</span>
-            <span className="prix">{formatPrix(c.livraison.prix)}</span>
+            <span>
+              {monde ? "Envoi" : "Livraison"} {c.livraison.zone}
+            </span>
+            <span className="prix">{c.livraison.aConfirmer ? "à confirmer" : formatPrix(c.livraison.prix)}</span>
           </li>
         )}
         <li className="mt-1 flex justify-between gap-2 border-t border-bordure pt-1 font-bold">
@@ -204,8 +216,9 @@ function CarteCommande({ c, agir, imprimer }: { c: Commande; agir: (chemin: stri
         </li>
       </ul>
       <p className="mt-2 text-sm">
-        {livree ? `🛵 Livraison : ${c.livraison.adresse}` : "🏠 Retrait à l'institut"} · {c.paiement === "mobile" ? "paiera par Wave / Orange Money" : "paiera à la remise"}
-        {c.livreur ? ` · livreur : ${c.livreur}` : ""}
+        {monde ? `🌍 Envoi à l'international : ${c.livraison.adresse}` : livree ? `🛵 Livraison : ${c.livraison.adresse}` : "🏠 Retrait à l'institut"} ·{" "}
+        {monde ? "paie avant l'envoi" : c.paiement === "mobile" ? "paiera par Wave / Orange Money" : "paiera à la remise"}
+        {c.livreur ? ` · ${monde ? "envoi" : "livreur"} : ${c.livreur}` : ""}
       </p>
       {c.remarque && <p className="mt-1 text-sm italic text-doux">« {c.remarque} »</p>}
       {c.ticket && <p className="mt-1 text-sm font-semibold text-[#0d6b37]">Payée : ticket {c.ticket.reference}</p>}
@@ -225,12 +238,12 @@ function CarteCommande({ c, agir, imprimer }: { c: Commande; agir: (chemin: stri
           <button
             disabled={envoi}
             onClick={() => {
-              const livreur = window.prompt("Nom du livreur ?") ?? "";
-              if (livreur.trim()) etape("en-livraison", { livreur }, `${c.reference} partie en livraison avec ${livreur}.`);
+              const livreur = window.prompt(monde ? "Transporteur et numéro de suivi (ex. DHL 1234567890) ?" : "Nom du livreur ?") ?? "";
+              if (livreur.trim()) etape("en-livraison", { livreur }, `${c.reference} ${monde ? "expédiée" : "partie en livraison"} (${livreur}).`);
             }}
             className={`${bouton} bg-aza text-white`}
           >
-            🛵 Partie en livraison
+            {monde ? "📦 Expédiée" : "🛵 Partie en livraison"}
           </button>
         )}
         {["confirmee", "prete", "en-livraison"].includes(c.statut) && (
@@ -318,7 +331,7 @@ function BonPreparation({ c, fermer }: { c: Commande; fermer: () => void }) {
         <p className="mt-1 text-center">
           {c.cliente.nom} · {c.cliente.telephone}
         </p>
-        <p className="mt-1 text-center text-sm">{c.livraison.mode === "livraison" ? `🛵 À livrer : ${c.livraison.zone} — ${c.livraison.adresse}` : "🏠 Retrait à l'institut"}</p>
+        <p className="mt-1 text-center text-sm">{c.livraison.mode === "international" ? `🌍 À expédier : ${c.livraison.zone} — ${c.livraison.adresse}` : c.livraison.mode === "livraison" ? `🛵 À livrer : ${c.livraison.zone} — ${c.livraison.adresse}` : "🏠 Retrait à l'institut"}</p>
         <table className="mt-5 w-full text-left">
           <thead>
             <tr className="border-b-2 border-encre text-sm">
@@ -347,19 +360,21 @@ function BonPreparation({ c, fermer }: { c: Commande; fermer: () => void }) {
   );
 }
 
+type ZoneLue = { id: string; nom: string; prix: number | null; international?: boolean };
+
 function ReglagesBoutique({ direction, appel }: { direction: boolean; appel: (chemin: string, corps?: object) => Promise<unknown> }) {
-  const [etat, setEtat] = useState<{ ouverte: boolean; zones: { id: string; nom: string; prix: number }[]; publies: number } | null>(null);
-  const [zones, setZones] = useState<{ id: string; nom: string; prix: string }[]>([]);
+  const [etat, setEtat] = useState<{ ouverte: boolean; zones: ZoneLue[]; publies: number } | null>(null);
+  const [zones, setZones] = useState<{ id: string; nom: string; prix: string; international: boolean }[]>([]);
   const [ouvert, setOuvert] = useState(false);
   const [info, setInfo] = useState("");
 
   useEffect(() => {
     let actif = true;
-    (appel("/api/gestion/boutique") as Promise<{ ouverte: boolean; zones: { id: string; nom: string; prix: number }[]; publies: number }>)
+    (appel("/api/gestion/boutique") as Promise<{ ouverte: boolean; zones: ZoneLue[]; publies: number }>)
       .then((e) => {
         if (!actif) return;
         setEtat(e);
-        setZones(e.zones.map((z) => ({ ...z, prix: String(z.prix) })));
+        setZones(e.zones.map((z) => ({ ...z, prix: z.prix === null ? "" : String(z.prix), international: Boolean(z.international) })));
       })
       .catch(() => {});
     return () => {
@@ -395,26 +410,46 @@ function ReglagesBoutique({ direction, appel }: { direction: boolean; appel: (ch
               {etat.ouverte ? "Fermer la boutique" : "Ouvrir la boutique en ligne"}
             </button>
           )}
-          <h3 className="mt-5 font-semibold">Zones et tarifs de livraison</h3>
-          <div className="mt-2 space-y-2">
-            {zones.map((z, i) => (
-              <div key={z.id || i} className="flex gap-2">
-                <input value={z.nom} onChange={(e) => setZones(zones.map((x, j) => (j === i ? { ...x, nom: e.target.value } : x)))} placeholder="Quartier (ex. Plateau)" className="min-w-0 flex-1 rounded-xl border border-bordure px-3 py-2.5" />
-                <input inputMode="numeric" value={z.prix} onChange={(e) => setZones(zones.map((x, j) => (j === i ? { ...x, prix: e.target.value } : x)))} placeholder="Prix" className="w-24 rounded-xl border border-bordure px-3 py-2.5 text-right" />
-                <button onClick={() => setZones(zones.filter((_, j) => j !== i))} className="px-2 text-xl text-doux" aria-label="Retirer">
-                  ×
-                </button>
+          <p className="mt-3 text-sm text-doux">
+            Robes Anna Zen Couture (photos, prix, tailles) : <a href="/gestion/collection" className="font-semibold text-aza underline">👗 Collection</a>.
+          </p>
+          {(
+            [
+              [false, "🛵 Livraison à Dakar", "Quartier (ex. Plateau)", "Prix"],
+              [true, "🌍 Livraison à l'international", "Pays ou région (ex. France)", "à confirmer"],
+            ] as const
+          ).map(([international, titre, aideNom, aidePrix]) => (
+            <div key={titre}>
+              <h3 className="mt-5 font-semibold">{titre}</h3>
+              {international && (
+                <p className="text-xs text-doux">Un pays par ligne, avec le prix de l&apos;envoi. Laissez le prix vide pour le confirmer à la cliente sur WhatsApp après sa commande.</p>
+              )}
+              <div className="mt-2 space-y-2">
+                {zones.map((z, i) =>
+                  z.international !== international ? null : (
+                    <div key={z.id || i} className="flex gap-2">
+                      <input value={z.nom} onChange={(e) => setZones(zones.map((x, j) => (j === i ? { ...x, nom: e.target.value } : x)))} placeholder={aideNom} className="min-w-0 flex-1 rounded-xl border border-bordure px-3 py-2.5" />
+                      <input inputMode="numeric" value={z.prix} onChange={(e) => setZones(zones.map((x, j) => (j === i ? { ...x, prix: e.target.value } : x)))} placeholder={aidePrix} className="w-28 rounded-xl border border-bordure px-3 py-2.5 text-right" />
+                      <button onClick={() => setZones(zones.filter((_, j) => j !== i))} className="px-2 text-xl text-doux" aria-label="Retirer">
+                        ×
+                      </button>
+                    </div>
+                  ),
+                )}
               </div>
-            ))}
-          </div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button onClick={() => setZones([...zones, { id: "", nom: "", prix: "" }])} className="text-sm font-bold text-aza">
-              + Ajouter une zone
-            </button>
+              <button onClick={() => setZones([...zones, { id: "", nom: "", prix: "", international }])} className="mt-2 text-sm font-bold text-aza">
+                {international ? "+ Ajouter un pays" : "+ Ajouter un quartier"}
+              </button>
+            </div>
+          ))}
+          <div className="mt-4 flex">
             <button
               onClick={async () => {
                 try {
-                  await appel("/api/gestion/boutique", { action: "zones", zones: zones.map((z) => ({ id: z.id, nom: z.nom, prix: Number(z.prix) })) });
+                  await appel("/api/gestion/boutique", {
+                    action: "zones",
+                    zones: zones.map((z) => ({ id: z.id, nom: z.nom, prix: z.international && z.prix.trim() === "" ? null : Number(z.prix.replace(/\s/g, "")), international: z.international })),
+                  });
                   setInfo("Zones enregistrées.");
                 } catch (e) {
                   setInfo((e as Error).message);

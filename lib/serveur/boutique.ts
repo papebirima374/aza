@@ -9,7 +9,8 @@
 //   photosProduits/{id}      { article, data (base64 WebP), type }  — servies par /api/boutique/photo/{id}
 //   commandes/{id}           { numero, reference, statut, lignes, livraison, total, paiement, cliente, historique, … }
 //   compteurs/commandes      { dernier }
-//   reglages/institut        { boutiqueOuverte, zonesLivraison: [{ id, nom, prix }] }
+//   reglages/institut        { boutiqueOuverte, zonesLivraison: [{ id, nom, prix, international? }] }
+//                            (international : prix null = frais confirmés à la cliente après la commande)
 
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import type { Role } from "@/lib/agenda/statuts";
@@ -19,7 +20,9 @@ import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation, maintenantDakar } from "@/lib/serveur/reservations";
 import { telephoneCanonique, telephoneValide } from "@/lib/telephone";
 import type { StatutCommande } from "@/lib/boutique";
-import { lireArticleCouture, libelleTaille, MODELES } from "@/lib/couture";
+import { libelleVariante, lireArticleCouture } from "@/lib/couture";
+import { modelesCouture } from "@/lib/serveur/collection";
+export { modelesCouture } from "@/lib/serveur/collection";
 
 export { RAYONS, STATUTS_COMMANDE, type StatutCommande } from "@/lib/boutique";
 
@@ -40,17 +43,18 @@ export function cleProduit(titre: string): string {
 
 // ——— Vitrine (public) ———
 
-/** Modèles Anna Zen Couture en vente (prix du catalogue ; un modèle masqué n'apparaît pas). */
-export async function modelesCouture() {
-  const cat = await catalogueServeur();
-  return MODELES.flatMap((m) => {
-    const ligne = cat.parId(m.produit);
-    return ligne ? [{ ...m, titre: `Anna Zen Couture — modèle ${m.ref}`, prix: ligne.prix }] : [];
-  });
-}
-export type ModeleCouture = Awaited<ReturnType<typeof modelesCouture>>[number];
+/** Zone de livraison : un quartier de Dakar, ou un pays / une région pour l'international. */
+export type Zone = { id: string; nom: string; prix: number | null; international?: boolean };
+
+
 
 /** La boutique est-elle ouverte aux commandes en ligne ? (réglage de la direction) */
+/** Des pays sont-ils prévus pour la livraison à l'international ? (le site le dit alors) */
+export async function livraisonInternationale() {
+  const r = await db().doc("reglages/institut").get().catch(() => null);
+  return ((r?.get("zonesLivraison") as Zone[] | undefined) ?? []).some((z) => z.international && z.nom);
+}
+
 export async function boutiqueOuverte() {
   const r = await db().doc("reglages/institut").get().catch(() => null);
   return r?.get("boutiqueOuverte") === true;
@@ -101,7 +105,7 @@ export async function etatBoutique() {
     g.disponible += dispo;
     groupes.set(cle, g);
   }
-  const zones = ((reglages.get("zonesLivraison") as { id: string; nom: string; prix: number }[] | undefined) ?? []).filter((z) => z.nom);
+  const zones = ((reglages.get("zonesLivraison") as Zone[] | undefined) ?? []).filter((z) => z.nom);
   return {
     ouverte: reglages.get("boutiqueOuverte") === true,
     produits: [...groupes.values()].sort((a, b) => a.titre.localeCompare(b.titre)),
@@ -136,9 +140,10 @@ export async function passerCommande(c: NouvelleCommande) {
   const telephone = String(c.telephone ?? "").trim();
   if (nom.length < 2) throw new Erreur("Indiquez votre nom.", 400);
   if (!telephoneValide(telephone)) throw new Erreur("Numéro de téléphone invalide.", 400);
-  const mode = c.mode === "livraison" ? "livraison" : c.mode === "retrait" ? "retrait" : null;
+  const mode = c.mode === "livraison" || c.mode === "international" || c.mode === "retrait" ? c.mode : null;
   if (!mode) throw new Erreur("Choisissez : retrait à l'institut ou livraison.", 400);
-  const paiement = c.paiement === "mobile" ? "mobile" : "sur-place";
+  // À l'étranger, on paie avant l'envoi (Wave, Orange Money, virement…).
+  const paiement = c.paiement === "mobile" || mode === "international" ? "mobile" : "sur-place";
   const brutes = Array.isArray(c.lignes) ? c.lignes : [];
   const demandees = new Map<string, number>();
   for (const l of brutes) {
@@ -152,23 +157,28 @@ export async function passerCommande(c: NouvelleCommande) {
   const base = db();
   const etat = await etatBoutique();
   if (!etat.ouverte) throw new Erreur("La boutique en ligne n'est pas encore ouverte. Écrivez-nous sur WhatsApp.", 503);
-  let livraison: { mode: string; zone: string; prix: number; adresse: string } = { mode, zone: "", prix: 0, adresse: "" };
-  if (mode === "livraison") {
-    const zone = etat.zones.find((z) => z.id === c.zone);
-    if (!zone) throw new Erreur("Choisissez votre zone de livraison.", 400);
-    const adresse = String(c.adresse ?? "").trim().slice(0, 300);
-    if (adresse.length < 5) throw new Erreur("Indiquez l'adresse de livraison.", 400);
-    livraison = { mode, zone: zone.nom, prix: zone.prix, adresse };
+  let livraison: { mode: string; zone: string; prix: number; adresse: string; aConfirmer?: boolean } = { mode, zone: "", prix: 0, adresse: "" };
+  if (mode !== "retrait") {
+    const international = mode === "international";
+    const zone = etat.zones.find((z) => z.id === c.zone && Boolean(z.international) === international);
+    if (!zone) throw new Erreur(international ? "Choisissez le pays de livraison." : "Choisissez votre zone de livraison.", 400);
+    const adresse = String(c.adresse ?? "").trim().slice(0, 400);
+    if (adresse.length < (international ? 10 : 5)) throw new Erreur(international ? "Indiquez l'adresse complète (rue, ville, code postal, pays)." : "Indiquez l'adresse de livraison.", 400);
+    livraison = { mode, zone: zone.nom, prix: zone.prix ?? 0, adresse, ...(zone.prix === null ? { aConfirmer: true } : {}) };
   }
   const produits = new Map(etat.produits.flatMap((p) => p.variantes.map((v) => [v.article, { p, v }] as const)));
   // Anna Zen Couture : faite sur commande, pas de stock à réserver.
   const couture = new Map((await modelesCouture()).map((m) => [m.ref, m]));
   const lignesCouture = [...demandees].flatMap(([article, quantite]) => {
+    if (!article.startsWith("couture:")) return [];
     const c = lireArticleCouture(article);
-    if (!c) return [];
-    const m = couture.get(c.ref);
-    if (!m) throw new Erreur("Un modèle de votre panier n'est plus en vente. Rechargez la page.", 409);
-    return [{ article, produit: m.produit, nom: m.titre, variante: libelleTaille(c.taille), prixUnitaire: m.prix, quantite, montant: m.prix * quantite }];
+    const m = c && couture.get(c.ref);
+    if (!c || !m) throw new Erreur("Un modèle de votre panier n'est plus en vente. Rechargez la page.", 409);
+    if (!m.tailles.includes(c.taille) || (m.couleurs.length ? !m.couleurs.includes(c.couleur) : c.couleur !== "")) {
+      throw new Erreur(`« ${m.nom} » : cette taille ou cette couleur n'est plus proposée. Rechargez la page.`, 409);
+    }
+    const nom = m.nom.startsWith("Modèle ") ? `Anna Zen Couture — ${m.nom.toLowerCase()}` : `${m.nom} (${m.ref})`;
+    return [{ article, produit: m.id, nom, variante: libelleVariante(c.taille, c.couleur), prixUnitaire: m.prix, quantite, montant: m.prix * quantite }];
   });
   for (const l of lignesCouture) demandees.delete(l.article);
 
@@ -358,11 +368,15 @@ export async function reglerBoutique(membre: Membre, c: Record<string, unknown>)
     return { ok: true };
   }
   if (c.action === "zones") {
-    const zones = (Array.isArray(c.zones) ? c.zones : []).slice(0, 30).map((z, i) => {
+    const zones = (Array.isArray(c.zones) ? c.zones : []).slice(0, 60).map((z, i): Zone => {
       const nom = String(z?.nom ?? "").trim().slice(0, 60);
-      const prix = Math.round(Number(z?.prix));
-      if (nom.length < 2 || !Number.isFinite(prix) || prix < 0 || prix > 1_000_000) throw new Erreur("Zone invalide (nom et prix).", 400);
-      return { id: String(z?.id || `z${Date.now().toString(36)}${i}`), nom, prix };
+      const international = z?.international === true;
+      // À l'international, un prix vide veut dire « frais confirmés après la commande ».
+      const vide = z?.prix === null || z?.prix === undefined || String(z.prix).trim() === "";
+      if (vide && !international) throw new Erreur(`Indiquez le prix de la livraison pour « ${nom || "ce quartier"} ».`, 400);
+      const prix = international && vide ? null : Math.round(Number(z?.prix));
+      if (nom.length < 2 || (prix !== null && (!Number.isFinite(prix) || prix < 0 || prix > 5_000_000))) throw new Erreur("Zone invalide (nom et prix).", 400);
+      return { id: String(z?.id || `z${Date.now().toString(36)}${i}`), nom, prix, ...(international ? { international: true } : {}) };
     });
     await ref.set({ zonesLivraison: zones }, { merge: true });
     return { ok: true };

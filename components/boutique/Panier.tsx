@@ -10,11 +10,12 @@ import { lienWhatsApp } from "@/lib/institut";
 // Panier et commande : retrait gratuit à l'institut ou livraison, sans compte à créer.
 
 type Article = { titre: string; variante: string; prix: number; disponible: number; image: string | null; lien: string; surCommande?: boolean };
-type Zone = { id: string; nom: string; prix: number };
+type Zone = { id: string; nom: string; prix: number | null; international?: boolean };
+type Mode = "retrait" | "livraison" | "international";
 
 export function Panier({ ouverte, articles, zones }: { ouverte: boolean; articles: Record<string, Article>; zones: Zone[] }) {
   const panier = usePanier();
-  const [mode, setMode] = useState<"retrait" | "livraison">("retrait");
+  const [mode, setMode] = useState<Mode>("retrait");
   const [zone, setZone] = useState("");
   const [adresse, setAdresse] = useState("");
   const [nom, setNom] = useState("");
@@ -53,11 +54,15 @@ export function Panier({ ouverte, articles, zones }: { ouverte: boolean; article
   const lignes = panier.map((l) => ({ ...l, a: articles[l.article] })).filter((l) => l.a);
   const perdus = panier.length - lignes.length;
   const sousTotal = lignes.reduce((s, l) => s + l.a.prix * l.quantite, 0);
-  const z = zones.find((x) => x.id === zone);
-  const frais = mode === "livraison" ? (z?.prix ?? 0) : 0;
+  const zonesDakar = zones.filter((x) => !x.international);
+  const zonesMonde = zones.filter((x) => x.international);
+  const zonesDuMode = mode === "international" ? zonesMonde : zonesDakar;
+  const z = zonesDuMode.find((x) => x.id === zone);
+  const frais = mode !== "retrait" ? (z?.prix ?? 0) : 0;
+  const aConfirmer = mode === "international" && z?.prix === null;
   const trop = lignes.find((l) => l.quantite > l.a.disponible);
   const pret =
-    ouverte && lignes.length > 0 && !trop && nom.trim().length >= 2 && telephone.trim().length >= 9 && (mode === "retrait" || (z && adresse.trim().length >= 5));
+    ouverte && lignes.length > 0 && !trop && nom.trim().length >= 2 && telephone.trim().length >= 9 && (mode === "retrait" || (z && adresse.trim().length >= (mode === "international" ? 10 : 5)));
 
   if (lignes.length === 0) {
     return (
@@ -115,36 +120,51 @@ export function Panier({ ouverte, articles, zones }: { ouverte: boolean; article
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {(
             [
-              ["retrait", "🏠 Retrait à l'institut", "Gratuit · Point-E Canal 4, Villa N°7"],
-              ["livraison", "🛵 Livraison", zones.length ? "Selon votre quartier" : "Bientôt disponible"],
+              ["retrait", "🏠 Retrait à l'institut", "Gratuit · Point-E Canal 4, Villa N°7", true],
+              ["livraison", "🛵 Livraison à Dakar", zonesDakar.length ? "Selon votre quartier" : "Bientôt disponible", zonesDakar.length > 0],
+              ...(zonesMonde.length ? ([["international", "🌍 Livraison à l'international", "Envoi dans votre pays", true]] as const) : []),
             ] as const
-          ).map(([id, titre, aide]) => (
+          ).map(([id, titre, aide, possible]) => (
             <label
               key={id}
-              className={`flex cursor-pointer flex-col rounded-2xl border-2 p-4 ${mode === id ? "border-profond bg-creme" : "border-bordure"} ${id === "livraison" && !zones.length ? "pointer-events-none opacity-50" : ""}`}
+              className={`flex cursor-pointer flex-col rounded-2xl border-2 p-4 ${mode === id ? "border-profond bg-creme" : "border-bordure"} ${!possible ? "pointer-events-none opacity-50" : ""}`}
             >
-              <input type="radio" name="mode" className="sr-only" checked={mode === id} onChange={() => setMode(id)} />
+              <input
+                type="radio"
+                name="mode"
+                className="sr-only"
+                checked={mode === id}
+                onChange={() => {
+                  setMode(id);
+                  setZone("");
+                  if (id === "international") setPaiement("mobile");
+                }}
+              />
               <span className="font-bold">{titre}</span>
               <span className="text-sm text-doux">{aide}</span>
             </label>
           ))}
         </div>
-        {mode === "livraison" && (
+        {mode !== "retrait" && (
           <div className="mt-3 grid gap-2">
             <label className="text-sm font-semibold">
-              Quartier
+              {mode === "international" ? "Pays" : "Quartier"}
               <select value={zone} onChange={(e) => setZone(e.target.value)} className={`${champ} bg-white`}>
                 <option value="">— Choisir —</option>
-                {zones.map((x) => (
+                {zonesDuMode.map((x) => (
                   <option key={x.id} value={x.id}>
-                    {x.nom} · {formatPrix(x.prix)}
+                    {x.nom} · {x.prix === null ? "frais confirmés sur WhatsApp" : formatPrix(x.prix)}
                   </option>
                 ))}
               </select>
             </label>
             <label className="text-sm font-semibold">
-              Adresse précise (repère)
-              <input value={adresse} onChange={(e) => setAdresse(e.target.value)} className={champ} />
+              {mode === "international" ? "Adresse complète (rue, ville, code postal, pays)" : "Adresse précise (repère)"}
+              {mode === "international" ? (
+                <textarea value={adresse} onChange={(e) => setAdresse(e.target.value)} rows={3} className={champ} />
+              ) : (
+                <input value={adresse} onChange={(e) => setAdresse(e.target.value)} className={champ} />
+              )}
             </label>
           </div>
         )}
@@ -169,7 +189,12 @@ export function Panier({ ouverte, articles, zones }: { ouverte: boolean; article
 
       <fieldset>
         <legend className="font-semibold">Paiement</legend>
-        <div className="mt-2 grid gap-2">
+        {mode === "international" && (
+          <p className="mt-2 rounded-2xl border-2 border-profond bg-creme p-4 text-sm">
+            <b>Paiement avant l&apos;envoi</b> : Wave, Orange Money ou virement. L&apos;institut vous envoie les détails et le suivi du colis sur WhatsApp.
+          </p>
+        )}
+        <div className={`mt-2 grid gap-2 ${mode === "international" ? "hidden" : ""}`}>
           {(
             [
               ["sur-place", mode === "livraison" ? "Je paie à la livraison" : "Je paie au retrait", "Espèces, Wave ou Orange Money"],
@@ -190,16 +215,20 @@ export function Panier({ ouverte, articles, zones }: { ouverte: boolean; article
           <span>Produits</span>
           <span className="prix">{formatPrix(sousTotal)}</span>
         </p>
-        {mode === "livraison" && (
+        {mode !== "retrait" && (
           <p className="flex justify-between">
-            <span>Livraison{z ? ` (${z.nom})` : ""}</span>
-            <span className="prix">{z ? formatPrix(frais) : "—"}</span>
+            <span>
+              {mode === "international" ? "Envoi" : "Livraison"}
+              {z ? ` (${z.nom})` : ""}
+            </span>
+            <span className="prix">{!z ? "—" : aConfirmer ? "à confirmer" : formatPrix(frais)}</span>
           </p>
         )}
         <p className="mt-2 flex justify-between border-t border-bordure pt-2 font-serif text-2xl font-semibold text-profond">
           <span>Total</span>
           <span className="prix">{formatPrix(sousTotal + frais)}</span>
         </p>
+        {aConfirmer && <p className="mt-1 text-xs text-doux">+ frais d&apos;envoi, confirmés par l&apos;institut sur WhatsApp avant le paiement.</p>}
       </div>
 
       {!ouverte && <p className="font-semibold text-aza-fonce">La boutique en ligne n&apos;est pas encore ouverte.</p>}

@@ -12,7 +12,7 @@ import { firebaseConfigure } from "@/lib/serveur/firebase";
 export const metadata: Metadata = {
   title: "Boutique",
   description:
-    "Produits capillaires et cosmétiques, perruques et mèches, prêt-à-porter : la boutique Anna Zen Attitude, Point-E, Dakar. Retrait gratuit à l'institut ou livraison.",
+    "Produits capillaires et cosmétiques, perruques et mèches, prêt-à-porter : la boutique Anna Zen Attitude, Point-E, Dakar. Retrait gratuit à l'institut, livraison à Dakar et à l'international.",
   alternates: { canonical: "/boutique" },
 };
 
@@ -99,7 +99,8 @@ export default async function Boutique({ searchParams }: PageProps<"/boutique">)
     <div className="mx-auto max-w-6xl px-4 pt-12 pb-32">
       <h1 className="font-serif text-5xl font-semibold text-profond">La boutique</h1>
       <p className="mt-3 max-w-2xl text-doux">
-        Commandez en ligne : <strong>retrait gratuit à l&apos;institut</strong> (Point-E) ou livraison à Dakar. Paiement au retrait, à la
+        Commandez en ligne : <strong>retrait gratuit à l&apos;institut</strong> (Point-E), livraison à Dakar
+        {e.zones.some((z) => z.international) ? <> et <strong>à l&apos;international</strong></> : null}. Paiement au retrait, à la
         livraison, par Wave ou Orange Money.
       </p>
       <nav className="mt-6 flex flex-wrap gap-2" aria-label="Rayons">

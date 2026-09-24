@@ -128,9 +128,10 @@ pages.append(page(f"""
 <span class="etiquette">7 · Stock et boutique</span>
 <h2>Anna Zen Couture, perruques sur mesure, cartes cadeaux</h2>
 <p class="chapeau">La maison Anna Zen vend en ligne comme une vraie boutique : la cliente choisit, commande et récupère à l'institut ou se fait livrer.</p>
-<div class="quatre">{figure("54-couture-liste","La collection Couture","tel-petit")}{figure("55-couture-modele","Taille et « Commander »","tel-petit")}{figure("57-perruques","Devis perruque","tel-petit")}{figure("51-carte-vendue","Carte cadeau","tel-petit")}</div>
+<div class="quatre">{figure("64-collection-grille","La collection Couture","tel-petit")}{figure("66-fiche-options","Couleur, taille, Commander","tel-petit")}{figure("69-collection-admin","La direction ajoute ses modèles","tel-petit")}{figure("51-carte-vendue","Carte cadeau","tel-petit")}</div>
 <ul class="puces">
-<li><b>Anna Zen Couture</b> : 29 modèles avec photo et prix, taille S à XXL ou sur mesure, bouton Commander et panier. Les prix se changent dans le Catalogue ; les modèles se vendent aussi en caisse.</li>
+<li><b>Anna Zen Couture</b> : une vitrine de maison de couture — plusieurs photos par modèle, couleurs, tailles ou sur mesure, tableau des tailles, Ajouter au panier / Commander. La direction <b>ajoute elle-même</b> ses modèles et leurs photos (écran Collection).</li>
+<li><b>Livraison</b> : retrait gratuit, livraison par quartier à Dakar, et <b>envoi à l'international</b> (prix par pays, ou frais confirmés sur WhatsApp).</li>
 <li><b>Perruques sur mesure</b> : la cliente décrit sa perruque (type, texture, longueur, couleur, date) ; l'institut propose prix et délai par WhatsApp et suit la confection jusqu'à la remise.</li>
 <li><b>Cartes cadeaux</b> : montant libre, code unique, envoi par WhatsApp, <b>valables 1 an</b>. Paiement en caisse avec le code, solde suivi, sans double comptage dans la recette.</li>
 </ul>""", P))
