@@ -53,6 +53,7 @@ Les informations à faire valider par l'institut : [`docs/POINTS-A-CONFIRMER.md`
 - Contrôles : `node scripts/verifier-reglages.mjs` (25 contrôles).
 - Modifier un membre (écran Équipe → « Modifier ») : nom, rôle, compétences, nouveau lien de mot de passe, désactiver / réactiver. Contrôles : `node scripts/verifier-modifier-membre.mjs` (19 contrôles).
 - Caisse (onglet « Caisse ») : ouverture avec fond, tickets (rendez-vous terminés ou vente libre), paiement Espèces / Wave / Orange Money / carte / virement / crédit, partagé si besoin, numérotation T-000001 sans trou, remise avec motif (direction, manager), annulation par avoir, clôture avec écart justifié, reçu imprimable ou WhatsApp. Contrôles : `node scripts/verifier-caisse.mjs` (35 contrôles, base fraîche).
+- Équipe qui lit peu : « Ma journée » pour les praticiennes (grosses cartes, images, 🔊 lecture à voix haute, boutons « Je commence » / « J'ai fini »), connexion sans mot de passe par un lien WhatsApp envoyé par la direction (email facultatif pour une praticienne, lien à usage unique valable 7 jours), pas de déconnexion automatique sur son téléphone. Contrôles : `node scripts/verifier-lien-connexion.mjs`.
 
 **Rendez-vous au comptoir** — bouton « + Nouveau rendez-vous » de l'agenda
 - L'accueil choisit les prestations (durée pré-remplie si elle est paramétrée, sinon

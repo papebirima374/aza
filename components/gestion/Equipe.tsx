@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import type { Role } from "@/lib/agenda/statuts";
 import { FAMILLES, UNIVERS } from "@/lib/catalogue";
+import { telephoneCanonique } from "@/lib/telephone";
 
 // Écran « Équipe » : la direction crée les comptes (un par personne, jamais partagé).
 // La personne reçoit un lien pour choisir elle-même son mot de passe.
 
-type Ligne = { uid: string; nom: string; email: string; role: Role; praticienne: string | null; competences: string[]; actif: boolean };
+type Ligne = { uid: string; nom: string; email: string; telephone: string; role: Role; praticienne: string | null; competences: string[]; actif: boolean };
 
 const ROLES: { id: Role; libelle: string; aide: string }[] = [
   { id: "accueil", libelle: "Accueil / caisse", aide: "Agenda complet, rendez-vous, encaissement." },
@@ -30,7 +31,8 @@ export function Equipe() {
   const [role, setRole] = useState<Role>("accueil");
   const [competences, setCompetences] = useState<string[]>([]);
   const [envoi, setEnvoi] = useState(false);
-  const [lien, setLien] = useState<{ nom: string; lien: string; nouveau: boolean } | null>(null);
+  const [telephone, setTelephone] = useState("");
+  const [lien, setLien] = useState<Envoi | null>(null);
   const [ouvert, setOuvert] = useState<string | null>(null);
 
   const appel = useCallback(
@@ -66,10 +68,16 @@ export function Equipe() {
     setEnvoi(true);
     setErreur("");
     try {
-      const res = await appel("POST", { nom, email, role, competences: intervenante ? competences : [] });
-      setLien({ nom, lien: res.lien, nouveau: true });
+      const res = await appel("POST", { nom, email, telephone, role, competences: intervenante ? competences : [] });
+      setLien(
+        res.lienConnexion
+          ? envoiConnexion(nom, res.lienConnexion, telephone, `Compte créé pour ${nom}.`)
+          : envoiMotDePasse(nom, res.lien, telephone, `Compte créé pour ${nom}.`),
+      );
       setNom("");
       setEmail("");
+      setTelephone("");
+      window.scrollTo({ top: 0, behavior: "smooth" });
       setCompetences([]);
       setVersion((v) => v + 1);
     } catch (err) {
@@ -79,10 +87,6 @@ export function Equipe() {
     }
   }
 
-  const message = lien
-    ? `Bonjour ${lien.nom}, voici votre accès à l'espace de gestion d'Anna Zen Attitude. Choisissez votre mot de passe ici : ${lien.lien} — puis connectez-vous sur ${typeof window !== "undefined" ? window.location.origin : ""}/gestion`
-    : "";
-
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
       <h1 className="font-serif text-4xl font-semibold text-profond">Équipe</h1>
@@ -90,31 +94,7 @@ export function Equipe() {
 
       {erreur && <p className="mt-4 rounded-xl bg-aza/10 p-3 text-sm font-semibold text-profond" role="alert">{erreur}</p>}
 
-      {lien && (
-        <div className="mt-6 rounded-2xl border border-or/50 bg-creme p-5" role="status">
-          <p className="font-semibold text-profond">{lien.nouveau ? `Compte créé pour ${lien.nom}.` : `Nouveau lien pour ${lien.nom}.`}</p>
-          <p className="mt-1 text-sm text-doux">
-            Envoyez-lui ce message : le lien lui permet de choisir son mot de passe. Il ne sert qu&apos;une fois.
-          </p>
-          <textarea readOnly value={message} rows={4} className="mt-3 w-full rounded-xl border border-bordure bg-white p-3 text-sm" />
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              onClick={() => navigator.clipboard?.writeText(message)}
-              className="rounded-full border border-bordure px-5 py-2.5 text-sm font-semibold text-profond"
-            >
-              Copier le message
-            </button>
-            <a
-              href={`https://wa.me/?text=${encodeURIComponent(message)}`}
-              target="_blank"
-              rel="noopener"
-              className="rounded-full bg-[#128C4A] px-5 py-2.5 text-sm font-bold text-white"
-            >
-              Envoyer par WhatsApp
-            </a>
-          </div>
-        </div>
-      )}
+      {lien && <MessageAEnvoyer envoi={lien} fermer={() => setLien(null)} />}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_1.1fr]">
         <section>
@@ -125,7 +105,7 @@ export function Equipe() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className={`truncate font-semibold ${m.actif ? "" : "text-doux line-through"}`}>{m.nom}</p>
-                    <p className="truncate text-sm text-doux">{m.email}</p>
+                    <p className="truncate text-sm text-doux">{[m.telephone, m.email].filter(Boolean).join(" · ") || "—"}</p>
                     {m.competences.length > 0 && (
                       <p className="mt-0.5 text-xs text-doux">{m.competences.map((c) => FAMILLES.find((f) => f.id === c)?.nom ?? c).join(" · ")}</p>
                     )}
@@ -152,7 +132,11 @@ export function Equipe() {
                       setErreur("");
                       try {
                         const res = await appel("PATCH", { uid: m.uid, ...changes });
-                        if (res.lien) setLien({ nom: changes.nom ?? m.nom, lien: res.lien, nouveau: false });
+                        const n = changes.nom ?? m.nom;
+                        const tel = changes.telephone ?? m.telephone;
+                        if (res.lien) setLien(envoiMotDePasse(n, res.lien, tel, `Nouveau lien de mot de passe pour ${n}.`));
+                        if (res.lienConnexion) setLien(envoiConnexion(n, res.lienConnexion, tel, `Lien de connexion pour ${n}.`));
+                        if (res.lien || res.lienConnexion) window.scrollTo({ top: 0, behavior: "smooth" });
                         setOuvert(null);
                         setVersion((v) => v + 1);
                       } catch (err) {
@@ -174,11 +158,16 @@ export function Equipe() {
               <span className="text-sm font-semibold">Prénom et nom</span>
               <input value={nom} onChange={(e) => setNom(e.target.value)} required className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond" />
             </label>
-            <label className="mt-3 block">
-              <span className="text-sm font-semibold">Email</span>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond" />
-            </label>
             <ChoixRole role={role} setRole={setRole} />
+            <label className="mt-4 block">
+              <span className="text-sm font-semibold">Numéro WhatsApp</span> <span className="text-sm text-doux">(pour lui envoyer son accès)</span>
+              <input inputMode="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="77 123 45 67" className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond" />
+            </label>
+            <label className="mt-3 block">
+              <span className="text-sm font-semibold">Email</span>{" "}
+              {intervenante && <span className="text-sm text-doux">(facultatif : sans email, elle se connecte par un lien WhatsApp)</span>}
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required={!intervenante} className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond" />
+            </label>
             {intervenante && <ChoixCompetences competences={competences} setCompetences={setCompetences} />}
             <button type="submit" disabled={envoi} className="mt-6 w-full rounded-full bg-aza py-3 font-bold text-white hover:bg-aza-fonce disabled:opacity-50">
               {envoi ? "Création…" : "Créer le compte"}
@@ -241,12 +230,65 @@ function ChoixCompetences({ competences, setCompetences }: { competences: string
   );
 }
 
-type Changes = { nom?: string; role?: Role; competences?: string[]; actif?: boolean; lien?: boolean };
+type Changes = { nom?: string; role?: Role; competences?: string[]; actif?: boolean; lien?: boolean; lienConnexion?: boolean; telephone?: string };
+
+type Envoi = { titre: string; aide: string; texte: string; telephone: string };
+
+function adresse(chemin: string): string {
+  return `${typeof window !== "undefined" ? window.location.origin : ""}${chemin}`;
+}
+
+function envoiConnexion(nom: string, jeton: string, telephone: string, titre: string): Envoi {
+  return {
+    titre,
+    aide: "Envoyez-lui ce message par WhatsApp. Elle touche le lien : son téléphone est connecté, sans mot de passe. Le lien sert une seule fois (valable 7 jours).",
+    texte: `Bonjour ${nom} 👋\nTouchez ce lien pour ouvrir votre planning Anna Zen Attitude :\n${adresse(`/entrer#${jeton}`)}`,
+    telephone,
+  };
+}
+
+function envoiMotDePasse(nom: string, lien: string, telephone: string, titre: string): Envoi {
+  return {
+    titre,
+    aide: "Envoyez-lui ce message : le lien lui permet de choisir son mot de passe. Il ne sert qu'une fois.",
+    texte: `Bonjour ${nom}, voici votre accès à l'espace de gestion d'Anna Zen Attitude. Choisissez votre mot de passe ici : ${lien} — puis connectez-vous sur ${adresse("/gestion")}`,
+    telephone,
+  };
+}
+
+function MessageAEnvoyer({ envoi, fermer }: { envoi: Envoi; fermer: () => void }) {
+  const c = telephoneCanonique(envoi.telephone);
+  const numero = c.length === 9 ? `221${c}` : c;
+  return (
+    <div className="mt-6 rounded-2xl border border-or/50 bg-creme p-5" role="status">
+      <p className="font-semibold text-profond">{envoi.titre}</p>
+      <p className="mt-1 text-sm text-doux">{envoi.aide}</p>
+      <textarea readOnly value={envoi.texte} rows={4} className="mt-3 w-full rounded-xl border border-bordure bg-white p-3 text-sm" />
+      <div className="mt-3 flex flex-wrap gap-2">
+        <a
+          href={`https://wa.me/${numero}?text=${encodeURIComponent(envoi.texte)}`}
+          target="_blank"
+          rel="noopener"
+          className="flex min-h-12 items-center rounded-full bg-[#128C4A] px-5 font-bold text-white"
+        >
+          📲 Envoyer par WhatsApp{envoi.telephone ? "" : " (choisir le contact)"}
+        </a>
+        <button onClick={() => navigator.clipboard?.writeText(envoi.texte)} className="rounded-full border border-bordure px-5 py-2.5 text-sm font-semibold text-profond">
+          Copier le message
+        </button>
+        <button onClick={fermer} className="px-3 text-sm font-semibold text-doux underline">
+          Fermer
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Modifier({ m, soiMeme, enregistrer }: { m: Ligne; soiMeme: boolean; enregistrer: (c: Changes) => Promise<void> }) {
   const [nom, setNom] = useState(m.nom);
   const [role, setRole] = useState<Role>(m.role);
   const [competences, setCompetences] = useState<string[]>(m.competences);
+  const [telephone, setTelephone] = useState(m.telephone);
   const [envoi, setEnvoi] = useState(false);
   const intervenante = role === "praticienne" || role === "prestataire";
 
@@ -267,18 +309,31 @@ function Modifier({ m, soiMeme, enregistrer }: { m: Ligne; soiMeme: boolean; enr
         <span className="text-sm font-semibold">Prénom et nom</span>
         <input value={nom} onChange={(e) => setNom(e.target.value)} className="mt-1 block w-full rounded-xl border border-bordure px-4 py-2.5 outline-none focus:border-profond" />
       </label>
+      <label className="mt-3 block">
+        <span className="text-sm font-semibold">Numéro WhatsApp</span>
+        <input inputMode="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="77 123 45 67" className="mt-1 block w-full rounded-xl border border-bordure px-4 py-2.5 outline-none focus:border-profond" />
+      </label>
       <ChoixRole role={role} setRole={setRole} desactive={soiMeme} />
       {soiMeme && <p className="mt-1 text-xs text-doux">Vous ne pouvez pas changer votre propre rôle.</p>}
       {intervenante && <ChoixCompetences competences={competences} setCompetences={setCompetences} />}
       <button
         disabled={envoi}
-        onClick={() => envoyer({ nom, role, ...(intervenante ? { competences } : {}) })}
+        onClick={() => envoyer({ nom, role, telephone, ...(intervenante ? { competences } : {}) })}
         className="mt-5 w-full rounded-full bg-aza py-2.5 font-bold text-white hover:bg-aza-fonce disabled:opacity-50"
       >
         {envoi ? "Enregistrement…" : "Enregistrer les modifications"}
       </button>
       <div className="mt-3 flex flex-wrap gap-2">
-        {m.actif && (
+        {m.actif && !soiMeme && (
+          <button
+            disabled={envoi}
+            onClick={() => envoyer({ lienConnexion: true })}
+            className="rounded-full bg-[#128C4A] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+          >
+            📲 Lien de connexion WhatsApp
+          </button>
+        )}
+        {m.actif && m.email && (
           <button
             disabled={envoi}
             onClick={() => envoyer({ lien: true })}

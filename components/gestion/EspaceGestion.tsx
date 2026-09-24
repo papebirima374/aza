@@ -87,8 +87,11 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // Une praticienne utilise son propre téléphone et se connecte par un lien WhatsApp :
+  // pas de déconnexion automatique pour elle (elle devrait redemander un lien).
+  const telephonePerso = compte?.role === "praticienne" || compte?.role === "prestataire";
   useEffect(() => {
-    if (etat !== "connecte") return;
+    if (etat !== "connecte" || telephonePerso) return;
     let minuteur = setTimeout(() => signOut(firebaseClient().auth), INACTIVITE_MS);
     const relancer = () => {
       clearTimeout(minuteur);
@@ -100,7 +103,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
       clearTimeout(minuteur);
       evenements.forEach((e) => window.removeEventListener(e, relancer));
     };
-  }, [etat]);
+  }, [etat, telephonePerso]);
 
   if (etat === "chargement") return <Message titre="Chargement…" />;
   if (etat === "deconnecte") return <Connexion />;
@@ -122,7 +125,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
         <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} className="h-8 w-auto" />
         <nav className="order-last -mx-1 flex w-full gap-1 overflow-x-auto text-sm font-semibold sm:order-none sm:mx-0 sm:w-auto" aria-label="Gestion">
           {[
-            { href: "/gestion", libelle: "Agenda", visible: true },
+            { href: "/gestion", libelle: telephonePerso ? "Ma journée" : "Agenda", visible: true },
             { href: "/gestion/caisse", libelle: "Caisse", visible: ["direction", "manager", "accueil", "comptable"].includes(compte?.role ?? "") },
             { href: "/gestion/equipe", libelle: "Équipe", visible: compte?.role === "direction" || compte?.role === "manager" },
             { href: "/gestion/reglages", libelle: "Réglages", visible: compte?.role === "direction" || compte?.role === "manager" },
@@ -143,7 +146,10 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
             {compte?.nom} · <span className="text-or">{compte && LIBELLE_ROLE[compte.role]}</span>
           </span>
           <button
-            onClick={() => signOut(firebaseClient().auth)}
+            onClick={() => {
+              if (telephonePerso && !window.confirm("Se déconnecter ? Pour revenir, il faudra demander un nouveau lien à la direction.")) return;
+              signOut(firebaseClient().auth);
+            }}
             className="whitespace-nowrap rounded-full border border-or-clair/40 px-4 py-1.5 font-semibold hover:bg-white/10"
           >
             Déconnexion

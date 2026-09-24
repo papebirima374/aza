@@ -1,5 +1,5 @@
-import { Agenda } from "@/components/gestion/Agenda";
+import { Accueil } from "@/components/gestion/Accueil";
 
 export default function PageGestion() {
-  return <Agenda />;
+  return <Accueil />;
 }

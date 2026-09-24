@@ -31,12 +31,14 @@ const SUIVANTS: Record<Statut, Statut[]> = {
 export const ROLES_AGENDA: Role[] = ["direction", "manager", "accueil"];
 
 /** Les statuts que ce rôle peut donner à ce rendez-vous. Une praticienne ne marque que
- *  le début et la fin de SES prestations. */
+ *  le début (« Je commence ») et la fin (« J'ai fini ») de SES prestations. */
 export function statutsPermis(actuel: Statut, role: Role, estSonRendezVous: boolean): Statut[] {
   const suivants = SUIVANTS[actuel] ?? [];
   if (ROLES_AGENDA.includes(role)) return suivants;
   if ((role === "praticienne" || role === "prestataire") && estSonRendezVous) {
-    return suivants.filter((s) => s === "en-cours" || s === "termine");
+    // « Je commence » vaut arrivée : la praticienne n'attend pas que l'accueil l'ait notée.
+    if (actuel === "reserve" || actuel === "confirme" || actuel === "arrivee") return ["en-cours"];
+    return suivants.filter((s) => s === "termine");
   }
   return [];
 }

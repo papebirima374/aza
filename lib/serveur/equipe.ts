@@ -7,7 +7,9 @@ import { FAMILLES } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
 import type { Membre } from "@/lib/serveur/agenda";
 import { auth, db } from "@/lib/serveur/firebase";
+import { creerLienConnexion } from "@/lib/serveur/lien-connexion";
 import { ErreurReservation } from "@/lib/serveur/reservations";
+import { telephoneValide } from "@/lib/telephone";
 
 export const ROLES: Role[] = ["direction", "manager", "accueil", "praticienne", "prestataire", "comptable"];
 const JOURS: Record<string, number> = { Su: 0, Mo: 1, Tu: 2, We: 3, Th: 4, Fr: 5, Sa: 6 };
@@ -88,6 +90,7 @@ export async function listerEquipe(membre: Membre) {
       uid: d.id,
       nom: d.get("nom"),
       email: d.get("email") ?? "",
+      telephone: d.get("telephone") ?? "",
       role: d.get("role"),
       praticienne: d.get("praticienne") ?? null,
       competences: competences.get(d.get("praticienne")) ?? [],
@@ -96,7 +99,7 @@ export async function listerEquipe(membre: Membre) {
     .sort((a, b) => Number(b.actif) - Number(a.actif) || ROLES.indexOf(a.role) - ROLES.indexOf(b.role) || a.nom.localeCompare(b.nom));
 }
 
-export type Modification = { nom?: string; role?: Role; competences?: string[]; actif?: boolean; lien?: boolean };
+export type Modification = { nom?: string; role?: Role; competences?: string[]; actif?: boolean; lien?: boolean; telephone?: string };
 
 /**
  * Modifie le compte d'une personne (direction seulement) : nom, rôle, compétences,
@@ -125,6 +128,7 @@ export async function modifierMembre(membre: Membre, uid: string, m: Modificatio
     maj.nom = nom;
   }
   maj.role = role;
+  if (m.telephone !== undefined) maj.telephone = telephonePropre(m.telephone);
   const actif = m.actif ?? doc.get("actif") !== false;
   maj.actif = actif;
 
@@ -156,7 +160,14 @@ export async function modifierMembre(membre: Membre, uid: string, m: Modificatio
   return { ok: true, ...(lien ? { lien } : {}) };
 }
 
-export type NouveauMembre = { nom: string; email: string; role: Role; competences?: string[] };
+export type NouveauMembre = { nom: string; email: string; role: Role; competences?: string[]; telephone?: string };
+
+function telephonePropre(t?: string): string {
+  const brut = (t ?? "").trim();
+  if (!brut) return "";
+  if (!telephoneValide(brut)) throw new ErreurReservation("Numéro de téléphone invalide.", 400);
+  return brut;
+}
 
 /**
  * Crée le compte d'une personne de l'équipe (direction seulement). Aucun mot de passe ne
@@ -167,21 +178,25 @@ export async function creerMembre(membre: Membre, n: NouveauMembre) {
   if (membre.role !== "direction") throw new ErreurReservation("Seule la direction crée les comptes.", 403);
   const nom = n.nom.trim().slice(0, 60);
   const email = n.email.trim().toLowerCase();
+  const telephone = telephonePropre(n.telephone);
   if (nom.length < 2) throw new ErreurReservation("Indiquez le nom.", 400);
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ErreurReservation("Email invalide.", 400);
   if (!ROLES.includes(n.role)) throw new ErreurReservation("Rôle inconnu.", 400);
   const intervenante = n.role === "praticienne" || n.role === "prestataire";
+  // Une praticienne peut ne pas avoir d'email : elle se connecte par le lien WhatsApp.
+  if (email || !intervenante) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ErreurReservation("Email invalide.", 400);
+  }
   const familles = new Set(FAMILLES.map((f) => f.id));
   const competences = (n.competences ?? []).filter((c) => familles.has(c));
   if (intervenante && competences.length === 0) throw new ErreurReservation("Cochez au moins une compétence.", 400);
 
   const a = auth();
-  const existant = await a.getUserByEmail(email).catch(() => null);
+  const existant = email ? await a.getUserByEmail(email).catch(() => null) : null;
   const base = db();
   if (existant && (await base.doc(`comptes/${existant.uid}`).get()).exists) {
     throw new ErreurReservation("Cette personne a déjà un compte.", 409);
   }
-  const user = existant ?? (await a.createUser({ email, displayName: nom }));
+  const user = existant ?? (await a.createUser({ ...(email ? { email } : {}), displayName: nom }));
 
   let praticienne: string | undefined;
   if (intervenante) {
@@ -198,11 +213,13 @@ export async function creerMembre(membre: Membre, n: NouveauMembre) {
   await base.doc(`comptes/${user.uid}`).set({
     nom,
     email,
+    ...(telephone ? { telephone } : {}),
     role: n.role,
     ...(praticienne ? { praticienne } : {}),
     creePar: membre.uid,
     creeLe: FieldValue.serverTimestamp(),
   });
+  if (!email) return { uid: user.uid, lienConnexion: await creerLienConnexion(membre, user.uid), telephone };
   const lien = await a.generatePasswordResetLink(email);
-  return { uid: user.uid, lien };
+  return { uid: user.uid, lien, telephone };
 }
