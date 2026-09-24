@@ -1,9 +1,11 @@
 "use client";
 
 import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from "firebase/firestore";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { NouveauRendezVous } from "@/components/gestion/NouveauRendezVous";
+import { ROLES_CAISSE } from "@/lib/caisse/modes";
 import { LIBELLES, ROLES_AGENDA, statutsPermis, type Statut } from "@/lib/agenda/statuts";
 import { formatPrix, prestationParId, UNIVERS, type UniversId } from "@/lib/catalogue";
 import { firebaseClient } from "@/lib/client/firebase";
@@ -355,6 +357,11 @@ function Detail({ rdv, fermer }: { rdv: RendezVous; fermer: () => void }) {
               </button>
             ))}
           </div>
+        )}
+        {rdv.statut === "termine" && ROLES_CAISSE.includes(compte.role) && (
+          <Link href={`/gestion/caisse?rdv=${rdv.id}`} className="mt-6 flex min-h-12 items-center justify-center rounded-full bg-profond px-5 font-bold text-white">
+            Encaisser {formatPrix(rdv.total)}
+          </Link>
         )}
         {erreur && (
           <p className="mt-3 text-sm font-semibold text-aza-fonce" role="alert">

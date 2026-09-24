@@ -118,11 +118,12 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
   return (
     <ContexteCompte.Provider value={compte}>
       {/* Téléphone : logo + Déconnexion en haut, onglets sur une 2e ligne. Écran large : une ligne. */}
-      <header className="sticky top-0 z-30 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-bordure bg-bordeaux px-4 py-2 text-or-clair sm:h-14 sm:flex-nowrap sm:py-0">
+      <header className="sticky top-0 z-30 flex print:hidden flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-bordure bg-bordeaux px-4 py-2 text-or-clair sm:h-14 sm:flex-nowrap sm:py-0">
         <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} className="h-8 w-auto" />
         <nav className="order-last -mx-1 flex w-full gap-1 overflow-x-auto text-sm font-semibold sm:order-none sm:mx-0 sm:w-auto" aria-label="Gestion">
           {[
             { href: "/gestion", libelle: "Agenda", visible: true },
+            { href: "/gestion/caisse", libelle: "Caisse", visible: ["direction", "manager", "accueil", "comptable"].includes(compte?.role ?? "") },
             { href: "/gestion/equipe", libelle: "Équipe", visible: compte?.role === "direction" || compte?.role === "manager" },
             { href: "/gestion/reglages", libelle: "Réglages", visible: compte?.role === "direction" || compte?.role === "manager" },
           ]
@@ -131,7 +132,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
               <Link
                 key={l.href}
                 href={l.href}
-                className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 ${chemin === l.href ? "bg-white/15 text-white" : "hover:text-white"}`}
+                className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 ${chemin === l.href || (l.href !== "/gestion" && chemin.startsWith(l.href)) ? "bg-white/15 text-white" : "hover:text-white"}`}
               >
                 {l.libelle}
               </Link>

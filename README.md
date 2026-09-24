@@ -52,6 +52,7 @@ Les informations à faire valider par l'institut : [`docs/POINTS-A-CONFIRMER.md`
   restent en demande WhatsApp. La page publique relit l'interrupteur chaque minute.
 - Contrôles : `node scripts/verifier-reglages.mjs` (25 contrôles).
 - Modifier un membre (écran Équipe → « Modifier ») : nom, rôle, compétences, nouveau lien de mot de passe, désactiver / réactiver. Contrôles : `node scripts/verifier-modifier-membre.mjs` (19 contrôles).
+- Caisse (onglet « Caisse ») : ouverture avec fond, tickets (rendez-vous terminés ou vente libre), paiement Espèces / Wave / Orange Money / carte / virement / crédit, partagé si besoin, numérotation T-000001 sans trou, remise avec motif (direction, manager), annulation par avoir, clôture avec écart justifié, reçu imprimable ou WhatsApp. Contrôles : `node scripts/verifier-caisse.mjs` (35 contrôles, base fraîche).
 
 **Rendez-vous au comptoir** — bouton « + Nouveau rendez-vous » de l'agenda
 - L'accueil choisit les prestations (durée pré-remplie si elle est paramétrée, sinon
