@@ -17,7 +17,8 @@ const PROTEGEES = new Set(["journalDonnees", "securite"]);
 
 export const PARTIES = {
   activite: ["rendezVous", "occupations", "jours", "clientes", "tickets", "caisses", "compteurs", "liensConnexion"],
-  reglages: ["reglages", "prestationsResa", "postes"],
+  reglages: ["reglages", "prestationsResa", "postes", "catalogue"],
+  stock: ["articles", "mouvementsStock", "consommations"],
   equipe: ["praticiennes"],
 } as const;
 export type Partie = keyof typeof PARTIES;

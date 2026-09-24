@@ -9,6 +9,7 @@ import { doc, getDoc } from "firebase/firestore";
 import type { Role } from "@/lib/agenda/statuts";
 import { firebaseClient } from "@/lib/client/firebase";
 import { PastilleCaisse, SuiviCaisse } from "@/components/gestion/SuiviCaisse";
+import { PastilleStock } from "@/components/gestion/PastilleStock";
 
 export type Compte = { uid: string; nom: string; role: Role; praticienne?: string; user: User };
 
@@ -129,6 +130,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
           {[
             { href: "/gestion", libelle: telephonePerso ? "Ma journée" : "Agenda", visible: true },
             { href: "/gestion/caisse", libelle: "Caisse", visible: ["direction", "manager", "accueil", "comptable"].includes(compte?.role ?? "") },
+            { href: "/gestion/stock", libelle: "Stock", visible: ["direction", "manager", "accueil", "comptable"].includes(compte?.role ?? "") },
             { href: "/gestion/catalogue", libelle: "Catalogue", visible: compte?.role === "direction" },
             { href: "/gestion/equipe", libelle: "Équipe", visible: compte?.role === "direction" || compte?.role === "manager" },
             { href: "/gestion/reglages", libelle: "Réglages", visible: compte?.role === "direction" || compte?.role === "manager" },
@@ -142,6 +144,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
               >
                 {l.libelle}
                 {l.href === "/gestion/caisse" && <PastilleCaisse />}
+                {l.href === "/gestion/stock" && <PastilleStock />}
               </Link>
             ))}
         </nav>

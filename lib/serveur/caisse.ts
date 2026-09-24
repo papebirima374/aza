@@ -12,6 +12,7 @@ import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestor
 import { ROLES_JOURNAL, ROLES_CAISSE, ROLES_REMISE, MODES, reference, type Mode } from "@/lib/caisse/modes";
 import type { Catalogue } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
+import { appliquerSorties, preparerRetour, preparerSorties } from "@/lib/serveur/stock";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation, maintenantDakar } from "@/lib/serveur/reservations";
@@ -152,6 +153,8 @@ export async function encaisser(membre: Membre, e: Encaissement) {
     const fiche = clienteRef ? await tx.get(clienteRef) : null;
 
     const numero = ((compteur.get("dernier") as number | undefined) ?? 0) + 1;
+    // Stock : ce qui sort (produits vendus, produits consommés par les soins) — lectures d'abord.
+    const plan = await preparerSorties(tx, lignes);
     const ticket = {
       numero,
       reference: reference(numero),
@@ -193,6 +196,7 @@ export async function encaisser(membre: Membre, e: Encaissement) {
         { merge: true },
       );
     }
+    appliquerSorties(tx, plan, { id: ticketRef.id, reference: reference(numero) }, membre);
     return { id: ticketRef.id, reference: reference(numero), total, rendu };
   });
 }
@@ -221,6 +225,7 @@ export async function annulerTicket(membre: Membre, id: string, motifBrut: unkno
     ]);
 
     const numero = ((compteur.get("dernier") as number | undefined) ?? 0) + 1;
+    const retour = await preparerRetour(tx, id);
     const lignes = (origine.get("lignes") as LigneTicket[]).map((l) => ({ ...l, montant: -l.montant }));
     const paiements = (origine.get("paiements") as Paiement[]).map((p) => ({
       mode: p.mode,
@@ -261,6 +266,7 @@ export async function annulerTicket(membre: Membre, id: string, motifBrut: unkno
     if (fiche?.exists) {
       tx.update(fiche.ref, { totalAchats: FieldValue.increment(total), ...(credit ? { credit: FieldValue.increment(credit) } : {}) });
     }
+    appliquerSorties(tx, retour, { id: avoirRef.id, reference: reference(numero) }, membre, -1);
     return { id: avoirRef.id, reference: reference(numero) };
   });
 }
