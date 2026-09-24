@@ -24,6 +24,7 @@ type RendezVous = {
   source: string;
   prestations: { id: string; nom: string; prix: number }[];
   affectations: Affectation[];
+  praticiennesIds: string[];
   total: number;
   acompteRequis: boolean;
   cliente: { nom: string; telephone: string };
@@ -342,6 +343,8 @@ function Detail({ rdv, fermer }: { rdv: RendezVous; fermer: () => void }) {
         {rdv.remarque && <p className="mt-3 rounded-lg bg-creme px-3 py-2 text-sm">« {rdv.remarque} »</p>}
         <p className="mt-2 text-xs text-doux">Pris {rdv.source === "site" ? "en ligne" : "au comptoir"}</p>
 
+        {ROLES_AGENDA.includes(compte.role) && <QuiFait rdv={rdv} />}
+
         {possibles.length > 0 && (
           <div className="mt-6 flex flex-wrap gap-2">
             {possibles.map((s) => (
@@ -385,5 +388,91 @@ function Detail({ rdv, fermer }: { rdv: RendezVous; fermer: () => void }) {
         )}
       </aside>
     </div>
+  );
+}
+
+type Actuelle = { id: string; nom: string; remplacantes: { id: string; nom: string; empechement: string | null }[] };
+
+/** Qui s'occupe de la cliente, et « Changer » : confier le rendez-vous à une autre praticienne. */
+function QuiFait({ rdv }: { rdv: RendezVous }) {
+  const compte = useCompte();
+  const [liste, setListe] = useState<Actuelle[] | null>(null);
+  const [ouverte, setOuverte] = useState<string | null>(null);
+  const [erreur, setErreur] = useState("");
+  const [envoi, setEnvoi] = useState(false);
+  const modifiable = ["reserve", "confirme", "arrivee", "en-cours"].includes(rdv.statut);
+  const cle = rdv.praticiennesIds.join(",");
+
+  useEffect(() => {
+    let actif = true;
+    (async () => {
+      const r = await fetch(`/api/gestion/rendez-vous/${rdv.id}/praticienne`, {
+        headers: { Authorization: `Bearer ${await compte.user.getIdToken()}` },
+      });
+      const j = await r.json();
+      if (!actif) return;
+      if (r.ok) setListe(j);
+      else setErreur(j.erreur ?? "Lecture impossible.");
+    })().catch(() => actif && setErreur("Connexion impossible."));
+    return () => {
+      actif = false;
+    };
+  }, [rdv.id, cle, compte.user]);
+
+  async function confier(remplacer: string, par: string) {
+    setEnvoi(true);
+    setErreur("");
+    try {
+      const r = await fetch(`/api/gestion/rendez-vous/${rdv.id}/praticienne`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await compte.user.getIdToken()}` },
+        body: JSON.stringify({ remplacer, par }),
+      });
+      if (!r.ok) setErreur((await r.json()).erreur ?? "Changement refusé.");
+      else setOuverte(null);
+    } catch {
+      setErreur("Connexion impossible.");
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  if (!liste) return erreur ? <p className="mt-4 text-sm text-aza-fonce">{erreur}</p> : null;
+  return (
+    <section className="mt-5 rounded-xl border border-bordure p-3">
+      <h3 className="text-sm font-bold tracking-wide text-doux uppercase">Avec qui</h3>
+      {liste.map((a) => (
+        <div key={a.id} className="mt-2">
+          <div className="flex items-center justify-between gap-3">
+            <span className="font-semibold">{a.nom}</span>
+            {modifiable && (
+              <button onClick={() => setOuverte(ouverte === a.id ? null : a.id)} className="rounded-full border border-bordure px-4 py-1.5 text-sm font-semibold text-profond">
+                {ouverte === a.id ? "Fermer" : "Changer"}
+              </button>
+            )}
+          </div>
+          {ouverte === a.id && (
+            <ul className="mt-2 space-y-1.5">
+              {a.remplacantes.every((p) => p.empechement === "n'a pas la compétence") && (
+                <li className="text-sm text-doux">Personne d&apos;autre dans l&apos;équipe ne sait faire cette prestation.</li>
+              )}
+              {a.remplacantes.filter((p) => p.empechement !== "n'a pas la compétence").map((p) => (
+                <li key={p.id}>
+                  <button
+                    disabled={Boolean(p.empechement) || envoi}
+                    onClick={() => confier(a.id, p.id)}
+                    className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl border border-bordure px-4 text-left enabled:hover:border-profond disabled:opacity-50"
+                  >
+                    <span className="font-semibold">{p.nom}</span>
+                    <span className={`text-xs ${p.empechement ? "text-doux" : "font-bold text-[#0d6b37]"}`}>{p.empechement ?? "libre ✓"}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+      {erreur && <p className="mt-2 text-sm font-semibold text-aza-fonce">{erreur}</p>}
+    </section>
   );
 }

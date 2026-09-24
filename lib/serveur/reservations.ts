@@ -135,8 +135,10 @@ function verifierDate(date: string) {
   if (date < maintenantDakar().date) throw new ErreurReservation("Cette date est déjà passée.", 400);
 }
 
-/** Créneaux libres d'une journée pour une demande, et praticiennes qui peuvent la faire. */
-export async function chercherCreneaux(date: string, ids: string[], praticienneSouhaitee?: string) {
+/** Créneaux libres d'une journée pour une demande. La cliente ne choisit pas sa
+ *  praticienne : l'institut répartit (et peut réattribuer sur place, écran Agenda).
+ *  Aucun nom de l'équipe ne sort sur le site public. */
+export async function chercherCreneaux(date: string, ids: string[]) {
   verifierDate(date);
   const [reglages, prestations, equipe, occ] = await Promise.all([
     lireReglages(),
@@ -145,17 +147,10 @@ export async function chercherCreneaux(date: string, ids: string[], praticienneS
     db().collection("occupations").where("date", "==", date).get(),
   ]);
   verifierEnLigne(reglages);
-  const demande: Demande = { date, prestations, praticienneSouhaitee, maintenant: maintenantDakar() };
+  const demande: Demande = { date, prestations, maintenant: maintenantDakar() };
   const creneaux = creneauxDisponibles(demande, contexte(reglages, equipe, occ.docs.map(versOccupation)));
-
-  // Pour le choix « avec qui » : les praticiennes compétentes pour au moins une prestation.
-  const praticiennes = equipe.praticiennes
-    .filter((p) => prestations.some((x) => p.competences.includes(x.competence)))
-    .map((p) => ({ id: p.id, nom: p.nom }));
-
   return {
     creneaux: creneaux.map((c) => ({ debut: c.debut, fin: c.fin })),
-    praticiennes,
     acompte: acompteRequis(prestations, 0, reglages.acompte),
   };
 }
@@ -164,7 +159,6 @@ export type NouvelleReservation = {
   date: string;
   debut: number;
   prestations: string[];
-  praticienne?: string;
   nom: string;
   telephone: string;
   remarque?: string;
@@ -274,6 +268,7 @@ export async function creerReservation(r: NouvelleReservation) {
   verifierEnLigne(await lireReglages());
   return enregistrer({
     ...r,
+    praticienne: undefined,
     prestations: await prestationsDemandees(r.prestations),
     source: "site",
     par: { uid: "site" },

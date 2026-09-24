@@ -22,7 +22,7 @@ function aujourdhui(): string {
   return d.toISOString().slice(0, 10);
 }
 
-type Dispo = { creneaux: { debut: number; fin: number }[]; praticiennes: { id: string; nom: string }[]; acompte: boolean };
+type Dispo = { creneaux: { debut: number; fin: number }[]; acompte: boolean };
 type Confirmation = { id: string; date: string; debut: number; fin: number; total: number };
 
 function heure(minutes: number): string {
@@ -52,7 +52,6 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
   const [remarque, setRemarque] = useState("");
-  const [praticienne, setPraticienne] = useState("");
   const [creneau, setCreneau] = useState<number | null>(null);
   const [dispo, setDispo] = useState<Dispo | null>(null);
   const [chargement, setChargement] = useState(false);
@@ -67,7 +66,6 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
     const ctrl = new AbortController();
     const q = new URLSearchParams({ date });
     choix.forEach((id) => q.append("p", id));
-    if (praticienne) q.set("praticienne", praticienne);
     (async () => {
       setChargement(true);
       setCreneau(null);
@@ -88,7 +86,7 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
       }
     })();
     return () => ctrl.abort();
-  }, [enLigne, etape, date, choix, praticienne, actualiser]);
+  }, [enLigne, etape, date, choix, actualiser]);
 
   async function confirmer() {
     if (creneau === null) return;
@@ -98,7 +96,7 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
       const r = await fetch("/api/reservations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, debut: creneau, prestations: choix, praticienne: praticienne || undefined, nom, telephone, remarque }),
+        body: JSON.stringify({ date, debut: creneau, prestations: choix, nom, telephone, remarque }),
       });
       const corps = await r.json();
       if (r.ok) setConfirmation(corps);
@@ -261,8 +259,6 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
               date={date}
               dispo={dispo}
               chargement={chargement}
-              praticienne={praticienne}
-              setPraticienne={setPraticienne}
               creneau={creneau}
               setCreneau={setCreneau}
             />
@@ -283,7 +279,7 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
             </div>
           </fieldset>
           <p className="rounded-xl bg-creme p-4 text-sm text-doux">
-            L&apos;institut vous confirme l&apos;heure exacte et la praticienne par WhatsApp.
+            L&apos;institut vous confirme l&apos;heure exacte par WhatsApp.
           </p>
           </>
           )}
@@ -405,32 +401,13 @@ function ChoixCreneau(props: {
   date: string;
   dispo: Dispo | null;
   chargement: boolean;
-  praticienne: string;
-  setPraticienne: (v: string) => void;
   creneau: number | null;
   setCreneau: (v: number) => void;
 }) {
-  const { date, dispo, chargement, praticienne, setPraticienne, creneau, setCreneau } = props;
+  const { date, dispo, chargement, creneau, setCreneau } = props;
   if (!date) return null;
   return (
     <div className="space-y-6">
-      {dispo && dispo.praticiennes.length > 1 && (
-        <label className="block">
-          <span className="font-semibold">Avec qui ?</span>
-          <select
-            value={praticienne}
-            onChange={(e) => setPraticienne(e.target.value)}
-            className="mt-2 block w-full rounded-xl border border-bordure bg-white px-4 py-3 outline-none focus:border-profond"
-          >
-            <option value="">Peu importe (plus de créneaux)</option>
-            {dispo.praticiennes.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nom}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
       <fieldset>
         <legend className="font-semibold">À quelle heure ?</legend>
         {chargement ? (

@@ -59,9 +59,9 @@ ok(m.statut === 201, `massage à quatre mains à 11h réservé (statut ${m.statu
 const m2 = await post({ date: DATE, debut: 660, prestations: ["massage--massage-relaxant"], nom: "Autre", telephone: "77 111 11 12" });
 ok(m2.statut === 409, "un autre massage à 11h est refusé (table déjà prise)");
 
-// 5. Prestations enchaînées + praticienne souhaitée
-const p = await get(`/api/creneaux?date=${DATE}&p=${KNOTLESS}&praticienne=test-coiffeuse-2`);
-ok(p.statut === 200 && p.corps.praticiennes.length === 2, "knotless : deux coiffeuses proposées au choix");
+// 5. Prestations enchaînées ; aucun nom de l'équipe sur le site public
+const p = await get(`/api/creneaux?date=${DATE}&p=${KNOTLESS}`);
+ok(p.statut === 200 && !("praticiennes" in p.corps) && !JSON.stringify(p.corps).includes("Coiffeuse"), "le site ne montre aucun nom de praticienne");
 const enchaine = await post({
   date: DATE, debut: 900, prestations: ["coiffure--coiffure-ceremonie", "maquillage--maquillage-ceremonie"],
   nom: "Mariée test", telephone: "0022177 222 22 22",

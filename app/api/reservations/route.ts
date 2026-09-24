@@ -2,7 +2,8 @@ import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
 import { creerReservation, ErreurReservation } from "@/lib/serveur/reservations";
 
-// POST /api/reservations  { date, debut, prestations[], praticienne?, nom, telephone, remarque? }
+// POST /api/reservations  { date, debut, prestations[], nom, telephone, remarque? }
+// (la cliente ne choisit pas sa praticienne : l'institut répartit)
 export async function POST(request: Request) {
   if (!firebaseConfigure()) return Response.json({ erreur: "Réservation en ligne indisponible." }, { status: 503 });
   try {
@@ -12,7 +13,6 @@ export async function POST(request: Request) {
       date: String(corps.date ?? ""),
       debut: Number(corps.debut),
       prestations: Array.isArray(corps.prestations) ? corps.prestations.map(String) : [],
-      praticienne: corps.praticienne ? String(corps.praticienne) : undefined,
       nom: String(corps.nom ?? ""),
       telephone: String(corps.telephone ?? ""),
       remarque: corps.remarque ? String(corps.remarque) : undefined,
