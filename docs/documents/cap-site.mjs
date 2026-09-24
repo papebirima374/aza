@@ -1,0 +1,18 @@
+import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+const b = await pw.chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const p = await (await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: "fr-FR" })).newPage();
+const S = "http://localhost:3100";
+const aller = async (y) => { await p.evaluate((y) => window.scrollTo({ top: y, behavior: "instant" }), y); await p.waitForTimeout(900); };
+const haut = (sel) => p.locator(sel).first().evaluate((e) => e.getBoundingClientRect().top + window.scrollY - 90);
+await p.goto(S + "/"); await p.waitForTimeout(1200);
+await p.screenshot({ path: "captures/01-accueil.png" });
+await aller(await haut("h2:has-text('Nos quatre univers')"));
+await aller(await haut("h2:has-text('Nos quatre univers')"));
+await p.screenshot({ path: "captures/02-accueil-univers.png" });
+await aller(await haut("h2:has-text('En images')"));
+await p.screenshot({ path: "captures/62-accueil-galerie.png" });
+await aller(await haut("h2:has-text('Anna Zen Couture')"));
+await p.screenshot({ path: "captures/63-accueil-couture.png" });
+await p.goto(S + "/prestations/onglerie"); await p.waitForTimeout(1200);
+await p.screenshot({ path: "captures/03-prestations-onglerie.png" });
+await b.close();

@@ -1,0 +1,5 @@
+polices.css
+*.html
+*.pdf
+apercu-*.png
+__pycache__/

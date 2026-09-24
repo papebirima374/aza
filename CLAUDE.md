@@ -36,6 +36,11 @@ téléphones et tarifs. Le catalogue 2023 et l'ancien site ne comptent plus.
 - Réservation : 3 minutes maximum, **jamais de compte obligatoire avant** de réserver.
 - Données personnelles : loi sénégalaise n° 2008-12. Aucune donnée bancaire stockée.
 
+## Documents à tenir à jour
+Après **chaque** nouvelle fonction ou changement visible, mettre à jour et renvoyer à Birima
+les deux PDF : `docs/AZA-presentation.pdf` (plaquette) et `docs/AZA-guide-utilisation.pdf`
+(guide avec captures). Sources et marche à suivre : `docs/documents/README.md`.
+
 ## Base de données
 Tout se construit et se teste **en local** sur l'émulateur, projet `demo-aza`
 (`docs/MODELE-DONNEES.md`). Les scripts refusent tout projet qui n'est pas `demo-*`.
