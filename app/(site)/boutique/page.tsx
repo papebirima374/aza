@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { BoutonPanier } from "@/components/boutique/BoutonPanier";
+import { Collection } from "@/components/couture/Collection";
 import { RAYONS } from "@/lib/boutique";
 import { formatPrix } from "@/lib/catalogue";
 import { lienWhatsApp } from "@/lib/institut";
@@ -59,6 +60,11 @@ export default async function Boutique({ searchParams }: PageProps<"/boutique">)
         >
           Demander un produit sur WhatsApp
         </a>
+        <section id="couture" className="mt-12 scroll-mt-24">
+          <h2 className="font-serif text-3xl font-semibold text-profond">Anna Zen Couture</h2>
+          <p className="mt-2 mb-6 max-w-2xl text-doux">Robes et tenues sur commande : demandez le modèle sur WhatsApp, nous vous donnons le prix, les tailles et le délai.</p>
+          <Collection limite={8} />
+        </section>
       </div>
     );
   }
@@ -111,6 +117,11 @@ export default async function Boutique({ searchParams }: PageProps<"/boutique">)
           </li>
         ))}
       </ul>
+      <section id="couture" className="mt-12 scroll-mt-24">
+        <h2 className="font-serif text-3xl font-semibold text-profond">Anna Zen Couture</h2>
+        <p className="mt-2 mb-6 max-w-2xl text-doux">Robes et tenues sur commande : demandez le modèle sur WhatsApp, nous vous donnons le prix, les tailles et le délai.</p>
+        <Collection limite={8} />
+      </section>
       <BoutonPanier />
     </div>
   );

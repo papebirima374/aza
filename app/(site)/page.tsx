@@ -3,7 +3,8 @@ import Link from "next/link";
 import { IconeHorloge, IconeLieu, IconeTelephone, IconeWhatsApp } from "@/components/Icones";
 import { formatPrix, UNIVERS } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
-import { urlPhotoSite } from "@/lib/photos-site";
+import { type Emplacement, photosEmplacement, urlPhotoSite } from "@/lib/photos-site";
+import { PHOTOS_GROUPE, MODELES } from "@/lib/couture";
 import { photosDuSite } from "@/lib/serveur/photos-site";
 import { INSTITUT, LIEN_ITINERAIRE, lienWhatsApp, TELEPHONE_PRINCIPAL } from "@/lib/institut";
 
@@ -25,8 +26,8 @@ export const revalidate = 60;
 export default async function Accueil() {
   const [cat, photos] = await Promise.all([catalogueServeur(), photosDuSite()]);
   const bandeau = photos.find((p) => p.emplacement === "accueil");
-  const photoUnivers = (u: string) => photos.find((p) => p.emplacement === `univers-${u}`);
-  const galerie = photos.filter((p) => p.emplacement === "galerie");
+  const photoUnivers = (u: string) => photosEmplacement(photos, `univers-${u}` as Emplacement)[0];
+  const galerie = photosEmplacement(photos, "galerie");
   const phares = PHARES.map(cat.parId).filter((p) => p !== undefined);
 
   return (
@@ -80,7 +81,7 @@ export default async function Accueil() {
               >
                 {photoUnivers(u.id) && (
                   <Image
-                    src={urlPhotoSite(photoUnivers(u.id)!.id)}
+                    src={photoUnivers(u.id)!.src}
                     alt={u.nom}
                     width={600}
                     height={400}
@@ -132,9 +133,9 @@ export default async function Accueil() {
           <h2 className="font-serif text-4xl font-semibold text-profond">En images</h2>
           <ul className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
             {galerie.map((p) => (
-              <li key={p.id}>
+              <li key={p.src}>
                 <figure>
-                  <Image src={urlPhotoSite(p.id)} alt={p.legende || "Réalisation Anna Zen Attitude"} width={600} height={600} unoptimized loading="lazy" className="aspect-square w-full rounded-2xl object-cover" />
+                  <Image src={p.src} alt={p.legende || "Réalisation Anna Zen Attitude"} width={600} height={600} unoptimized loading="lazy" className="aspect-square w-full rounded-2xl object-cover" />
                   {p.legende && <figcaption className="mt-1 text-sm text-doux">{p.legende}</figcaption>}
                 </figure>
               </li>
@@ -160,6 +161,21 @@ export default async function Accueil() {
             </div>
           ))}
         </div>
+      </section>
+
+      {/* Anna Zen Couture — la collection (photos fournies par l'institut) */}
+      <section className="mx-auto max-w-6xl px-4 pt-16">
+        <p className="text-sm font-semibold tracking-[0.2em] text-or uppercase">Nouveau</p>
+        <h2 className="mt-2 font-serif text-4xl font-semibold text-profond">Anna Zen Couture</h2>
+        <p className="mt-3 max-w-2xl text-doux">Robes et tenues de la collection, sur commande. Choisissez votre modèle et demandez-le sur WhatsApp.</p>
+        <div className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
+          {[PHOTOS_GROUPE[0], MODELES[13].src, MODELES[19].src, MODELES[25].src].map((src) => (
+            <Image key={src} src={src} alt="Anna Zen Couture" width={720} height={1080} unoptimized loading="lazy" className="aspect-[2/3] w-full rounded-2xl object-cover" />
+          ))}
+        </div>
+        <Link href="/boutique/couture" className="mt-6 inline-block rounded-full bg-aza px-6 py-3 font-bold text-white hover:bg-aza-fonce">
+          Voir la collection
+        </Link>
       </section>
 
       {/* Boutique — aperçu */}

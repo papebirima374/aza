@@ -5,7 +5,7 @@ import { LignePrestation } from "@/components/LignePrestation";
 import { formatPrix, UNIVERS, universParId } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import Image from "next/image";
-import { urlPhotoSite } from "@/lib/photos-site";
+import { type Emplacement, photosEmplacement } from "@/lib/photos-site";
 import { photosDuSite } from "@/lib/serveur/photos-site";
 import { INSTITUT } from "@/lib/institut";
 
@@ -35,7 +35,7 @@ export default async function PageUnivers({ params }: PageProps<"/prestations/[u
   if (!u) notFound();
   const [cat, photos] = await Promise.all([catalogueServeur(), photosDuSite()]);
   const familles = cat.famillesDe(u.id);
-  const photo = photos.find((p) => p.emplacement === `univers-${u.id}`);
+  const photo = photosEmplacement(photos, `univers-${u.id}` as Emplacement)[0];
 
   // Données « Service » pour Google : chaque prestation avec son prix.
   const donnees = {
@@ -61,7 +61,7 @@ export default async function PageUnivers({ params }: PageProps<"/prestations/[u
       <section className="relative overflow-hidden bg-bordeaux text-white">
         {photo && (
           <>
-            <Image src={urlPhotoSite(photo.id)} alt="" fill priority unoptimized className="object-cover" />
+            <Image src={photo.src} alt="" fill priority unoptimized className="object-cover" />
             <div className="absolute inset-0 bg-gradient-to-r from-bordeaux/95 via-bordeaux/80 to-bordeaux/40" />
           </>
         )}

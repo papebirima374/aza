@@ -13,3 +13,18 @@ export const EMPLACEMENTS = [
 export type Emplacement = (typeof EMPLACEMENTS)[number]["id"];
 
 export const urlPhotoSite = (id: string) => `/api/site/photo/${id}`;
+
+// Photos fournies par l'institut (dans public/images) : affichées tant que la direction n'a
+// rien ajouté à cet emplacement. Dès qu'elle ajoute ses propres photos, elles les remplacent.
+const ONGLES = Array.from({ length: 16 }, (_, i) => `/images/onglerie/ongles-${String(i + 1).padStart(2, "0")}.webp`);
+
+export const PHOTOS_FOURNIES: Partial<Record<Emplacement, { src: string; legende: string }[]>> = {
+  "univers-onglerie": [{ src: ONGLES[0], legende: "" }],
+  galerie: ONGLES.map((src) => ({ src, legende: "" })),
+};
+
+// Les photos à montrer pour un emplacement : celles de la direction, sinon celles fournies.
+export function photosEmplacement(photos: { id: string; emplacement: string; legende: string }[], emplacement: Emplacement) {
+  const ajoutees = photos.filter((p) => p.emplacement === emplacement).map((p) => ({ src: urlPhotoSite(p.id), legende: p.legende }));
+  return ajoutees.length ? ajoutees : (PHOTOS_FOURNIES[emplacement] ?? []);
+}
