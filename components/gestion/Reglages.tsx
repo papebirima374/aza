@@ -1,5 +1,6 @@
 "use client";
 
+import { lireRegles, type ReglesFidelite } from "@/lib/caisse/fidelite";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Donnees } from "@/components/gestion/Donnees";
 import { useCompte } from "@/components/gestion/EspaceGestion";
@@ -20,6 +21,7 @@ type Donnees = {
     motifsFermeture?: Record<string, string>;
     delaiMinimumMinutes?: number;
     acompte?: { montantMin: number; dureeMinMinutes: number; absencesMax: number };
+    fidelite?: Partial<ReglesFidelite>;
   };
   postes: { id: string; type: string; nom: string }[];
   parametres: Record<string, Param>;
@@ -125,6 +127,7 @@ export function Reglages() {
           ["#postes", "Postes"],
           ["#durees", `Durées (${renseignees}/${total})`],
           ["#regles", "Règles"],
+          ["#fidelite", "Fidélité"],
           ...(compte.role === "direction" ? [["#donnees", "Sauvegarde"]] : []),
         ].map(([href, libelle]) => (
           <a key={href} href={href} className="rounded-full bg-creme px-3 py-1.5 text-profond hover:bg-bordure">
@@ -173,6 +176,11 @@ export function Reglages() {
           delai={r.delaiMinimumMinutes ?? 120}
           acompte={r.acompte ?? { montantMin: 30000, dureeMinMinutes: 120, absencesMax: 2 }}
           enregistrer={(v) => envoyer({ action: "regles", ...v }, "Règles enregistrées.")}
+        />
+        <Fidelite
+          regles={lireRegles(r.fidelite)}
+          direction={compte.role === "direction"}
+          enregistrer={(v) => envoyer({ action: "fidelite", ...v }, v.actif ? "Carte de fidélité enregistrée et active." : "Carte de fidélité enregistrée (désactivée).")}
         />
         {compte.role === "direction" && <Donnees />}
       </div>
@@ -706,6 +714,54 @@ function Regles(props: { delai: number; acompte: { montantMin: number; dureeMinM
       >
         Enregistrer les règles
       </button>
+    </Carte>
+  );
+}
+
+function Fidelite(props: { regles: ReglesFidelite; direction: boolean; enregistrer: (v: ReglesFidelite) => void }) {
+  const [actif, setActif] = useState(props.regles.actif);
+  const [tranche, setTranche] = useState(String(props.regles.tranche));
+  const [seuil, setSeuil] = useState(String(props.regles.seuil));
+  const [valeur, setValeur] = useState(String(props.regles.valeur));
+  const champ = "w-28 rounded-lg border border-bordure px-2 py-1.5 text-right disabled:bg-creme";
+  const exemple = Number(tranche) > 0 ? Math.floor(25000 / Number(tranche)) : 0;
+  return (
+    <Carte
+      id="fidelite"
+      titre="💗 Carte de fidélité"
+      aide="La cliente gagne des points à chaque passage en caisse ; ses points sont écrits sur son reçu. À la caisse, dès qu'elle a assez de points, l'accueil peut les utiliser en remise."
+    >
+      <label className="flex items-center gap-3 font-semibold">
+        <input type="checkbox" checked={actif} disabled={!props.direction} onChange={(e) => setActif(e.target.checked)} className="h-5 w-5" />
+        {actif ? "Programme actif" : "Programme désactivé"}
+      </label>
+      <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <label className="flex items-center justify-between gap-3">
+          <span>1 point pour chaque (F)</span>
+          <input type="number" value={tranche} disabled={!props.direction} onChange={(e) => setTranche(e.target.value)} className={champ} />
+        </label>
+        <label className="flex items-center justify-between gap-3">
+          <span>Récompense à (points)</span>
+          <input type="number" value={seuil} disabled={!props.direction} onChange={(e) => setSeuil(e.target.value)} className={champ} />
+        </label>
+        <label className="flex items-center justify-between gap-3">
+          <span>Remise offerte (F)</span>
+          <input type="number" value={valeur} disabled={!props.direction} onChange={(e) => setValeur(e.target.value)} className={champ} />
+        </label>
+      </div>
+      <p className="mt-3 text-sm text-doux">
+        Exemple : une cliente qui paie 25 000 F gagne {exemple} point{exemple > 1 ? "s" : ""}. À {seuil} points, elle peut avoir {Number(valeur).toLocaleString("fr-FR")} F de remise.
+      </p>
+      {props.direction ? (
+        <button
+          onClick={() => props.enregistrer({ actif, tranche: Number(tranche), seuil: Number(seuil), valeur: Number(valeur) })}
+          className="mt-4 rounded-full bg-aza px-6 py-2.5 font-bold text-white hover:bg-aza-fonce"
+        >
+          Enregistrer la fidélité
+        </button>
+      ) : (
+        <p className="mt-3 text-sm text-doux">Seule la direction change ces règles.</p>
+      )}
     </Carte>
   );
 }

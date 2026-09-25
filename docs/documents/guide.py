@@ -90,6 +90,25 @@ pages.append(page(f"""
 {figure("17-ma-journee","Avant le soin")}{figure("18-ma-journee-fini","Après « J'ai fini »")}</div>
 """, P))
 
+# 2bis. Minuteur
+pages.append(page(f"""
+<span class="etiquette">2 · La praticienne</span>
+<h2>Le minuteur du soin</h2>
+<div>
+<p>Dès que la praticienne touche <span class="bouton" style="background:#0d6b37">▶️ Je commence</span>, un <b>compte à rebours</b> s'affiche sur sa carte, avec la durée prévue du soin.</p>
+<ol class="etapes">
+<li><b>Vert</b> : le temps restant, et l'heure de fin prévue.</li>
+<li><b>5 minutes avant la fin</b> : la carte passe en orange, deux bips doux et la voix dit « Plus que 5 minutes ».</li>
+<li><b>À la fin</b> : la carte devient rouge, une alarme sonne, la tablette vibre. L'alarme revient chaque minute tant que le soin n'est pas fini.</li>
+<li><span class="bouton">✅ J'ai fini</span> arrête tout ; <span class="touche">🔕 Couper l'alarme</span> coupe le son sans finir.</li>
+</ol>
+<div class="encadre"><b>Le son</b> : il s'active en touchant « Je commence ». Si la page a été rouverte, touchez une fois <span class="touche">🔔 Activer le son</span>. Montez le volume de la tablette.</div>
+<div class="encadre or"><b>L'écran reste allumé</b> pendant le soin. À l'accueil, dans l'agenda, un soin qui déborde clignote en rouge avec « ⏰ +4 min ».</div>
+<p class="doux">La durée vient de Réglages → Durées. Pour un soin qui déborde souvent, vérifiez sa durée.</p>
+</div>
+<div style="display:flex;gap:10mm;justify-content:center;margin-top:2mm">{figure("72-minuteur-bientot","5 minutes avant la fin","tel-petit")}{figure("73-minuteur-depasse","Temps dépassé","tel-petit")}</div>
+""", P))
+
 # 3. Agenda
 pages.append(page(f"""
 <span class="etiquette">3 · L'accueil</span>
@@ -248,6 +267,20 @@ pages.append(page(f"""
 <p class="doux">L'écran Cartes cadeaux montre toutes les cartes, leur solde, et « Reste à consommer » : ce que l'institut doit encore en prestations.</p>
 </div>
 <div style="display:flex;gap:10mm;justify-content:center;margin-top:3mm">{figure("52-caisse-carte","La tuile Carte cadeau")}{figure("53-fiche-carte","Solde et historique")}</div>
+""", P))
+
+# 5ter. Fidélité
+pages.append(page(f"""
+<span class="etiquette">5 · La caisse</span>
+<h2>La carte de fidélité</h2>
+<p><b>La direction</b> la règle dans Réglages → 💗 Carte de fidélité : combien de francs donnent 1 point, combien de points pour une récompense, et le montant de la remise. Elle l'active ou la désactive.</p>
+<ol class="etapes">
+<li>À la caisse, dès que le <b>téléphone de la cliente</b> est connu (rendez-vous ou saisi), ses points s'affichent : « 💗 Fidélité : 70 points ».</li>
+<li>Chaque vente lui <b>ajoute des points</b>, écrits sur son <b>reçu</b> (imprimé ou WhatsApp) : points gagnés et total.</li>
+<li>Quand elle a assez de points : touchez <span class="bouton">Utiliser 50 points : −5 000 F</span>. La remise s'applique au total.</li>
+</ol>
+<p class="doux">Un ticket annulé retire les points gagnés et rend les points utilisés. Les points se voient aussi sur la fiche cliente.</p>
+<div class="trio">{figure("77-reglages-fidelite","Les règles (direction)")}{figure("75-caisse-fidelite","Les points à la caisse")}{figure("76-recu-fidelite","Les points sur le reçu")}</div>
 """, P))
 
 # 6. Clientes
@@ -554,6 +587,8 @@ pages.append(page("""
 <p>Catalogue → cherchez la ligne → tapez le nouveau prix → Enregistrer le prix. Le site et la caisse sont à jour en moins d'une minute.</p>
 <h3>Ajouter une nouvelle robe au site</h3>
 <p>Commandes → 👗 Collection → + Nouveau modèle : nom, prix, tailles, puis les photos. Elle est en ligne aussitôt.</p>
+<h3>Les massages débordent</h3>
+<p>Le minuteur de « Ma journée » bipe 5 minutes avant la fin et sonne à la fin. Vérifiez que la durée du soin est juste dans Réglages → Durées (ex. 90 minutes pour une formule d'1 h 30).</p>
 <h3>Une cliente présente une carte cadeau expirée</h3>
 <p>La caisse la refuse : une carte est valable 1 an. La direction peut décider d'un geste (remise avec motif).</p>
 <div class="encadre" style="margin-top:6mm"><b>Besoin d'aide ?</b> Contactez Kër Salaatu Tech (Birima Gueye).</div>

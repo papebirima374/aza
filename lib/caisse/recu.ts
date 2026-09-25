@@ -14,6 +14,7 @@ export type Ticket = {
   lignes: { id: string; nom: string; prixUnitaire: number; quantite: number; montant: number }[];
   sousTotal: number;
   remise?: { montant: number; motif: string };
+  fidelite?: { gagnes: number; utilises: number; remise: number; solde: number };
   total: number;
   paiements: { mode: Mode; montant: number }[];
   rendu: number;
@@ -43,10 +44,12 @@ export function texteRecu(t: Ticket): string {
     "",
     ...t.lignes.map((x) => `${x.quantite > 1 ? `${x.quantite} × ` : ""}${x.nom} : ${formatPrix(x.montant)}`),
     ...(t.remise ? [`Remise : −${formatPrix(t.remise.montant)}`] : []),
+    ...(t.fidelite?.remise ? [`Remise fidélité (${t.fidelite.utilises} points) : −${formatPrix(t.fidelite.remise)}`] : []),
     `*Total : ${formatPrix(t.total)}*`,
     ...t.paiements.map((p) => `${LIBELLE_MODE[p.mode]} : ${formatPrix(p.montant)}`),
     ...(t.rendu ? [`Monnaie rendue : ${formatPrix(t.rendu)}`] : []),
     ...(t.credit > 0 ? [`Reste à régler : ${formatPrix(t.credit)}`] : []),
+    ...(t.fidelite && t.type === "vente" ? ["", `💗 Fidélité : +${t.fidelite.gagnes} point${t.fidelite.gagnes > 1 ? "s" : ""} · vous avez ${t.fidelite.solde} points`] : []),
     "",
     "Merci de votre visite !",
     INSTITUT.telephones.map((x) => x.affiche).join(" · "),

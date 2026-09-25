@@ -36,7 +36,7 @@ const KNOTLESS = "tresses--knotless-mi-long";
 const c1 = await get(`/api/creneaux?date=${DATE}&p=${SOIN}`);
 ok(c1.statut === 200, `créneaux du soin visage le ${DATE} (statut ${c1.statut})`);
 ok(c1.corps.creneaux?.[0]?.debut === 540, "premier créneau à 9h");
-ok(c1.corps.acompte === true, "Hydrafacial à 40 000 F : acompte demandé (> 30 000 F)");
+ok(c1.corps.acompte === true, "Hydrafacial à 45 000 F : acompte demandé (> 30 000 F)");
 
 // 2. Course : 10 réservations simultanées sur 9h
 const course = await Promise.all(

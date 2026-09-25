@@ -10,6 +10,7 @@
 
 import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
 import { dateLongue, estExpiree, normaliserCode } from "@/lib/caisse/cartes";
+import { lireRegles, pointsGagnes, type ReglesFidelite } from "@/lib/caisse/fidelite";
 import { ROLES_JOURNAL, ROLES_CAISSE, ROLES_REMISE, MODES, recetteDuTicket, reference, type Mode } from "@/lib/caisse/modes";
 import type { Catalogue } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
@@ -109,6 +110,8 @@ export type Encaissement = {
   cliente?: { nom?: string; telephone?: string };
   /** Code de la carte cadeau, quand une partie est payée avec. */
   carteCadeau?: string;
+  /** La cliente utilise ses points de fidélité (remise fixée par la direction). */
+  fidelite?: boolean;
   /** Identifiant fabriqué par l'appareil : renvoyer deux fois la même vente ne crée qu'un ticket. */
   idLocal?: string;
   /** Moment réel de la vente (millisecondes), pour une vente envoyée après une coupure. */
@@ -131,7 +134,12 @@ export async function encaisser(membre: Membre, e: Encaissement) {
     exiger(membre, ROLES_REMISE, "Seuls la direction et le manager accordent une remise.");
     if (remiseMotif.length < 3) throw new Erreur("Indiquez le motif de la remise.", 400);
   }
-  const total = sousTotal - remiseMontant;
+  // Fidélité : règles de la direction ; la remise « points » est connue avant le paiement,
+  // les points de la cliente sont vérifiés dans la transaction.
+  const regles: ReglesFidelite = lireRegles((await db().doc("reglages/institut").get()).get("fidelite"));
+  const remiseFidelite = e.fidelite && regles.actif ? Math.min(regles.valeur, sousTotal - remiseMontant) : 0;
+  if (e.fidelite && !regles.actif) throw new Erreur("La carte de fidélité n'est pas activée (Réglages).", 400);
+  const total = sousTotal - remiseMontant - remiseFidelite;
 
   const paiements = paiementsValides(e.paiements, true);
   const recu = paiements.reduce((s, p) => s + p.montant, 0);
@@ -177,6 +185,14 @@ export async function encaisser(membre: Membre, e: Encaissement) {
     if (credit > 0 && !cliente) throw new Erreur("Une vente à crédit demande le nom et le téléphone de la cliente.", 400);
     const clienteRef = cliente ? base.doc(`clientes/${cliente.id}`) : null;
     const fiche = clienteRef ? await tx.get(clienteRef) : null;
+    const pointsAvant = (fiche?.get("points") as number | undefined) ?? 0;
+    if (remiseFidelite > 0 || e.fidelite) {
+      if (!cliente) throw new Erreur("Pour utiliser des points, indiquez le téléphone de la cliente.", 400);
+      if (pointsAvant < regles.seuil) throw new Erreur(`Elle a ${pointsAvant} points : il en faut ${regles.seuil}.`, 409);
+    }
+    const utilises = e.fidelite ? regles.seuil : 0;
+    const gagnes = cliente ? pointsGagnes(total, regles) : 0;
+    const fidelite = cliente && (regles.actif || utilises) ? { gagnes, utilises, remise: remiseFidelite, solde: pointsAvant - utilises + gagnes } : null;
     const carte = code ? await tx.get(base.doc(`cartesCadeaux/${code}`)) : null;
     if (carte) {
       if (!carte.exists) throw new Erreur("Carte cadeau inconnue : vérifiez le code.", 404);
@@ -206,6 +222,7 @@ export async function encaisser(membre: Membre, e: Encaissement) {
       cliente,
       rendezVous: rdvRef?.id ?? null,
       ...(code ? { carteCadeau: code } : {}),
+      ...(fidelite ? { fidelite } : {}),
       par: trace(membre),
       creeLe: FieldValue.serverTimestamp(),
       ...(horsLigne ? { horsLigne: true } : {}),
@@ -236,6 +253,7 @@ export async function encaisser(membre: Membre, e: Encaissement) {
           ...(fiche?.exists ? {} : { creeLe: FieldValue.serverTimestamp(), origine: "caisse", absences: 0 }),
           totalAchats: FieldValue.increment(total),
           ...(credit > 0 ? { credit: FieldValue.increment(credit) } : {}),
+          ...(fidelite ? { points: FieldValue.increment(fidelite.gagnes - fidelite.utilises) } : {}),
           dernierTicket: ticketRef.id,
           // Indicateurs de la fiche cliente, tenus à jour à chaque passage en caisse.
           nbTickets: FieldValue.increment(1),
@@ -320,8 +338,11 @@ export async function annulerTicket(membre: Membre, id: string, motifBrut: unkno
         historique: FieldValue.arrayUnion({ statut: "termine", le: Timestamp.now(), par: membre.uid, nom: membre.nom, motif: `Ticket annulé : ${motif}` }),
       });
     }
+    // Fidélité : les points gagnés repartent, les points utilisés reviennent.
+    const fid = origine.get("fidelite") as { gagnes: number; utilises: number } | undefined;
     if (fiche?.exists) {
       tx.update(fiche.ref, {
+        ...(fid ? { points: FieldValue.increment(fid.utilises - fid.gagnes) } : {}),
         totalAchats: FieldValue.increment(total),
         nbTickets: FieldValue.increment(-1),
         ...(credit ? { credit: FieldValue.increment(credit) } : {}),
@@ -589,4 +610,13 @@ export async function encaisserCommande(membre: Membre, commandeId: string, paie
     );
     return { id: ticketRef.id, reference: reference(numero), total, rendu };
   });
+}
+
+/** Points de fidélité d'une cliente (par son téléphone) et règles en vigueur, pour l'écran de caisse. */
+export async function fideliteCliente(membre: Membre, telephone: string) {
+  exiger(membre, ROLES_CAISSE);
+  const regles = lireRegles((await db().doc("reglages/institut").get()).get("fidelite"));
+  if (!regles.actif || !telephoneValide(telephone)) return { regles, points: 0 };
+  const fiche = await db().doc(`clientes/${telephoneCanonique(telephone)}`).get();
+  return { regles, points: (fiche.get("points") as number | undefined) ?? 0 };
 }

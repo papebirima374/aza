@@ -36,17 +36,19 @@ const manager = (await connexion("manager@test.aza")).idToken;
 ok((await donnees(manager, { action: "sauvegarder", code: CODE })).statut === 403, "le manager ne peut pas sauvegarder");
 ok((await donnees(direction, { action: "sauvegarder", code: "faux" })).statut === 403, "mauvais code : refusé");
 
+// Nombre de durées posées par le seed (il suit le catalogue : ne pas l'écrire en dur).
+const DUREES = await compter("prestationsResa");
 const s = await donnees(direction, { action: "sauvegarder", code: CODE });
 const nbRdv = Object.keys(s.corps.collections?.rendezVous ?? {}).length;
 const nbPresta = Object.keys(s.corps.collections?.prestationsResa ?? {}).length;
-ok(s.statut === 200 && nbRdv > 0 && nbPresta === 143, `sauvegarde : ${nbRdv} rendez-vous, ${nbPresta} durées, ${Object.keys(s.corps.collections.comptes).length} comptes`);
+ok(s.statut === 200 && nbRdv > 0 && nbPresta === DUREES && DUREES > 100, `sauvegarde : ${nbRdv} rendez-vous, ${nbPresta} durées, ${Object.keys(s.corps.collections.comptes).length} comptes`);
 ok(!("securite" in s.corps.collections) && !("journalDonnees" in s.corps.collections), "le compteur de sécurité et le journal ne sont pas dans le fichier");
 
 // Vider l'activité seulement
 ok((await donnees(direction, { action: "vider", code: CODE, parties: [] })).statut === 400, "rien de coché : refusé");
 ok((await donnees(direction, { action: "vider", code: CODE, parties: ["activite"] })).statut === 200, "activité vidée");
 ok((await compter("rendezVous")) === 0 && (await compter("clientes")) === 0, "…plus de rendez-vous ni de clientes");
-ok((await compter("prestationsResa")) === 143 && (await compter("comptes")) > 1, "…les durées et l'équipe sont gardées");
+ok((await compter("prestationsResa")) === DUREES && (await compter("comptes")) > 1, "…les durées et l'équipe sont gardées");
 
 // Restaurer
 const r = await donnees(direction, { action: "restaurer", code: CODE, sauvegarde: s.corps });

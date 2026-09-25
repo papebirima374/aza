@@ -38,13 +38,13 @@ ok((await catalogue(manager, { action: "prix", id: HYDRA, prix: 1 })).statut ===
 ok((await catalogue(accueil, { action: "ajouter", familleId: "massage", nom: "X", prix: 1 })).statut === 403, "l'accueil n'ajoute rien au catalogue");
 
 // Changer un prix
-ok((await catalogue(direction, { action: "prix", id: HYDRA, prix: 45000 })).statut === 200, "Hydrafacial passe de 40 000 à 45 000 F");
-ok((await api("/api/catalogue")).corps.modifs[HYDRA]?.prix === 45000, "…le nouveau prix est publié");
+ok((await catalogue(direction, { action: "prix", id: HYDRA, prix: 50000 })).statut === 200, "Hydrafacial passe de 45 000 à 50 000 F");
+ok((await api("/api/catalogue")).corps.modifs[HYDRA]?.prix === 50000, "…le nouveau prix est publié");
 await api("/api/gestion/caisse", accueil, { action: "ouvrir", fond: 0 });
 const t = await vendre(accueil, HYDRA);
-ok(t.statut === 201 && t.corps.total === 45000, `…la caisse encaisse ${t.corps.total} F`);
+ok(t.statut === 201 && t.corps.total === 50000, `…la caisse encaisse ${t.corps.total} F`);
 const r = await api("/api/reservations", null, { date: DATE, debut: 600, prestations: [HYDRA], nom: "Cliente prix", telephone: "77 444 00 01" });
-ok(r.statut === 201 && r.corps.total === 45000, "…et la réservation en ligne aussi");
+ok(r.statut === 201 && r.corps.total === 50000, "…et la réservation en ligne aussi");
 
 // Masquer
 ok((await catalogue(direction, { action: "masquer", id: TIGES, masque: true })).statut === 200, "lot de tiges masqué");

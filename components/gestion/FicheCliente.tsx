@@ -18,6 +18,7 @@ type Fiche = {
   telephone: string;
   allergies: string;
   credit: number;
+  points: number;
   champs: Record<string, string>;
   indicateurs: { total: number; visites: number; panierMoyen: number; frequenceJours: number | null; derniereVenue: string | null; tauxAbsence: number };
   historique: { type: "rendez-vous" | "ticket"; id: string; date: string; heure: number; statut: string; libelle: string; montant: number; remarque: string }[];
@@ -122,6 +123,7 @@ export function FicheCliente({ id }: { id: string }) {
         <Chiffre libelle="Revient tous les" valeur={ind.frequenceJours !== null ? `${ind.frequenceJours} jours` : "—"} />
         <Chiffre libelle="Dernière venue" valeur={ind.derniereVenue ? dateFr(ind.derniereVenue) : "—"} />
         <Chiffre libelle="Absences" valeur={`${ind.tauxAbsence} %`} alerte={ind.tauxAbsence >= 20} />
+        {fiche.points > 0 && <Chiffre libelle="💗 Points de fidélité" valeur={String(fiche.points)} />}
       </div>
 
       {fiche.credit > 0 && <Credit fiche={fiche} whatsapp={whatsapp} jeton={jeton} fini={(t) => { setMessage({ ok: true, texte: t }); setVersion((v) => v + 1); }} />}

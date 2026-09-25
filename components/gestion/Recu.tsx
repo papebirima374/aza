@@ -88,6 +88,12 @@ export function Recu({ id }: { id: string }) {
                 <td className="prix py-1.5 text-right">{formatPrix(l.montant)}</td>
               </tr>
             ))}
+            {t.fidelite?.remise ? (
+              <tr>
+                <td className="py-1.5">Remise fidélité ({t.fidelite.utilises} points)</td>
+                <td className="prix py-1.5 text-right">−{formatPrix(t.fidelite.remise)}</td>
+              </tr>
+            ) : null}
             {t.remise && (
               <tr>
                 <td className="py-1.5">Remise ({t.remise.motif})</td>
@@ -118,6 +124,15 @@ export function Recu({ id }: { id: string }) {
             )}
           </tbody>
         </table>
+        {t.fidelite && t.type === "vente" && (
+          <div className="mt-5 rounded-xl border-2 border-dashed border-aza/50 p-3 text-center">
+            <p className="text-xs font-bold tracking-widest text-aza-fonce uppercase">💗 Carte de fidélité</p>
+            <p className="mt-1 text-sm">
+              +{t.fidelite.gagnes} point{t.fidelite.gagnes > 1 ? "s" : ""} aujourd&apos;hui
+            </p>
+            <p className="font-serif text-2xl font-semibold text-profond">{t.fidelite.solde} points</p>
+          </div>
+        )}
         <p className="mt-6 text-center font-serif text-lg text-profond">Merci de votre visite !</p>
       </article>
     </div>

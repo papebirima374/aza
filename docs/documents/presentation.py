@@ -22,7 +22,7 @@ pages.append(page(f"""
 <h2>Un seul système, du premier clic de la cliente jusqu'à la clôture de caisse</h2>
 <p class="chapeau">La cliente réserve sur son téléphone ; le rendez-vous apparaît aussitôt dans l'agenda ; la praticienne le voit dans « Ma journée » ; la caisse est prévenue quand le soin est fini ; le ticket met à jour la fiche cliente et le stock. Rien n'est saisi deux fois.</p>
 <div class="cartes">
-<div class="carte"><div class="icone">🌐</div><h3>Le site et la boutique</h3><p>Les 143 prestations de la plaquette avec leurs prix, la réservation en ligne sur les heures réellement libres, la boutique : produits, Anna Zen Couture, perruques sur mesure.</p></div>
+<div class="carte"><div class="icone">🌐</div><h3>Le site et la boutique</h3><p>Les prestations de la plaquette avec leurs prix, la réservation en ligne sur les heures réellement libres, la boutique : produits, Anna Zen Couture, perruques sur mesure.</p></div>
 <div class="carte"><div class="icone">📅</div><h3>L'agenda et l'équipe</h3><p>L'agenda du jour par praticienne ou par poste, les rendez-vous du comptoir, les rappels de la veille, « Ma journée » pour chaque praticienne.</p></div>
 <div class="carte"><div class="icone">💰</div><h3>La caisse et le stock</h3><p>Tickets numérotés, Espèces / Wave / Orange Money, cartes cadeaux, clôture du soir avec écart, caisse qui continue sans internet, double stock vente / cabine.</p></div>
 <div class="carte"><div class="icone">💗</div><h3>Les clientes et la direction</h3><p>Fiches clientes avec allergies en rouge, crédits à régler, écran du jour, prix modifiables, sauvegarde protégée.</p></div>
@@ -82,6 +82,7 @@ pages.append(page(f"""
 <li>Un <b>haut-parleur 🔊</b> lit le rendez-vous — ou toute la journée — à voix haute.</li>
 <li>Deux gros boutons : <b>▶️ Je commence</b> et <b>✅ J'ai fini</b>.</li>
 <li>L'allergie de la cliente s'affiche en rouge sur sa carte.</li>
+<li><b>⏱ Minuteur du soin</b> : compte à rebours sur la tablette, bip 5 minutes avant la fin, alarme à la fin ; l'accueil voit en rouge un soin qui déborde.</li>
 </ul>""", P))
 
 # 7. Caisse
@@ -95,6 +96,7 @@ pages.append(page(f"""
 <li>Tickets numérotés sans trou ; <b>jamais supprimés</b> : une erreur s'annule par un avoir, avec motif et auteur.</li>
 <li>Fond de caisse le matin, <b>comptage et écart justifié</b> le soir.</li>
 <li><b>Coupure d'internet</b> : la vente est gardée sur l'appareil et part toute seule au retour — aucune vente perdue.</li>
+<li><b>💗 Carte de fidélité</b> : des points à chaque passage, écrits sur le reçu ; une remise quand la cliente atteint le seuil fixé par la direction.</li>
 </ul>""", P))
 
 # 8. Clientes

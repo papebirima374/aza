@@ -46,6 +46,7 @@ function resume(d: FirebaseFirestore.DocumentSnapshot) {
     nbRendezVous: (x.nbRendezVous as number) ?? 0,
     absences: (x.absences as number) ?? 0,
     credit: (x.credit as number) ?? 0,
+    points: (x.points as number) ?? 0,
     derniereVisite: (x.derniereVisite as string) ?? null,
     premiereVisite: (x.premiereVisite as string) ?? null,
     creeLe: x.creeLe instanceof Timestamp ? x.creeLe.toMillis() : null,

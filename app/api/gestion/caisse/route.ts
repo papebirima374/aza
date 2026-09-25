@@ -1,5 +1,5 @@
 import { membreConnecte } from "@/lib/serveur/agenda";
-import { aEncaisser, annulerTicket, encaisserCommande, reglerCredit, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
+import { aEncaisser, annulerTicket, fideliteCliente, encaisserCommande, reglerCredit, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
 
@@ -7,6 +7,7 @@ import { reponseErreur } from "@/lib/serveur/reponses";
 // GET  /api/gestion/caisse?a-encaisser=1     rendez-vous terminés du jour
 // GET  /api/gestion/caisse?ticket=ID         un ticket (reçu)
 // GET  /api/gestion/caisse?rdv=ID            un rendez-vous à encaisser
+// GET  /api/gestion/caisse?fidelite=TEL      points de fidélité de la cliente et règles
 // POST /api/gestion/caisse { action: "ouvrir" | "encaisser" | "annuler" | "reglement" | "cloturer", … }
 const indisponible = () => Response.json({ erreur: "Gestion indisponible." }, { status: 503 });
 const sansCache = { headers: { "Cache-Control": "no-store" } };
@@ -19,6 +20,7 @@ export async function GET(request: Request) {
     if (q.get("ticket")) return Response.json(await lireTicket(membre, q.get("ticket")!), sansCache);
     if (q.get("rdv")) return Response.json(await lireRendezVous(membre, q.get("rdv")!), sansCache);
     if (q.get("a-encaisser")) return Response.json(await aEncaisser(membre), sansCache);
+    if (q.get("fidelite")) return Response.json(await fideliteCliente(membre, q.get("fidelite")!), sansCache);
     return Response.json(await journal(membre, q.get("date") ?? undefined), sansCache);
   } catch (e) {
     return reponseErreur(e);
@@ -42,6 +44,7 @@ export async function POST(request: Request) {
             rendezVous: c.rendezVous ? String(c.rendezVous) : undefined,
             cliente: c.cliente ? { nom: String(c.cliente.nom ?? ""), telephone: String(c.cliente.telephone ?? "") } : undefined,
             carteCadeau: c.carteCadeau ? String(c.carteCadeau) : undefined,
+            fidelite: c.fidelite === true,
             idLocal: c.idLocal ? String(c.idLocal) : undefined,
             faitLe: c.faitLe,
           }),

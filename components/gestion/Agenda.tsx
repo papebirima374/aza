@@ -52,6 +52,14 @@ const STYLE_STATUT: Partial<Record<Statut, string>> = {
   termine: "opacity-70",
 };
 
+/** Fin d'un soin en cours : heure réelle du début (« En cours ») + durée prévue ; sinon l'heure prévue. */
+function finReelle(r: RendezVous): number {
+  const debut = [...(r.historique ?? [])].reverse().find((h) => h.statut === "en-cours")?.le?.seconds;
+  if (!debut) return r.fin;
+  const d = new Date(debut * 1000);
+  return d.getUTCHours() * 60 + d.getUTCMinutes() + (r.fin - r.debut);
+}
+
 function aujourdhuiDakar(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -80,6 +88,12 @@ export function Agenda() {
   const [erreur, setErreur] = useState("");
   const [ouvert, setOuvert] = useState<string | null>(null);
   const [nouveau, setNouveau] = useState(false);
+  // Heure actuelle (minutes depuis minuit, Dakar = UTC) : un soin « En cours » qui dépasse son heure passe en rouge.
+  const [minutesMaintenant, setMinutesMaintenant] = useState(() => new Date().getUTCHours() * 60 + new Date().getUTCMinutes());
+  useEffect(() => {
+    const t = setInterval(() => setMinutesMaintenant(new Date().getUTCHours() * 60 + new Date().getUTCMinutes()), 30_000);
+    return () => clearInterval(t);
+  }, []);
 
   // Équipe, postes, horaires (une fois).
   useEffect(() => {
@@ -237,11 +251,12 @@ export function Agenda() {
                       const univers = cat.parId(a.prestation)?.univers ?? "institut";
                       const hauteur = Math.max(22, (a.fin - a.debut) * PX_PAR_MINUTE - 2);
                       const court = hauteur < 60;
+                      const depasse = r.statut === "en-cours" && date === aujourdhuiDakar() && minutesMaintenant > finReelle(r);
                       return (
                         <button
                           key={`${r.id}-${a.prestation}-${a.debut}`}
                           onClick={() => setOuvert(r.id)}
-                          className={`absolute inset-x-1 overflow-hidden rounded-lg border-l-4 px-2 py-1 text-left text-xs shadow-sm ${COULEURS[univers]} ${STYLE_STATUT[r.statut] ?? ""}`}
+                          className={`absolute inset-x-1 overflow-hidden rounded-lg border-l-4 px-2 py-1 text-left text-xs shadow-sm ${COULEURS[univers]} ${STYLE_STATUT[r.statut] ?? ""} ${depasse ? "animate-pulse ring-2 ring-[#b42318]" : ""}`}
                           style={{
                             top: (a.debut - ouverture) * PX_PAR_MINUTE,
                             height: hauteur,
@@ -249,6 +264,7 @@ export function Agenda() {
                           title={`${heure(a.debut)}–${heure(a.fin)} · ${r.cliente.nom} · ${cat.parId(a.prestation)?.nom ?? ""} · ${LIBELLES[r.statut]}`}
                         >
                           <span className="block truncate font-bold">
+                            {depasse && <span className="text-[#b42318]">⏰ +{minutesMaintenant - finReelle(r)} min · </span>}
                             {heure(a.debut)} · {r.cliente.nom}
                             {court && <span className="font-semibold"> · {LIBELLES[r.statut]}</span>}
                           </span>

@@ -190,6 +190,9 @@ const FAMILLES_BRUTES: { id: string; nom: string; univers: UniversId; lignes: Li
     lignes: [
       ["Détressage cheveux naturels", 3000],
       ["Détressage mèches", 4000],
+      // Ajoutés par la gérante (25/09/2026)
+      ["Détressage cheveux externe", 4000],
+      ["Détressage mèches externe", 5000],
       ["Assouplissement sans produits", 10000],
       ["Assouplissement + produits", 12000],
       ["Shampoing cheveux naturels", 7000],
@@ -219,6 +222,10 @@ const FAMILLES_BRUTES: { id: string; nom: string; univers: UniversId; lignes: Li
       ["Retouche coiffure cérémonie", 15000],
       ["Queue de cheval adulte", 15000],
       ["Queue de cheval enfant", 10000],
+      // Ajoutés par la gérante (25/09/2026)
+      ["Ponytail cheveux naturels + rajout queue", 15000],
+      ["Ponytail avec frontal", 25000],
+      ["Ponytail 360 devant-derrière", 30000],
     ],
   },
   {
@@ -261,7 +268,6 @@ const FAMILLES_BRUTES: { id: string; nom: string; univers: UniversId; lignes: Li
     nom: "Dissolution",
     univers: "onglerie",
     lignes: [
-      ["Gel interne ou capsule permanent", 3000],
       ["Résine ou gel interne", 4000],
       ["Résine ou gel externe", 5000],
       ["Dissolution vernis permanent", 3000],
@@ -300,7 +306,7 @@ const FAMILLES_BRUTES: { id: string; nom: string; univers: UniversId; lignes: Li
       ["Extension cils volume mixte", 50000],
       ["Extension cils volume russe", 60000],
       ["Extension cils méga volume russe", 70000],
-      ["Remplissage cils volume naturel", 20000],
+      ["Remplissage cils volume naturel", 15000], // corrigé par la gérante (25/09/2026)
       ["Remplissage cils volume mixte", 25000],
       ["Remplissage cils volume russe", 30000],
       ["Remplissage cils méga volume russe", 35000],
@@ -314,7 +320,7 @@ const FAMILLES_BRUTES: { id: string; nom: string; univers: UniversId; lignes: Li
       ["Massage relaxant", 20000],
       ["Massage tonifiant", 30000],
       ["Massage californien", 30000],
-      ["Massage à la pierre chaude", 30000],
+      ["Massage à la pierre chaude", 25000], // corrigé par la gérante (25/09/2026)
       ["Massage des jambes (15 min)", 10000],
       ["Massage du dos relaxant (15 min)", 10000],
       ["Massage du dos tonique", 15000],
@@ -353,7 +359,7 @@ const FAMILLES_BRUTES: { id: string; nom: string; univers: UniversId; lignes: Li
       ["Soin du visage Nuxe", 25000],
       ["Soin du visage Clinique", 30000],
       ["Soin du visage Clarins", 35000],
-      ["Hydrafacial", 40000],
+      ["Hydrafacial", 45000], // corrigé par la gérante (25/09/2026)
       ["Soin du visage Peggy Sage", 45000],
     ],
   },

@@ -34,6 +34,22 @@ ne comptent plus.
    C-01, puis 1 000 F de plus par modèle, jusqu'à 30 000 F pour C-29), selon la fourchette
    donnée par Birima. La direction met les vrais prix dans l'écran Catalogue.
 10. **Tailles Couture** : S, M, L, XL, XXL ou « Sur mesure » — à confirmer avec l'atelier.
+11. **Formule kinésie (massages thérapeutiques, 1 h 30)** : prix à donner. Elle s'ajoute
+    ensuite dans Catalogue (famille Massages) et sa durée (90 min) dans Réglages → Durées :
+    le minuteur de « Ma journée » s'en sert.
+12. **Coiffure** : la gérante signale qu'il manque des prestations ; liste complète à
+    fournir (déjà ajoutés le 25/09 : les trois ponytails).
+13. **Carte de fidélité** : règles à choisir par la direction (F pour 1 point, seuil,
+    remise), puis activer dans Réglages.
+
+## Corrections de la gérante (25/09/2026)
+- Remplissage cils volume naturel : 15 000 F (au lieu de 20 000).
+- Massage à la pierre chaude : 25 000 F (au lieu de 30 000).
+- Hydrafacial : 45 000 F (au lieu de 40 000).
+- Dissolution « Gel interne ou capsule permanent » : retirée.
+- Ajoutés : Détressage cheveux externe 4 000 F, Détressage mèches externe 5 000 F,
+  Ponytail cheveux naturels + rajout queue 15 000 F, Ponytail avec frontal 25 000 F,
+  Ponytail 360 devant-derrière 30 000 F.
 
 ## Petites corrections faites en reprenant la plaquette
 - « Shampoing perruque » figure dans Tissage et dans Soins des cheveux (même prix) : gardé

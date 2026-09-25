@@ -165,6 +165,23 @@ export async function modifierReglages(membre: Membre, c: Record<string, unknown
       );
       return { ok: true };
     }
+    case "fidelite": {
+      // Carte de fidélité : seule la direction fixe les règles (elles engagent l'institut).
+      if (membre.role !== "direction") throw new ErreurReservation("Seule la direction règle la carte de fidélité.", 403);
+      await reglagesRef.set(
+        {
+          fidelite: {
+            actif: c.actif === true,
+            tranche: entier(c.tranche, 100, 1_000_000, "Montant pour 1 point"),
+            seuil: entier(c.seuil, 1, 100_000, "Points pour une récompense"),
+            valeur: entier(c.valeur, 0, 1_000_000, "Montant de la récompense"),
+          },
+          ...trace,
+        },
+        { merge: true },
+      );
+      return { ok: true };
+    }
     case "poste-ajout": {
       exiger(membre);
       const type = String(c.type ?? "");

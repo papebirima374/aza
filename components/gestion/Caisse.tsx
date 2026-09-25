@@ -9,6 +9,7 @@ import { useCatalogue } from "@/lib/client/catalogue";
 import { useAEncaisser, useFileCaisse } from "@/components/gestion/SuiviCaisse";
 import { erreurReseau, nouvelIdLocal } from "@/lib/client/file-caisse";
 import { normaliserCode } from "@/lib/caisse/cartes";
+import type { ReglesFidelite } from "@/lib/caisse/fidelite";
 import { LIBELLE_MODE, MODES, ROLES_CAISSE, ROLES_REMISE, type Mode } from "@/lib/caisse/modes";
 import { dateTexte, heureTexte, lienRecuWhatsApp, type Ticket } from "@/lib/caisse/recu";
 import { formatPrix } from "@/lib/catalogue";
@@ -289,6 +290,27 @@ function Editeur(props: {
   const [code, setCode] = useState("");
   const [carte, setCarte] = useState<{ code: string; solde: number; pour: string } | null>(null);
   const [erreurCarte, setErreurCarte] = useState("");
+  // Fidélité : points de la cliente (dès que son téléphone est connu) et remise « points ».
+  const [fid, setFid] = useState<{ regles: ReglesFidelite; points: number } | null>(null);
+  const [utiliserPoints, setUtiliserPoints] = useState(false);
+  const telCliente = b.cliente?.telephone ?? telephone;
+  useEffect(() => {
+    if (telCliente.replace(/\D/g, "").length < 9) return;
+    let actif = true;
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/gestion/caisse?fidelite=${encodeURIComponent(telCliente)}`, { headers: { Authorization: `Bearer ${await compte.user.getIdToken()}` } });
+        if (r.ok && actif) setFid(await r.json());
+      } catch {
+        // hors connexion : pas d'affichage des points
+      }
+    }, 400);
+    return () => {
+      actif = false;
+      clearTimeout(t);
+    };
+  }, [telCliente, compte.user]);
+  const fidConnue = fid && telCliente.replace(/\D/g, "").length >= 9 ? fid : null;
 
   const resultats = useMemo(
     () => (recherche.trim().length < 2 ? [] : cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, recherche)).slice(0, 8)),
@@ -297,7 +319,9 @@ function Editeur(props: {
   const lignes = b.lignes.map((l) => ({ ...l, p: cat.parId(l.id)! })).filter((l) => l.p);
   const sousTotal = lignes.reduce((s, l) => s + l.p.prix * l.quantite, 0);
   const remiseN = Math.min(nombre(remise), sousTotal);
-  const total = sousTotal - remiseN;
+  const pointsPossibles = Boolean(fidConnue?.regles.actif && fidConnue.points >= fidConnue.regles.seuil);
+  const remisePoints = utiliserPoints && pointsPossibles && fidConnue ? Math.min(fidConnue.regles.valeur, sousTotal - remiseN) : 0;
+  const total = sousTotal - remiseN - remisePoints;
   const recu = MODES.reduce((s, m) => s + nombre(montants[m.id] ?? ""), 0);
   const especes = nombre(montants.especes ?? "");
   const reste = total - recu;
@@ -436,7 +460,31 @@ function Editeur(props: {
         </div>
       )}
 
+      {fidConnue?.regles.actif && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-aza/30 bg-aza/5 p-3">
+          <p className="text-sm">
+            💗 Fidélité : <strong>{fidConnue.points} points</strong>
+            {!pointsPossibles && <span className="text-doux"> (récompense à {fidConnue.regles.seuil} points)</span>}
+          </p>
+          {pointsPossibles && (
+            <button
+              onClick={() => setUtiliserPoints(!utiliserPoints)}
+              aria-pressed={utiliserPoints}
+              className={`min-h-11 rounded-full px-4 text-sm font-bold ${utiliserPoints ? "bg-aza text-white" : "border-2 border-aza text-aza-fonce"}`}
+            >
+              {utiliserPoints ? "✓ " : ""}Utiliser {fidConnue.regles.seuil} points : −{formatPrix(fidConnue.regles.valeur)}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="mt-5 rounded-xl bg-creme p-4">
+        {remisePoints > 0 && (
+          <p className="flex justify-between text-sm">
+            <span>Remise fidélité ({fidConnue?.regles.seuil} points)</span>
+            <span className="prix">−{formatPrix(remisePoints)}</span>
+          </p>
+        )}
         {remiseN > 0 && (
           <p className="flex justify-between text-sm">
             <span>Remise</span>
@@ -568,6 +616,7 @@ function Editeur(props: {
             paiements: MODES.map((m) => ({ mode: m.id, montant: nombre(montants[m.id] ?? "") })).filter((p) => p.montant > 0),
             ...(remiseN > 0 ? { remise: { montant: remiseN, motif } } : {}),
             ...(carte && parCarte > 0 ? { carteCadeau: carte.code } : {}),
+            ...(remisePoints > 0 ? { fidelite: true } : {}),
             ...(!b.rendezVous && telephone.trim() ? { cliente: { nom: nom.trim() || "Cliente", telephone } } : {}),
           }, {
             total,
