@@ -186,13 +186,28 @@ pages.append(page(f"""
 <div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
 <ol class="etapes">
 <li>Touchez <b>Encaisser</b> (ou la cliente dans « À encaisser ») : le ticket s'ouvre <b>déjà rempli</b> avec ses soins.</li>
-<li>Elle a pris un soin ou un produit en plus ? Tapez-le dans « Ajouter : chercher… » et touchez la ligne. <span class="touche">−</span> <span class="touche">+</span> changent la quantité.</li>
+<li>Elle a pris un soin ou un produit en plus ? Tapez-le dans « Ajouter : chercher… » et touchez la ligne. <span class="touche">−</span> <span class="touche">+</span> changent la quantité, <span class="touche">✕</span> retire la ligne.</li>
 <li>Touchez la <b>tuile de paiement</b> : 💵 Espèces, 🌊 Wave, 🟠 Orange Money, 💳 Carte ou 🏦 Virement.</li>
 <li>En espèces, tapez ce que la cliente donne : le site calcule la <b>monnaie à rendre</b>.</li>
 <li>« Le compte est bon » : touchez <span class="bouton">Encaisser …</span>.</li>
 </ol></div>{figure("20-caisse-ticket","Le ticket")}{figure("21-caisse-paiement","Le paiement")}</div>
 <div class="encadre"><b>Paiement partagé ou à crédit</b> : touchez « Paiement partagé ou à crédit », puis tapez chaque montant (par exemple une partie en Wave, le reste en espèces). Une vente à crédit demande le téléphone de la cliente : sa fiche indiquera ce qu'elle doit.</div>
 <div class="encadre or"><b>Remise</b> : réservée à la direction et au manager, avec un motif obligatoire.</div>
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">5 · La caisse</span>
+<h2>Vente libre : retrouver une cliente, retirer une ligne</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
+<ol class="etapes">
+<li>Touchez <span class="bouton">+ Nouvelle vente</span> et ajoutez les prestations ou produits.</li>
+<li>Une ligne ajoutée par erreur ? Touchez la croix <span class="touche">✕</span> au bout de la ligne : elle disparaît de la vente, et le total se corrige.</li>
+<li>Dans « Nom de la cliente », tapez <b>le début de son nom ou de son numéro</b> : les clientes déjà connues s'affichent, avec leurs points de fidélité et ce qu'elles doivent.</li>
+<li>Touchez la bonne cliente : son nom et son téléphone se remplissent tout seuls. Le ticket va sur <b>sa fiche</b> et ses points sont comptés.</li>
+<li>Nouvelle cliente ? Tapez simplement son nom et son numéro : sa fiche est créée à l'encaissement.</li>
+</ol>
+<div class="encadre">Choisir la cliente dans la liste évite les fautes de frappe dans le numéro, donc les fiches en double.</div>
+</div>{figure("79-caisse-retirer","Retirer une ligne")}{figure("80-caisse-cliente","Choisir une cliente")}</div>
 """, P))
 
 pages.append(page(f"""

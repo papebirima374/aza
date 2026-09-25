@@ -34,6 +34,7 @@ type Journal = {
 };
 type RdvAEncaisser = { id: string; debut: number; cliente: { nom: string; telephone: string }; prestations: { id: string; nom: string; prix: number }[] };
 type Ligne = { id: string; quantite: number };
+type FicheResume = { id: string; nom: string; telephone: string; points: number; credit: number };
 type Brouillon = { rendezVous?: string; cliente?: { nom: string; telephone: string }; lignes: Ligne[] };
 
 // Pour une équipe qui lit peu : chaque moyen de paiement a son image et sa couleur.
@@ -293,6 +294,33 @@ function Editeur(props: {
   // Fidélité : points de la cliente (dès que son téléphone est connu) et remise « points ».
   const [fid, setFid] = useState<{ regles: ReglesFidelite; points: number } | null>(null);
   const [utiliserPoints, setUtiliserPoints] = useState(false);
+  // Fichier clientes : pour retrouver une cliente existante par son nom ou son numéro.
+  const [fichier, setFichier] = useState<FicheResume[]>([]);
+  const [choixOuvert, setChoixOuvert] = useState(false);
+  const fichierPermis = ["direction", "manager", "accueil"].includes(compte.role);
+  useEffect(() => {
+    if (b.rendezVous || !fichierPermis) return;
+    let actif = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/gestion/clientes", { headers: { Authorization: `Bearer ${await compte.user.getIdToken()}` } });
+        if (r.ok && actif) setFichier(await r.json());
+      } catch {
+        // hors connexion : saisie à la main
+      }
+    })();
+    return () => {
+      actif = false;
+    };
+  }, [b.rendezVous, fichierPermis, compte.user]);
+  const suggestions = useMemo(() => {
+    const q = nom.trim();
+    if (q.length < 2) return [];
+    const chiffres = q.replace(/\D/g, "");
+    return fichier
+      .filter((c) => correspond(c.nom, q) || (chiffres.length >= 3 && c.telephone.replace(/\D/g, "").includes(chiffres)))
+      .slice(0, 6);
+  }, [nom, fichier]);
   const telCliente = b.cliente?.telephone ?? telephone;
   useEffect(() => {
     if (telCliente.replace(/\D/g, "").length < 9) return;
@@ -371,15 +399,15 @@ function Editeur(props: {
       <ul className="mt-3 divide-y divide-bordure rounded-xl border border-bordure">
         {lignes.length === 0 && <li className="p-3 text-sm text-doux">Ajoutez une prestation ou un produit ci-dessous.</li>}
         {lignes.map((l, i) => (
-          <li key={`${l.id}-${i}`} className="flex items-center gap-2 p-3">
-            <span className="min-w-0 flex-1">
+          <li key={`${l.id}-${i}`} className="flex flex-wrap items-center gap-2 p-3">
+            <span className="min-w-0 basis-full sm:basis-0 sm:flex-1">
               <span className="block font-semibold">{l.p.nom}</span>
               <span className="prix text-xs text-doux">
                 {formatPrix(l.p.prix)}
                 {l.p.note === "Produit" ? " · produit" : ""}
               </span>
             </span>
-            <span className="flex items-center gap-1">
+            <span className="flex flex-1 items-center gap-1 sm:flex-none">
               <button
                 aria-label="Un de moins"
                 onClick={() => changer(l.quantite > 1 ? b.lignes.map((x, j) => (j === i ? { ...x, quantite: x.quantite - 1 } : x)) : b.lignes.filter((_, j) => j !== i))}
@@ -397,6 +425,14 @@ function Editeur(props: {
               </button>
             </span>
             <span className="prix w-20 text-right font-semibold">{formatPrix(l.p.prix * l.quantite)}</span>
+            <button
+              aria-label={`Retirer ${l.p.nom} de la vente`}
+              title="Retirer de la vente"
+              onClick={() => changer(b.lignes.filter((x) => x.id !== l.id))}
+              className="h-10 w-10 shrink-0 rounded-full text-lg text-doux hover:bg-rose-50 hover:text-red-700"
+            >
+              ✕
+            </button>
           </li>
         ))}
       </ul>
@@ -434,10 +470,46 @@ function Editeur(props: {
 
       {!b.rendezVous && (
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          <label className="text-sm font-semibold">
-            Nom de la cliente <span className="font-normal text-doux">(facultatif)</span>
-            <input value={nom} onChange={(e) => setNom(e.target.value)} className="mt-1 block w-full rounded-xl border border-bordure px-4 py-2.5 font-normal" />
-          </label>
+          <div className="relative">
+            <label className="text-sm font-semibold">
+              Nom de la cliente <span className="font-normal text-doux">(facultatif{fichier.length > 0 ? " — tapez un nom ou un numéro" : ""})</span>
+              <input
+                value={nom}
+                onChange={(e) => {
+                  setNom(e.target.value);
+                  setChoixOuvert(true);
+                }}
+                onBlur={() => setTimeout(() => setChoixOuvert(false), 150)}
+                autoComplete="off"
+                className="mt-1 block w-full rounded-xl border border-bordure px-4 py-2.5 font-normal"
+              />
+            </label>
+            {choixOuvert && suggestions.length > 0 && (
+              <ul className="absolute inset-x-0 z-20 mt-1 max-h-72 overflow-y-auto rounded-xl border border-bordure bg-white shadow-lg">
+                {suggestions.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setNom(c.nom);
+                        setTelephone(c.telephone);
+                        setChoixOuvert(false);
+                      }}
+                      className="flex w-full justify-between gap-3 px-4 py-3 text-left hover:bg-creme"
+                    >
+                      <span className="font-semibold">{c.nom || "Sans nom"}</span>
+                      <span className="text-sm text-doux">
+                        {c.telephone}
+                        {c.points > 0 ? ` · 💗 ${c.points} pts` : ""}
+                        {c.credit > 0 ? ` · doit ${formatPrix(c.credit)}` : ""}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <label className="text-sm font-semibold">
             Téléphone <span className="font-normal text-doux">(facultatif, pour le reçu WhatsApp)</span>
             <input inputMode="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} className="mt-1 block w-full rounded-xl border border-bordure px-4 py-2.5 font-normal" />

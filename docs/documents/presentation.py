@@ -89,7 +89,7 @@ pages.append(page(f"""
 pages.append(page(f"""
 <span class="etiquette">5 · La caisse</span>
 <h2>Encaisser sans rien retaper</h2>
-<p class="chapeau">Dès qu'une praticienne a fini, l'accueil reçoit « 💰 … a fini » avec un petit son. Un toucher : le ticket est prêt. On ajoute un produit ou un soin pris en plus, on touche le moyen de paiement.</p>
+<p class="chapeau">Dès qu'une praticienne a fini, l'accueil reçoit « 💰 … a fini » avec un petit son. Un toucher : le ticket est prêt. On ajoute un produit ou un soin pris en plus, on retire d'un toucher une ligne en trop, on retrouve une cliente du fichier en tapant son nom ou son numéro, on touche le moyen de paiement.</p>
 <div class="quatre">{figure("19-caisse-alerte","La caisse est prévenue","tel-petit")}{figure("20-caisse-ticket","Le ticket, déjà rempli","tel-petit")}{figure("21-caisse-paiement","Paiement en tuiles","tel-petit")}{figure("23-recu","Reçu imprimé ou WhatsApp","tel-petit")}</div>
 <ul class="puces">
 <li>Espèces (monnaie calculée), Wave, Orange Money, carte, virement, <b>paiement partagé</b> ou <b>à crédit</b>.</li>
