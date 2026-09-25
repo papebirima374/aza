@@ -11,6 +11,7 @@ import { firebaseClient } from "@/lib/client/firebase";
 import { PastilleCaisse, SuiviCaisse } from "@/components/gestion/SuiviCaisse";
 import { PastilleStock } from "@/components/gestion/PastilleStock";
 import { PastilleCommandes } from "@/components/gestion/PastilleCommandes";
+import { PAGES_PILOTAGE, PastilleAvis } from "@/components/gestion/OngletsPilotage";
 
 export type Compte = { uid: string; nom: string; role: Role; praticienne?: string; user: User };
 
@@ -127,31 +128,31 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
       {/* Téléphone : logo + Déconnexion en haut, onglets sur une 2e ligne. Écran large : une ligne. */}
       <header className="sticky top-0 z-30 flex print:hidden flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-bordure bg-bordeaux px-4 py-2 text-or-clair sm:h-14 sm:flex-nowrap sm:py-0">
         <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} className="h-8 w-auto" />
-        <nav className="order-last -mx-1 flex w-full gap-1 overflow-x-auto text-sm font-semibold sm:order-none sm:mx-0 sm:w-auto" aria-label="Gestion">
+        <nav className="order-last -mx-1 flex w-full items-center gap-1 overflow-x-auto text-sm font-semibold sm:order-none sm:mx-0 sm:w-auto sm:overflow-visible" aria-label="Gestion">
           {[
-            { href: "/gestion/jour", libelle: "Aujourd'hui", visible: compte?.role === "direction" || compte?.role === "manager" },
+            { href: "/gestion/jour", libelle: "Tableau de bord", visible: compte?.role === "direction" || compte?.role === "manager" },
+            { href: "/gestion/rapports", libelle: "Rapports", visible: compte?.role === "comptable" },
             { href: "/gestion", libelle: telephonePerso ? "Ma journée" : "Agenda", visible: true },
             { href: "/gestion/clientes", libelle: "Clientes", visible: ["direction", "manager", "accueil"].includes(compte?.role ?? "") },
             { href: "/gestion/caisse", libelle: "Caisse", visible: ["direction", "manager", "accueil", "comptable"].includes(compte?.role ?? "") },
             { href: "/gestion/commandes", libelle: "Commandes", visible: ["direction", "manager", "accueil"].includes(compte?.role ?? "") },
             { href: "/gestion/stock", libelle: "Stock", visible: ["direction", "manager", "accueil", "comptable"].includes(compte?.role ?? "") },
-            { href: "/gestion/catalogue", libelle: "Catalogue", visible: compte?.role === "direction" },
-            { href: "/gestion/equipe", libelle: "Équipe", visible: compte?.role === "direction" || compte?.role === "manager" },
-            { href: "/gestion/reglages", libelle: "Réglages", visible: compte?.role === "direction" || compte?.role === "manager" },
           ]
             .filter((l) => l.visible)
-            .map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 ${chemin === l.href || (l.href !== "/gestion" && chemin.startsWith(l.href)) ? "bg-white/15 text-white" : "hover:text-white"}`}
-              >
-                {l.libelle}
-                {l.href === "/gestion/caisse" && <PastilleCaisse />}
-                {l.href === "/gestion/stock" && <PastilleStock />}
-                {l.href === "/gestion/commandes" && <PastilleCommandes />}
-              </Link>
-            ))}
+            .map((l) => {
+              const actif =
+                l.href === "/gestion/jour" ? PAGES_PILOTAGE.some((p) => chemin.startsWith(p)) : chemin === l.href || (l.href !== "/gestion" && chemin.startsWith(l.href));
+              return (
+                <Link key={l.href} href={l.href} className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 ${actif ? "bg-white/15 text-white" : "hover:text-white"}`}>
+                  {l.libelle}
+                  {l.href === "/gestion/jour" && <PastilleAvis />}
+                  {l.href === "/gestion/caisse" && <PastilleCaisse />}
+                  {l.href === "/gestion/stock" && <PastilleStock />}
+                  {l.href === "/gestion/commandes" && <PastilleCommandes />}
+                </Link>
+              );
+            })}
+          {compte && <MenuPlus role={compte.role} chemin={chemin} />}
         </nav>
         <div className="ml-auto flex items-center gap-3 text-sm">
           <Link href="/gestion/mon-compte" className="flex min-h-10 max-w-[9rem] items-center gap-1 truncate rounded-full px-2 py-1 hover:bg-white/10 md:max-w-none" title="Mon compte">
@@ -173,6 +174,57 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
       {children}
       </SuiviCaisse>
     </ContexteCompte.Provider>
+  );
+}
+
+// Les écrans qu'on ouvre moins souvent, rangés derrière « Plus » pour garder la barre courte.
+function MenuPlus({ role, chemin }: { role: Role; chemin: string }) {
+  // Le menu se referme tout seul quand on change de page.
+  const [ouvertSur, setOuvertSur] = useState<string | null>(null);
+  const ouvert = ouvertSur === chemin;
+  const setOuvert = (v: boolean) => setOuvertSur(v ? chemin : null);
+  const direction = role === "direction" || role === "manager";
+  const liens = [
+    { href: "/gestion/catalogue", libelle: "📋 Catalogue et prix", visible: role === "direction" },
+    { href: "/gestion/collection", libelle: "👗 Collection Couture", visible: direction },
+    { href: "/gestion/cartes", libelle: "🎁 Cartes cadeaux", visible: direction },
+    { href: "/gestion/photos", libelle: "🖼️ Photos du site", visible: direction },
+    { href: "/gestion/equipe", libelle: "👥 Équipe", visible: direction },
+    { href: "/gestion/reglages", libelle: "⚙️ Réglages", visible: direction },
+  ].filter((l) => l.visible);
+  useEffect(() => {
+    if (!ouvert) return;
+    const fermer = (e: KeyboardEvent | PointerEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !(e.target as Element).closest("[data-menu-plus]")) setOuvertSur(null);
+    };
+    window.addEventListener("keydown", fermer);
+    window.addEventListener("pointerdown", fermer);
+    return () => {
+      window.removeEventListener("keydown", fermer);
+      window.removeEventListener("pointerdown", fermer);
+    };
+  }, [ouvert]);
+  if (liens.length === 0) return null;
+  const actif = liens.some((l) => chemin.startsWith(l.href));
+  return (
+    <div data-menu-plus className="shrink-0 sm:relative">
+      <button
+        onClick={() => setOuvert(!ouvert)}
+        aria-expanded={ouvert}
+        className={`whitespace-nowrap rounded-full px-3 py-1.5 ${actif || ouvert ? "bg-white/15 text-white" : "hover:text-white"}`}
+      >
+        Plus ▾
+      </button>
+      {ouvert && (
+        <div className="absolute right-4 z-40 mt-2 w-60 rounded-2xl border border-bordure bg-white p-1.5 text-profond shadow-xl sm:right-0">
+          {liens.map((l) => (
+            <Link key={l.href} href={l.href} className={`block rounded-xl px-3 py-2.5 ${chemin.startsWith(l.href) ? "bg-creme font-bold" : "hover:bg-creme"}`}>
+              {l.libelle}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

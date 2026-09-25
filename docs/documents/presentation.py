@@ -25,7 +25,7 @@ pages.append(page(f"""
 <div class="carte"><div class="icone">🌐</div><h3>Le site et la boutique</h3><p>Les prestations de la plaquette avec leurs prix, la réservation en ligne sur les heures réellement libres, la boutique : produits, Anna Zen Couture, perruques sur mesure.</p></div>
 <div class="carte"><div class="icone">📅</div><h3>L'agenda et l'équipe</h3><p>L'agenda du jour par praticienne ou par poste, les rendez-vous du comptoir, les rappels de la veille, « Ma journée » pour chaque praticienne.</p></div>
 <div class="carte"><div class="icone">💰</div><h3>La caisse et le stock</h3><p>Tickets numérotés, Espèces / Wave / Orange Money, cartes cadeaux, clôture du soir avec écart, caisse qui continue sans internet, double stock vente / cabine.</p></div>
-<div class="carte"><div class="icone">💗</div><h3>Les clientes et la direction</h3><p>Fiches clientes avec allergies en rouge, crédits à régler, écran du jour, prix modifiables, sauvegarde protégée.</p></div>
+<div class="carte"><div class="icone">💗</div><h3>Les clientes et la direction</h3><p>Fiches clientes avec allergies en rouge, crédits à régler, écran du jour, rapports du mois, avis des clientes, prix modifiables, sauvegarde protégée.</p></div>
 </div>
 <h3>Ce qui a guidé chaque écran</h3>
 <ul class="puces">
@@ -90,11 +90,12 @@ pages.append(page(f"""
 <span class="etiquette">5 · La caisse</span>
 <h2>Encaisser sans rien retaper</h2>
 <p class="chapeau">Dès qu'une praticienne a fini, l'accueil reçoit « 💰 … a fini » avec un petit son. Un toucher : le ticket est prêt. On ajoute un produit ou un soin pris en plus, on retire d'un toucher une ligne en trop, on retrouve une cliente du fichier en tapant son nom ou son numéro, on touche le moyen de paiement.</p>
-<div class="quatre">{figure("19-caisse-alerte","La caisse est prévenue","tel-petit")}{figure("20-caisse-ticket","Le ticket, déjà rempli","tel-petit")}{figure("21-caisse-paiement","Paiement en tuiles","tel-petit")}{figure("23-recu","Reçu imprimé ou WhatsApp","tel-petit")}</div>
+<div class="quatre">{figure("19-caisse-alerte","La caisse est prévenue","tel-petit")}{figure("20-caisse-ticket","Le ticket, déjà rempli","tel-petit")}{figure("21-caisse-paiement","Paiement en tuiles","tel-petit")}{figure("87-ticket-80mm","Ticket 80 mm ou WhatsApp","tel-petit")}</div>
 <ul class="puces">
 <li>Espèces (monnaie calculée), Wave, Orange Money, carte, virement, <b>paiement partagé</b> ou <b>à crédit</b>.</li>
 <li>Tickets numérotés sans trou ; <b>jamais supprimés</b> : une erreur s'annule par un avoir, avec motif et auteur.</li>
 <li>Fond de caisse le matin, <b>comptage et écart justifié</b> le soir.</li>
+<li><b>Ticket de caisse 80 mm</b> sur imprimante thermique, calibré une fois pour toutes, avec un QR code qui invite la cliente à donner son avis.</li>
 <li><b>Coupure d'internet</b> : la vente est gardée sur l'appareil et part toute seule au retour — aucune vente perdue.</li>
 <li><b>💗 Carte de fidélité</b> : des points à chaque passage, écrits sur le reçu ; une remise quand la cliente atteint le seuil fixé par la direction.</li>
 </ul>""", P))
@@ -148,6 +149,18 @@ pages.append(page(f"""
 <li><b>Catalogue</b> : changer un prix, ajouter ou masquer une prestation — appliqué partout en moins d'une minute, avec trace.</li>
 <li><b>Réglages</b> : horaires, fermetures, postes, durées, règles d'acompte, ouverture de la réservation en ligne.</li>
 <li><b>Équipe</b> : un compte par personne, un rôle, des compétences ; nouveau mot de passe en un toucher.</li>
+</ul>""", P))
+
+# 10bis. Rapports et avis
+pages.append(page(f"""
+<span class="etiquette">8 · Pilotage</span>
+<h2>Les rapports du mois et la voix des clientes</h2>
+<div class="quatre">{figure("82-rapports","Les chiffres du mois","tel-petit")}{figure("83-rapports-equipe","Le chiffre de chaque praticienne","tel-petit")}{figure("84-avis-gestion","Les avis","tel-petit")}{figure("86-avis-cliente","La cliente note sa visite","tel-petit")}</div>
+<ul class="puces">
+<li><b>Rapports</b> sur le mois, la semaine, l'année ou des dates au choix : recette, tickets, panier moyen, nouvelles clientes, comparés à la période d'avant ; ce qui rapporte le plus ; le chiffre, les absences et la note de chaque praticienne ; les jours et heures les plus chargés.</li>
+<li>Imprimable, et <b>export Excel</b> de tous les tickets pour le comptable.</li>
+<li><b>Avis des clientes</b> : un lien sur le reçu et un QR code sur le ticket ; les avis de 3 étoiles ou moins remontent en premier, avec une réponse WhatsApp prête ; les plus beaux vont sur le site, <b>si la cliente l'accepte</b>.</li>
+<li>Un écran léger : l'essentiel en quatre chiffres, le détail rangé dans des volets ; les écrans rares derrière « Plus ».</li>
 </ul>""", P))
 
 # 11. Sécurité

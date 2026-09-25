@@ -41,6 +41,10 @@ ne comptent plus.
     fournir (déjà ajoutés le 25/09 : les trois ponytails).
 13. **Carte de fidélité** : règles à choisir par la direction (F pour 1 point, seuil,
     remise), puis activer dans Réglages.
+14. **Imprimante de tickets** : modèle et largeur du rouleau (80 mm ou 58 mm) ; faire le
+    ticket de réglage une fois sur le poste de l'accueil.
+15. **Avis Google** : lien « Demander des avis » de la fiche Google de l'institut (facultatif),
+    à coller dans Tableau de bord → Avis clientes.
 
 ## Corrections de la gérante (25/09/2026)
 - Remplissage cils volume naturel : 15 000 F (au lieu de 20 000).

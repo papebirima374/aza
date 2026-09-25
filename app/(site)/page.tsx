@@ -7,6 +7,8 @@ import { type Emplacement, photosEmplacement, urlPhotoSite } from "@/lib/photos-
 import { PHOTOS_GROUPE } from "@/lib/couture";
 import { modelesCouture } from "@/lib/serveur/collection";
 import { photosDuSite } from "@/lib/serveur/photos-site";
+import { avisPublics } from "@/lib/serveur/avis";
+import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { INSTITUT, LIEN_ITINERAIRE, lienWhatsApp, TELEPHONE_PRINCIPAL } from "@/lib/institut";
 
 // Prestations mises en avant sur l'accueil (à ajuster avec la gérante).
@@ -25,7 +27,12 @@ const PHARES = [
 export const revalidate = 60;
 
 export default async function Accueil() {
-  const [cat, photos, couture] = await Promise.all([catalogueServeur(), photosDuSite(), modelesCouture()]);
+  const [cat, photos, couture, avis] = await Promise.all([
+    catalogueServeur(),
+    photosDuSite(),
+    modelesCouture(),
+    firebaseConfigure() ? avisPublics().then((a) => a.avis).catch(() => []) : [],
+  ]);
   // La maison Anna Zen : une photo de groupe, puis les modèles les plus récents.
   const vitrineCouture = [PHOTOS_GROUPE[0], ...couture.flatMap((m) => m.photos.slice(0, 1))].slice(0, 4);
   const bandeau = photos.find((p) => p.emplacement === "accueil");
@@ -165,6 +172,30 @@ export default async function Accueil() {
           ))}
         </div>
       </section>
+
+      {/* Avis de vraies clientes, choisis par la direction (et acceptés par la cliente). */}
+      {avis.length > 0 && (
+        <section className="bg-creme">
+          <div className="mx-auto max-w-6xl px-4 py-16">
+            <h2 className="font-serif text-4xl font-semibold text-profond">Elles en parlent</h2>
+            <div className="mt-8 flex snap-x gap-4 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-visible">
+              {avis.slice(0, 6).map((a) => (
+                <figure key={a.id} className="w-72 shrink-0 snap-start rounded-3xl bg-white p-6 md:w-auto">
+                  <p className="text-lg text-[#b7791f]" aria-label={`${a.note} étoiles sur 5`}>
+                    {"★".repeat(a.note)}
+                    <span className="text-bordure">{"★".repeat(5 - a.note)}</span>
+                  </p>
+                  {a.commentaire && <blockquote className="mt-3 text-profond">« {a.commentaire.length > 280 ? `${a.commentaire.slice(0, 277)}…` : a.commentaire} »</blockquote>}
+                  <figcaption className="mt-4 text-sm text-doux">
+                    <b className="text-profond">{a.prenom}</b>
+                    {a.prestations[0] && ` · ${a.prestations[0]}`}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Anna Zen Couture — la collection (photos fournies par l'institut) */}
       <section className="mx-auto max-w-6xl px-4 pt-16">

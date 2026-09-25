@@ -10,7 +10,7 @@ Les deux PDF livrés sont dans `docs/` : `AZA-presentation.pdf` et `AZA-guide-ut
 - `captures/` : les captures d'écran (base de TEST, noms fictifs), 390 px de large, ×2.
 - `preparer.mjs` : met une journée réaliste dans la base de test (avant `captures.mjs`).
 - `captures.mjs` : toutes les captures du guide ; `captures-v2.mjs` : cartes cadeaux, Couture,
-  perruques ; `cap-site.mjs` : pages du site ; `cap54.mjs` : la grille Couture ; `captures-v4.mjs` : minuteur et fidélité ; `captures-v5.mjs` : caisse (cliente existante, retirer une ligne).
+  perruques ; `cap-site.mjs` : pages du site ; `cap54.mjs` : la grille Couture ; `captures-v4.mjs` : minuteur et fidélité ; `captures-v5.mjs` : caisse (cliente existante, retirer une ligne) ; `captures-v6.mjs` : menu Plus, rapports, avis, ticket 80 mm (écrit d'abord un mois de tickets fictifs dans l'émulateur).
 - `faire-polices.mjs` : copie les polices du build local dans `polices.css`.
 - `pdf.mjs` : HTML → PDF (Chromium).
 

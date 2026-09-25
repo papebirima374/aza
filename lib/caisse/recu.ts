@@ -1,5 +1,6 @@
 // Reçu d'un ticket : texte pour WhatsApp (le reçu imprimable reprend les mêmes données).
 
+import { lienAvis } from "@/lib/avis";
 import { LIBELLE_MODE, type Mode } from "@/lib/caisse/modes";
 import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
@@ -34,7 +35,17 @@ export function dateTexte(date: string): string {
   return new Date(`${date}T12:00:00Z`).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
 }
 
-export function texteRecu(t: Ticket): string {
+/** Adresse du site (pour le lien de l'avis) : celle de la page ouverte. */
+function origineDuSite(): string {
+  return typeof window !== "undefined" ? window.location.origin : "";
+}
+
+/** Un avis se laisse sur une vente, pas sur un avoir ni un ticket annulé. */
+export function avisPossible(t: Ticket): boolean {
+  return t.type === "vente" && !t.annule;
+}
+
+export function texteRecu(t: Ticket, origine = origineDuSite()): string {
   const l = [
     `*${INSTITUT.nom}*`,
     `${INSTITUT.adresse.rue}, ${INSTITUT.adresse.ville}`,
@@ -50,6 +61,7 @@ export function texteRecu(t: Ticket): string {
     ...(t.rendu ? [`Monnaie rendue : ${formatPrix(t.rendu)}`] : []),
     ...(t.credit > 0 ? [`Reste à régler : ${formatPrix(t.credit)}`] : []),
     ...(t.fidelite && t.type === "vente" ? ["", `💗 Fidélité : +${t.fidelite.gagnes} point${t.fidelite.gagnes > 1 ? "s" : ""} · vous avez ${t.fidelite.solde} points`] : []),
+    ...(avisPossible(t) && origine ? ["", `⭐ Votre avis compte (2 touches) : ${lienAvis(origine, t.id)}`] : []),
     "",
     "Merci de votre visite !",
     INSTITUT.telephones.map((x) => x.affiche).join(" · "),

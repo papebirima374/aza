@@ -28,7 +28,7 @@ pages.append(page("""
 <li><span>6 · Les fiches clientes et les crédits</span><span>15</span></li>
 <li><span>7 · La boutique : commandes, Couture, perruques sur mesure</span><span>17</span></li>
 <li><span>8 · Le stock (manager)</span><span>18</span></li>
-<li><span>9 · La direction : écran du jour</span><span>21</span></li>
+<li><span>9 · La direction : tableau de bord, rapports, avis clientes</span><span>21</span></li>
 <li><span>10 · La direction : l'équipe et les mots de passe</span><span>22</span></li>
 <li><span>11 · La direction : prix, catalogue et photos du site</span><span>24</span></li>
 <li><span>12 · La direction : réglages et réservation en ligne</span><span>25</span></li>
@@ -66,11 +66,12 @@ pages.append(page(f"""
 </ol>
 <p>Les <b>onglets</b> en haut de l'écran dépendent de votre rôle. Sur téléphone, faites-les glisser vers la gauche pour voir les autres.</p>''', "43-mon-compte", "Mon compte")}
 <table class="grille"><tr><th>Rôle</th><th>Onglets</th></tr>
-<tr><td><b>Direction</b></td><td>Aujourd'hui · Agenda · Clientes · Caisse · Commandes · Stock · Catalogue · Équipe · Réglages</td></tr>
-<tr><td><b>Manager</b></td><td>Aujourd'hui · Agenda · Clientes · Caisse · Commandes · Stock · Équipe · Réglages</td></tr>
+<tr><td><b>Direction</b></td><td>Tableau de bord · Agenda · Clientes · Caisse · Commandes · Stock · <b>Plus ▾</b> (Catalogue, Collection, Cartes cadeaux, Photos du site, Équipe, Réglages)</td></tr>
+<tr><td><b>Manager</b></td><td>Les mêmes, sauf Catalogue</td></tr>
 <tr><td><b>Accueil / caisse</b></td><td>Agenda · Clientes · Caisse · Commandes · Stock (lecture)</td></tr>
 <tr><td><b>Praticienne</b></td><td>Ma journée</td></tr>
-<tr><td><b>Comptable</b></td><td>Agenda · Caisse (journal) · Stock (lecture)</td></tr></table>
+<tr><td><b>Comptable</b></td><td>Rapports · Agenda · Caisse (journal) · Stock (lecture)</td></tr></table>
+<div class="encadre">Pour garder la barre courte, les écrans qu'on ouvre moins souvent sont rangés derrière <b>Plus ▾</b>, au bout de la barre.</div>
 """, P))
 
 # 2. Praticienne
@@ -212,15 +213,32 @@ pages.append(page(f"""
 
 pages.append(page(f"""
 <span class="etiquette">5 · La caisse</span>
-<h2>Le reçu</h2>
+<h2>Le ticket de caisse (80 mm) et le reçu WhatsApp</h2>
 <div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
 <ol class="etapes">
 <li>Après l'encaissement : « Ticket T-000004 enregistré ». En grand, la monnaie à rendre s'il y en a.</li>
-<li><span class="touche">Voir / imprimer le reçu</span> : le reçu aux couleurs de l'institut, à imprimer.</li>
-<li><span class="bouton" style="background:#128C4A">Reçu par WhatsApp</span> : le reçu part sur le WhatsApp de la cliente.</li>
+<li><span class="touche">Voir / imprimer le reçu</span>, puis <span class="bouton">🖨️ Imprimer le ticket</span> : le ticket sort sur l'imprimante thermique, en noir et blanc, à la bonne longueur (le papier est coupé juste après « Merci »).</li>
+<li><span class="bouton" style="background:#128C4A">Envoyer par WhatsApp</span> : le reçu part sur le WhatsApp de la cliente.</li>
 </ol>
-<div class="encadre"><b>Un ticket ne se supprime jamais.</b> En cas d'erreur, la direction ou le manager touche « Annuler par un avoir » dans la liste des tickets : un avoir (ticket en négatif) est créé avec le motif, les produits reviennent en stock et le rendez-vous redevient « Terminé » pour être encaissé à nouveau.</div>
-</div>{figure("22-caisse-confirmation","Ticket enregistré")}{figure("23-recu","Le reçu")}</div>
+<p>Le ticket et le message WhatsApp portent la <b>carte de fidélité</b> et un <b>QR code « Votre avis compte »</b> : la cliente note sa visite en deux touches (voir la partie 9).</p>
+<div class="encadre"><b>Un ticket ne se supprime jamais.</b> En cas d'erreur, la direction ou le manager touche « Annuler par un avoir » dans la liste des tickets : un avoir est créé avec le motif, les produits reviennent en stock et le rendez-vous redevient « Terminé ».</div>
+</div>{figure("22-caisse-confirmation","Ticket enregistré")}{figure("87-ticket-80mm","Le ticket 80 mm")}</div>
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">5 · La caisse</span>
+<h2>Régler l'imprimante de tickets (une seule fois)</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm;"><div>
+<ol class="etapes">
+<li>Branchez l'imprimante au poste de l'accueil (USB ou Bluetooth) et installez-la comme n'importe quelle imprimante.</li>
+<li>Ouvrez un reçu, touchez <span class="touche">⚙️ Réglage de l'imprimante</span>. Choisissez <b>Rouleau 80 mm</b> (ou 58 mm pour les petites imprimantes).</li>
+<li><span class="bouton">Imprimer le ticket de réglage</span>. Dans la fenêtre d'impression : choisissez l'imprimante de tickets et <b>Marges : aucune</b> (la première fois seulement).</li>
+<li>Regardez le ticket sorti : le <b>cadre</b> et la <b>règle graduée</b> doivent être entiers, d'un bord à l'autre.
+<ul class="puces" style="margin-top:1mm"><li>Coupé à droite : <b>Zone imprimable</b> − (ou Décalage −).</li><li>Coupé à gauche : <b>Décalage</b> +.</li><li>Trop de blanc sur les côtés : Zone imprimable +.</li><li>Texte trop petit : Taille du texte +.</li></ul></li>
+<li>Recommencez jusqu'à ce que ce soit parfait. Le réglage reste enregistré <b>sur ce poste</b>.</li>
+</ol>
+<div class="encadre or">« Papier avant la coupe » règle la marge blanche en bas du ticket. Le logo et le QR code peuvent être retirés du ticket (cases à cocher).</div>
+</div>{figure("88-ticket-reglage","Le réglage et le ticket de réglage")}</div>
 """, P))
 
 pages.append(page(f"""
@@ -448,12 +466,13 @@ pages.append(page(f"""
 </div>{figure("32-stock-boutique","Boutique")}{figure("33-stock-soins","Soins")}</div>
 """, P))
 
-# 9. Direction : écran du jour
+# 9. Direction : tableau de bord
 pages.append(page(f"""
 <span class="etiquette">9 · La direction</span>
-<h2>L'écran du jour</h2>
+<h2>Le tableau de bord : Aujourd'hui</h2>
 <div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
-<p>Onglet <b>Aujourd'hui</b> (direction et manager), mis à jour chaque minute :</p>
+<p>Onglet <b>Tableau de bord</b> (direction et manager). Trois volets en haut : <b>Aujourd'hui</b>, <b>Rapports</b>, <b>Avis clientes</b>.</p>
+<p><b>Aujourd'hui</b> est mis à jour chaque minute :</p>
 <ul class="puces">
 <li>💰 <b>Recette encaissée</b>, comparée au même jour de la semaine précédente.</li>
 <li>🧾 Panier moyen · 👩 Clientes reçues · 🕐 À venir.</li>
@@ -466,13 +485,41 @@ pages.append(page(f"""
 {figure("12-aujourdhui","Les chiffres du jour")}{figure("12b-aujourdhui-equipe","Encaissements et équipe")}</div>
 """, P))
 
+pages.append(page(f"""
+<span class="etiquette">9 · La direction</span>
+<h2>Les rapports</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
+<ol class="etapes">
+<li>Tableau de bord → <b>Rapports</b> (aussi pour le comptable). Choisissez la période : <b>Ce mois</b>, Mois dernier, 7 derniers jours, Cette année ou <b>Dates…</b></li>
+<li>En haut, quatre chiffres : <b>recette</b>, <b>tickets</b>, <b>panier moyen</b>, <b>clientes servies</b> (dont nouvelles), avec ▲ ▼ par rapport à la période d'avant.</li>
+<li>La <b>recette jour par jour</b> : touchez une barre pour son montant.</li>
+<li>Le détail est rangé dans des volets, à ouvrir au besoin : 💰 ventes et paiements · 🏆 ce qui rapporte le plus · 👥 l'équipe (chiffre, prestations, absences, note des avis de chaque praticienne) · 📅 rendez-vous et clientes · 🕐 affluence (jours et heures les plus chargés) · ⭐ avis.</li>
+</ol>
+<div class="encadre"><b>🖨️ Imprimer</b> : le rapport complet, tous volets ouverts. <b>⬇ Excel</b> : tous les tickets de la période, pour le comptable (s'ouvre dans Excel).</div>
+</div>{figure("82-rapports","Les chiffres de la période")}{figure("83-rapports-equipe","Le volet équipe")}</div>
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">9 · La direction</span>
+<h2>Les avis des clientes</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
+<p>Après sa visite, la cliente reçoit le lien de l'avis avec son reçu WhatsApp, ou scanne le QR code du ticket. Elle touche les étoiles, écrit un mot si elle veut, et dit si son avis peut paraître sur le site.</p>
+<ol class="etapes">
+<li>Tableau de bord → <b>Avis clientes</b> : la note moyenne et la répartition des étoiles.</li>
+<li>« <b>À regarder</b> » : les avis de 3 étoiles ou moins. Une pastille rose les compte. <span class="bouton" style="background:#128C4A">Répondre sur WhatsApp</span> ouvre un message déjà écrit ; après l'échange, touchez <span class="touche">✓ Traité</span>.</li>
+<li>« <b>Publiables</b> » : les avis que la cliente accepte de montrer. La direction touche <span class="touche">Mettre sur le site</span> : ils paraissent sur l'accueil du site (« Elles en parlent »).</li>
+</ol>
+<div class="encadre or"><b>Avis Google</b> (en bas de l'écran) : collez le lien « Demander des avis » de la fiche Google de l'institut. Une cliente qui met 4 ou 5 étoiles se verra proposer de le partager aussi sur Google.</div>
+</div>{figure("84-avis-gestion","Les avis")}{figure("86-avis-cliente","Ce que voit la cliente")}</div>
+""", P))
+
 # 10. Équipe
 pages.append(page(f"""
 <span class="etiquette">10 · La direction</span>
 <h2>Ajouter une personne de l'équipe</h2>
 <div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
 <ol class="etapes">
-<li>Onglet <b>Équipe</b>, formulaire « Ajouter une personne ».</li>
+<li><b>Plus ▾ → Équipe</b>, formulaire « Ajouter une personne ».</li>
 <li>Prénom et nom, puis le <b>rôle</b>.</li>
 <li><b>📱 Numéro de téléphone</b> (obligatoire) : c'est son identifiant.</li>
 <li><b>🔑 Mot de passe</b> : choisissez-en un, ou laissez vide (6 chiffres tirés au sort).</li>
@@ -502,6 +549,7 @@ pages.append(page(f"""
 <span class="etiquette">11 · La direction</span>
 <h2>Prix, catalogue et photos du site</h2>
 <div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
+<p>Ces écrans sont dans <b>Plus ▾</b>.</p>
 <h3>Catalogue et prix</h3>
 <ul class="puces">
 <li><b>Changer un prix</b> : cherchez la prestation, tapez le prix, <span class="bouton">Enregistrer le prix</span>.</li>
@@ -520,7 +568,7 @@ pages.append(page(f"""
 <h2>Réglages et réservation en ligne</h2>
 <div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
 <ul class="puces">
-<li><b>Réservation en ligne</b> : « Ouvrir » ou « Fermer » (direction seulement).</li>
+<li><b>Plus ▾ → Réglages</b>. <b>Réservation en ligne</b> : « Ouvrir » ou « Fermer » (direction seulement).</li>
 <li><b>Horaires</b> de l'institut, jour par jour.</li>
 <li><b>Fermetures</b> exceptionnelles, avec un motif (Tabaski, Magal…).</li>
 <li><b>Postes</b> : cabines, tables de massage, postes coiffure et onglerie.</li>

@@ -1,11 +1,11 @@
-import { EcranDuJour } from "@/components/gestion/EcranDuJour";
 import { OngletsPilotage } from "@/components/gestion/OngletsPilotage";
+import { Rapports } from "@/components/gestion/Rapports";
 
-export default function PageJour() {
+export default function PageRapports() {
   return (
     <>
       <OngletsPilotage />
-      <EcranDuJour />
+      <Rapports />
     </>
   );
 }
