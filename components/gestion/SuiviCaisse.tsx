@@ -7,6 +7,7 @@ import type { Compte } from "@/components/gestion/EspaceGestion";
 import { ROLES_CAISSE } from "@/lib/caisse/modes";
 import { firebaseClient } from "@/lib/client/firebase";
 import { ajouterAttente, lireAttente, marquerRefus, retirerAttente, type VenteEnAttente } from "@/lib/client/file-caisse";
+import { peut } from "@/lib/acces";
 
 // Prévenir la caisse, en direct : dès qu'une praticienne touche « J'ai fini », le
 // rendez-vous apparaît à encaisser, l'onglet Caisse affiche une pastille, et un message
@@ -59,7 +60,9 @@ function sonner() {
 }
 
 export function SuiviCaisse({ compte, children }: { compte: Compte | null; children: React.ReactNode }) {
-  const actif = Boolean(compte && ROLES_CAISSE.includes(compte.role));
+  // Écoute des rendez-vous « Terminé » : lecture directe de l'agenda, permise par les règles
+  // Firestore aux rôles de l'accueil seulement.
+  const actif = Boolean(compte && ROLES_CAISSE.includes(compte.role) && peut(compte, "caisse"));
   const [liste, setListe] = useState<AEncaisser[]>([]);
   const [alerte, setAlerte] = useState<AEncaisser | null>(null);
   const connus = useRef<Set<string> | null>(null);

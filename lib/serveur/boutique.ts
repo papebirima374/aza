@@ -13,7 +13,6 @@
 //                            (international : prix null = frais confirmés à la cliente après la commande)
 
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import type { Role } from "@/lib/agenda/statuts";
 import type { Membre } from "@/lib/serveur/agenda";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import { db } from "@/lib/serveur/firebase";
@@ -22,13 +21,13 @@ import { telephoneCanonique, telephoneValide } from "@/lib/telephone";
 import type { StatutCommande } from "@/lib/boutique";
 import { libelleVariante, lireArticleCouture } from "@/lib/couture";
 import { modelesCouture } from "@/lib/serveur/collection";
+import { exigerAcces } from "@/lib/serveur/acces";
 export { modelesCouture } from "@/lib/serveur/collection";
 
 export { RAYONS, STATUTS_COMMANDE, type StatutCommande } from "@/lib/boutique";
 
 const Erreur = ErreurReservation;
 
-const ROLES_COMMANDES: Role[] = ["direction", "manager", "accueil"];
 const reference = (n: number) => `C-${String(n).padStart(6, "0")}`;
 
 export function cleProduit(titre: string): string {
@@ -271,7 +270,7 @@ export async function passerCommande(c: NouvelleCommande) {
 // ——— Commandes (gestion) ———
 
 function exiger(membre: Membre) {
-  if (!ROLES_COMMANDES.includes(membre.role)) throw new Erreur("Réservé à l'accueil et à la direction.", 403);
+  exigerAcces(membre, "commandes");
 }
 
 export async function listerCommandes(membre: Membre) {

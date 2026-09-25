@@ -5,6 +5,7 @@ import { useCompte } from "@/components/gestion/EspaceGestion";
 import { LIBELLE_MODE, type Mode } from "@/lib/caisse/modes";
 import { formatPrix } from "@/lib/catalogue";
 import type { Rapport } from "@/lib/serveur/rapports";
+import { peut } from "@/lib/acces";
 
 // Rapports (direction, manager, comptable) : l'essentiel en quatre chiffres et une courbe,
 // le détail rangé dans des volets qu'on ouvre au besoin. Imprimable et exportable.
@@ -98,7 +99,7 @@ export function Rapports() {
     URL.revokeObjectURL(url);
   }
 
-  const direction = compte.role === "direction" || compte.role === "manager";
+  const direction = peut(compte, "clientes") && peut(compte, "avis");
   const CHOIX: [Choix, string][] = [
     ["mois", "Ce mois"],
     ["mois-dernier", "Mois dernier"],
@@ -197,6 +198,17 @@ export function Rapports() {
                   ]}
                 />
               </div>
+              {r.parCaisse.length > 1 && (
+                <div className="mt-5">
+                  <Tableau
+                    titre="Qui a encaissé"
+                    lignes={r.parCaisse.map((c) => [
+                      `${c.nom} · ${c.tickets} ticket${c.tickets > 1 ? "s" : ""}${c.annulations ? ` · ${c.annulations} annulation${c.annulations > 1 ? "s" : ""}` : ""}`,
+                      formatPrix(c.montant),
+                    ] as [string, string])}
+                  />
+                </div>
+              )}
             </Volet>
 
             <Volet

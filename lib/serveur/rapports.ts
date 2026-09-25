@@ -8,13 +8,14 @@ import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation, maintenantDakar } from "@/lib/serveur/reservations";
 import { telephoneCanonique } from "@/lib/telephone";
+import { exigerAcces } from "@/lib/serveur/acces";
 
 const Erreur = ErreurReservation;
 export const ROLES_RAPPORTS = ["direction", "manager", "comptable"];
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 function exiger(membre: Membre) {
-  if (!ROLES_RAPPORTS.includes(membre.role)) throw new Erreur("Réservé à la direction, au manager et au comptable.", 403);
+  exigerAcces(membre, "rapports");
 }
 
 const jour = (d: string) => Date.parse(`${d}T12:00:00Z`);
@@ -84,6 +85,7 @@ export async function rapport(membre: Membre, duBrut?: string | null, auBrut?: s
   let creditAccorde = 0;
   let creditRembourse = 0;
   let cadeauxFidelite = 0;
+  const parCaisse = new Map<string, { nom: string; tickets: number; montant: number; annulations: number }>();
   const avoirs = { nombre: 0, montant: 0 };
   const parJour = new Map<string, { recette: number; tickets: number }>();
   for (let i = 0; i < jours; i++) parJour.set(decaler(du, i), { recette: 0, tickets: 0 });
@@ -106,6 +108,12 @@ export async function rapport(membre: Membre, duBrut?: string | null, auBrut?: s
     for (const p of t.paiements) if (p.mode !== "carte-cadeau") parMode[p.mode] = (parMode[p.mode] ?? 0) + p.montant;
     if (t.rendu) parMode.especes = (parMode.especes ?? 0) - t.rendu;
     if (t.type === "reglement") creditRembourse += t.total;
+    // Qui a encaissé : utile quand plusieurs personnes tiennent la caisse.
+    const caisse = parCaisse.get(t.par?.nom ?? "?") ?? { nom: t.par?.nom ?? "?", tickets: 0, montant: 0, annulations: 0 };
+    caisse.montant += r;
+    if (t.type === "vente") caisse.tickets++;
+    if (t.type === "avoir") caisse.annulations++;
+    parCaisse.set(caisse.nom, caisse);
     if (t.type === "avoir") {
       avoirs.nombre++;
       avoirs.montant += -t.total;
@@ -216,6 +224,7 @@ export async function rapport(membre: Membre, duBrut?: string | null, auBrut?: s
       cadeauxFidelite,
     },
     precedente: totaux(ticketsAvant),
+    parCaisse: [...parCaisse.values()].sort((a, b) => b.montant - a.montant),
     parJour: [...parJour.entries()].map(([date, v]) => ({ date, ...v })),
     parJourSemaine,
     parHeure: [...parHeure.entries()].sort((a, b) => a[0] - b[0]).map(([heure, tickets]) => ({ heure, tickets })),

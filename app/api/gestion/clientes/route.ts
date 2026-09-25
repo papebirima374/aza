@@ -2,6 +2,7 @@ import { membreConnecte } from "@/lib/serveur/agenda";
 import { alerteCliente, enregistrerCliente, ficheCliente, listerClientes } from "@/lib/serveur/clientes";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
+import { noter } from "@/lib/serveur/activite";
 
 // GET  /api/gestion/clientes               toutes les fiches (résumé)
 // GET  /api/gestion/clientes?id=…          une fiche complète, avec historique et indicateurs
@@ -27,7 +28,9 @@ export async function POST(request: Request) {
   try {
     const membre = await membreConnecte(request);
     const c = await request.json().catch(() => ({}));
-    return Response.json(await enregistrerCliente(membre, c ?? {}));
+    const r = await enregistrerCliente(membre, c ?? {});
+    await noter(membre, "clientes", `Fiche cliente ${c?.id ? "modifiée" : "créée"} : ${String(c?.nom ?? "").slice(0, 60)}`, "/gestion/clientes");
+    return Response.json(r);
   } catch (e) {
     return reponseErreur(e);
   }

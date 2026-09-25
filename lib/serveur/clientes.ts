@@ -9,6 +9,8 @@ import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation } from "@/lib/serveur/reservations";
 import { telephoneCanonique, telephoneValide } from "@/lib/telephone";
+import { peut } from "@/lib/acces";
+import { exigerAcces } from "@/lib/serveur/acces";
 
 const Erreur = ErreurReservation;
 export const ROLES_CLIENTES: Role[] = ["direction", "manager", "accueil"];
@@ -31,7 +33,7 @@ const CHAMPS_TEXTE = {
 } as const;
 
 function exiger(membre: Membre) {
-  if (!ROLES_CLIENTES.includes(membre.role)) throw new Erreur("Réservé à l'accueil et à la direction.", 403);
+  exigerAcces(membre, "clientes");
 }
 
 function resume(d: FirebaseFirestore.DocumentSnapshot) {
@@ -154,7 +156,7 @@ export async function alerteCliente(membre: Membre, rdvId: string) {
   const rdv = await db().doc(`rendezVous/${rdvId}`).get();
   if (!rdv.exists) throw new Erreur("Rendez-vous introuvable.", 404);
   const sien = Boolean(membre.praticienne && ((rdv.get("praticiennesIds") as string[] | undefined) ?? []).includes(membre.praticienne));
-  if (!ROLES_CLIENTES.includes(membre.role) && !sien) throw new Erreur("Accès refusé.", 403);
+  if (!peut(membre, "clientes") && !sien) throw new Erreur("Accès refusé.", 403);
   const fiche = await db().doc(`clientes/${rdv.get("cliente.id")}`).get();
   return {
     allergies: (fiche.get("allergies") as string | undefined) ?? "",

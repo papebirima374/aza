@@ -11,12 +11,13 @@
 import { randomInt } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { ALPHABET_CODE, dateFinValidite, estExpiree, MONTANT_MAX_CARTE, MONTANT_MIN_CARTE, normaliserCode, type CarteCadeau } from "@/lib/caisse/cartes";
-import { ROLES_CAISSE, ROLES_JOURNAL, reference } from "@/lib/caisse/modes";
+import { reference } from "@/lib/caisse/modes";
 import type { Membre } from "@/lib/serveur/agenda";
-import { caisseOuverte, exiger, paiementsValides, trace, type LigneTicket } from "@/lib/serveur/caisse";
+import { caisseOuverte, exigerJournal, paiementsValides, trace, type LigneTicket } from "@/lib/serveur/caisse";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation, maintenantDakar } from "@/lib/serveur/reservations";
 import { telephoneValide } from "@/lib/telephone";
+import { exigerAcces } from "@/lib/serveur/acces";
 
 const Erreur = ErreurReservation;
 const texte = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
@@ -27,7 +28,7 @@ function nouveauCode(): string {
 }
 
 export async function vendreCarte(membre: Membre, c: Record<string, unknown>) {
-  exiger(membre, ROLES_CAISSE);
+  exigerAcces(membre, "caisse");
   const montant = Math.round(Number(c.montant));
   if (!Number.isInteger(montant) || montant < MONTANT_MIN_CARTE || montant > MONTANT_MAX_CARTE) {
     throw new Erreur(`Montant de la carte : entre ${MONTANT_MIN_CARTE} et ${MONTANT_MAX_CARTE} F.`, 400);
@@ -115,7 +116,7 @@ function lue(d: FirebaseFirestore.DocumentSnapshot): CarteCadeau {
 }
 
 export async function lireCarte(membre: Membre, saisie: string) {
-  exiger(membre, [...ROLES_CAISSE, ...ROLES_JOURNAL], "Accès réservé.");
+  exigerJournal(membre);
   const code = normaliserCode(saisie);
   if (!code) throw new Erreur("Code invalide : il a 8 lettres et chiffres, par exemple AZA-K7M2-Q9TX.", 400);
   const d = await db().doc(`cartesCadeaux/${code}`).get();
@@ -124,7 +125,7 @@ export async function lireCarte(membre: Membre, saisie: string) {
 }
 
 export async function listerCartes(membre: Membre) {
-  exiger(membre, [...ROLES_CAISSE, ...ROLES_JOURNAL], "Accès réservé.");
+  exigerJournal(membre);
   const snap = await db().collection("cartesCadeaux").orderBy("creeLe", "desc").limit(300).get();
   const cartes = snap.docs.map(lue);
   const { date } = maintenantDakar();

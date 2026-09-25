@@ -10,6 +10,7 @@ import { auth, db } from "@/lib/serveur/firebase";
 import { ErreurReservation } from "@/lib/serveur/reservations";
 import { randomInt } from "node:crypto";
 import { telephoneCanonique, telephoneValide } from "@/lib/telephone";
+import { accesValides, type AccesPerso } from "@/lib/acces";
 
 export const ROLES: Role[] = ["direction", "manager", "accueil", "praticienne", "prestataire", "comptable"];
 const JOURS: Record<string, number> = { Su: 0, Mo: 1, Tu: 2, We: 3, Th: 4, Fr: 5, Sa: 6 };
@@ -100,6 +101,7 @@ export async function listerEquipe(membre: Membre) {
       praticienne: d.get("praticienne") ?? null,
       competences: competences.get(d.get("praticienne")) ?? [],
       actif: d.get("actif") !== false,
+      acces: (d.get("acces") as AccesPerso | undefined) ?? {},
     }))
     .sort((a, b) => Number(b.actif) - Number(a.actif) || ROLES.indexOf(a.role) - ROLES.indexOf(b.role) || a.nom.localeCompare(b.nom));
 }
@@ -113,6 +115,8 @@ export type Modification = {
   telephone?: string;
   /** Nouveau mot de passe (la direction le choisit, ou « true » : 6 chiffres tirés au sort). */
   motDePasse?: string | true;
+  /** Accès donnés ou retirés à cette personne, en plus de ceux de son rôle. */
+  acces?: Record<string, unknown>;
 };
 
 /** Mot de passe facile à taper sur un téléphone : 6 chiffres. */
@@ -174,6 +178,11 @@ export async function modifierMembre(membre: Membre, uid: string, m: Modificatio
   }
   const actif = m.actif ?? doc.get("actif") !== false;
   maj.actif = actif;
+  // Accès : on garde seulement les exceptions au rôle (revues si le rôle change).
+  if (m.acces !== undefined || role !== roleActuel) {
+    if (soiMeme && m.acces !== undefined) throw new ErreurReservation("Vous ne pouvez pas changer vos propres accès.", 400);
+    maj.acces = accesValides(role, m.acces ?? doc.get("acces"));
+  }
 
   // Fiche d'agenda : une intervenante en a une ; les autres rôles n'apparaissent pas dans l'agenda.
   const intervenante = role === "praticienne" || role === "prestataire";

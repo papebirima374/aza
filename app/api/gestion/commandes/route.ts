@@ -3,6 +3,7 @@ import { changerCommande, compterNouvelles, listerCommandes } from "@/lib/serveu
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { compterNouveauxDevis } from "@/lib/serveur/perruques";
 import { reponseErreur } from "@/lib/serveur/reponses";
+import { noter, nomDe } from "@/lib/serveur/activite";
 
 // GET  /api/gestion/commandes              les 200 dernières commandes
 // GET  /api/gestion/commandes?nouvelles=1  nombre de commandes à traiter (pastille)
@@ -29,7 +30,10 @@ export async function POST(request: Request) {
   try {
     const membre = await membreConnecte(request);
     const c = await request.json().catch(() => ({}));
-    return Response.json(await changerCommande(membre, String(c.id ?? "-"), c ?? {}));
+    const ref = await nomDe(`commandes/${String(c.id ?? "-")}`, "reference");
+    const r = await changerCommande(membre, String(c.id ?? "-"), c ?? {});
+    await noter(membre, "boutique", `Commande ${ref} → ${String(c.statut ?? "")}${c.motif ? ` (${String(c.motif).slice(0, 100)})` : ""}${c.livreur ? ` · livreur ${String(c.livreur).slice(0, 60)}` : ""}`, "/gestion/commandes");
+    return Response.json(r);
   } catch (e) {
     return reponseErreur(e);
   }

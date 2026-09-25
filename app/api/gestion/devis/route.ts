@@ -2,6 +2,7 @@ import { membreConnecte } from "@/lib/serveur/agenda";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { changerDevis, listerDevis } from "@/lib/serveur/perruques";
 import { reponseErreur } from "@/lib/serveur/reponses";
+import { noter, nomDe, prix } from "@/lib/serveur/activite";
 
 // GET  /api/gestion/devis                                   les 200 derniers devis
 // POST /api/gestion/devis { id, statut, prix?, delai?, motif? }
@@ -21,7 +22,10 @@ export async function POST(request: Request) {
   try {
     const membre = await membreConnecte(request);
     const c = await request.json().catch(() => ({}));
-    return Response.json(await changerDevis(membre, String(c.id ?? "-"), c ?? {}));
+    const ref = await nomDe(`devis/${String(c.id ?? "-")}`, "reference");
+    const r = await changerDevis(membre, String(c.id ?? "-"), c ?? {});
+    await noter(membre, "boutique", `Devis perruque ${ref} → ${String(c.statut ?? "")}${c.prix ? ` · ${prix(c.prix)}` : ""}`, "/gestion/commandes");
+    return Response.json(r);
   } catch (e) {
     return reponseErreur(e);
   }

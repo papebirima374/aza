@@ -7,6 +7,7 @@ import { reduirePhoto } from "@/lib/client/image";
 import { formatPrix } from "@/lib/catalogue";
 import { useCatalogue } from "@/lib/client/catalogue";
 import { correspond } from "@/lib/recherche";
+import { peut } from "@/lib/acces";
 
 // Écran « Stock » (M-09). Deux stocks : ce qu'on vend (boutique, caisse) et ce qu'on
 // consomme en cabine pendant les soins. Les ventes et les soins encaissés sortent tout
@@ -52,7 +53,7 @@ const champ = "mt-1 block w-full rounded-xl border border-bordure px-3 py-2.5 fo
 
 export function Stock() {
   const compte = useCompte();
-  const peutModifier = compte.role === "direction" || compte.role === "manager";
+  const peutModifier = peut(compte, "stock");
   const [donnees, setDonnees] = useState<Donnees | null>(null);
   const [onglet, setOnglet] = useState<"revente" | "cabine" | "soins">("revente");
   const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null);

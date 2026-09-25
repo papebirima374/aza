@@ -2,6 +2,7 @@ import { lignes, membreAccueil } from "@/lib/serveur/comptoir-api";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
 import { creneauxComptoir, creerRendezVousComptoir, dureesConnues } from "@/lib/serveur/reservations";
+import { noter } from "@/lib/serveur/activite";
 
 // POST /api/gestion/comptoir — prise de rendez-vous par l'accueil. Corps :
 //   { action: "durees", ids }                                → durées déjà paramétrées
@@ -18,9 +19,8 @@ export async function POST(request: Request) {
         return Response.json(await dureesConnues(Array.isArray(c.ids) ? c.ids.map(String) : []));
       case "creneaux":
         return Response.json(await creneauxComptoir(String(c.date ?? ""), lignes(c.lignes), praticienne));
-      case "reserver":
-        return Response.json(
-          await creerRendezVousComptoir(
+      case "reserver": {
+        const r = await creerRendezVousComptoir(
             { uid: membre.uid, nom: membre.nom },
             {
               date: String(c.date ?? ""),
@@ -31,9 +31,11 @@ export async function POST(request: Request) {
               telephone: String(c.telephone ?? ""),
               remarque: c.remarque ? String(c.remarque) : undefined,
             },
-          ),
-          { status: 201 },
-        );
+          );
+        const h = Number(c.debut);
+        await noter(membre, "agenda", `Rendez-vous pris au comptoir : ${String(c.nom ?? "").slice(0, 60)}, le ${String(c.date ?? "")} à ${Math.floor(h / 60)}h${String(h % 60).padStart(2, "0")}`, "/gestion");
+        return Response.json(r, { status: 201 });
+      }
       default:
         return Response.json({ erreur: "Action inconnue." }, { status: 400 });
     }

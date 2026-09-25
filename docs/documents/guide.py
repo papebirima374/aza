@@ -29,7 +29,7 @@ pages.append(page("""
 <li><span>7 · La boutique : commandes, Couture, perruques sur mesure</span><span>17</span></li>
 <li><span>8 · Le stock (manager)</span><span>18</span></li>
 <li><span>9 · La direction : tableau de bord, rapports, avis clientes</span><span>21</span></li>
-<li><span>10 · La direction : l'équipe et les mots de passe</span><span>22</span></li>
+<li><span>10 · La direction : l'équipe, les accès, qui a fait quoi</span><span>22</span></li>
 <li><span>11 · La direction : prix, catalogue et photos du site</span><span>24</span></li>
 <li><span>12 · La direction : réglages et réservation en ligne</span><span>25</span></li>
 <li><span>13 · La direction : sauvegarde et remise à zéro</span><span>27</span></li>
@@ -95,7 +95,7 @@ pages.append(page(f"""
 <tr><td><b>Accueil / caisse</b></td><td>Agenda · Clientes · Caisse · Commandes · Stock (lecture)</td></tr>
 <tr><td><b>Praticienne</b></td><td>Ma journée</td></tr>
 <tr><td><b>Comptable</b></td><td>Rapports · Agenda · Caisse (journal) · Stock (lecture)</td></tr></table>
-<div class="encadre">Pour garder la barre courte, les écrans qu'on ouvre moins souvent sont rangés derrière <b>Plus ▾</b>, au bout de la barre.</div>
+<div class="encadre">Pour garder la barre courte, les écrans qu'on ouvre moins souvent sont rangés derrière <b>Plus ▾</b>, au bout de la barre. La direction peut aussi <b>donner ou retirer un accès</b> à une personne précise (partie 10).</div>
 """, P))
 
 # 2. Praticienne
@@ -132,6 +132,26 @@ pages.append(page(f"""
 <p class="doux">La durée vient de Réglages → Durées. Pour un soin qui déborde souvent, vérifiez sa durée.</p>
 </div>
 <div style="display:flex;gap:10mm;justify-content:center;margin-top:2mm">{figure("72-minuteur-bientot","5 minutes avant la fin","tel-petit")}{figure("73-minuteur-depasse","Temps dépassé","tel-petit")}</div>
+""", P))
+
+# 2ter. Ajout de prestation en cabine
+pages.append(page(f"""
+<span class="etiquette">2 · La praticienne</span>
+<h2>La cliente ajoute une prestation</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
+<p>En cabine, la cliente demande un soin de plus ? La praticienne l'ajoute elle-même, sans aller à l'accueil.</p>
+<ol class="etapes">
+<li>Sur la carte du rendez-vous (commencé), touchez <span class="touche">➕ La cliente ajoute une prestation</span>.</li>
+<li>Tapez le soin (« gommage », « vernis »…) et touchez-le dans la liste : le prix s'affiche.</li>
+<li><span class="bouton" style="background:#0d6b37">✅ Oui, ajouter</span>.</li>
+</ol>
+<ul class="puces">
+<li>Le rendez-vous est <b>allongé</b> de la durée du soin ; le <b>minuteur</b> en tient compte.</li>
+<li>L'accueil le trouve <b>déjà sur le ticket</b> au moment d'encaisser.</li>
+<li>Si son rendez-vous suivant commence avant la nouvelle fin, un message prévient ; l'agenda de l'accueil le montre.</li>
+</ul>
+<p class="doux">Possible pendant le soin, ou après « J'ai fini », tant que le ticket n'est pas encaissé. L'ajout est noté à son nom dans « Qui a fait quoi ».</p>
+</div>{figure("93-ajout-prestation","Choisir le soin")}{figure("94-ajout-confirme","C'est ajouté")}</div>
 """, P))
 
 # 3. Agenda
@@ -568,6 +588,38 @@ pages.append(page(f"""
 </ul>
 <div class="encadre or">Vous ne pouvez ni changer votre propre rôle, ni désactiver votre propre compte : c'est une sécurité.</div></div>
 {figure("36-equipe","La liste")}{figure("39-equipe-modifier","Modifier")}</div>
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">10 · La direction</span>
+<h2>Donner ou retirer un accès à une personne</h2>
+<div class="duo" style="grid-template-columns:1fr 62mm;"><div>
+<p>Chaque rôle a ses accès de départ. La direction peut les ajuster <b>pour une personne précise</b> : par exemple donner les <b>Rapports</b> au caissier, le <b>Fichier clientes</b> au comptable, ou retirer la <b>Caisse</b> à une accueil en formation.</p>
+<ol class="etapes">
+<li>Plus ▾ → Équipe → <b>Modifier</b> sous la personne.</li>
+<li>Ouvrez <b>🔐 Accès</b> : ceux de son rôle sont déjà cochés.</li>
+<li>Cochez pour <b>donner</b> un accès, décochez pour le <b>retirer</b>. « ✦ donné » ou « ✦ retiré » montre ce qui diffère de son rôle.</li>
+<li><span class="bouton">Enregistrer les modifications</span>. L'écran de la personne change à sa prochaine ouverture.</li>
+</ol>
+<p class="doux">Accès possibles : Caisse · Remises et annulations · Fichier clientes · Commandes et devis · Gérer le stock · Tableau de bord du jour · Rapports · Avis · Journal d'activité · Catalogue et prix. Restent à la direction : l'Équipe et les mots de passe, les Réglages, la sauvegarde des données.</p>
+<div class="encadre">Dans la liste, « 🔐 Accès sur mesure » rappelle les accès changés. Chaque changement est noté dans « Qui a fait quoi ».</div>
+</div>{figure("91-equipe-acces","Les accès d'une personne")}</div>
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">10 · La direction</span>
+<h2>Qui a fait quoi (journal d'activité)</h2>
+<div class="duo" style="grid-template-columns:1fr 62mm;"><div>
+<p>Avec deux caissières ou deux comptables, la direction sait <b>qui</b> a fait <b>quoi</b>, et <b>quand</b>. Tableau de bord → <b>Qui a fait quoi</b>.</p>
+<ul class="puces">
+<li>Chaque action importante y laisse une ligne : l'heure, <b>la personne</b> (et son rôle), ce qu'elle a fait.</li>
+<li><b>Caisse</b> : ouverture, chaque ticket (montant, cliente, remise, cadeau), annulation avec le motif, clôture et écart, crédits réglés, cartes cadeaux.</li>
+<li><b>Rendez-vous</b> : pris au comptoir, arrivée, début, fin, annulation, absence, confiés à une autre, prestation ajoutée en cabine.</li>
+<li><b>Stock</b>, <b>commandes</b>, <b>prix</b>, <b>réglages</b>, <b>équipe et accès</b>, <b>avis</b>, <b>données</b>.</li>
+<li>Touchez un nom pour ne voir que ses actions ; ‹ › ou le calendrier pour un autre jour. Toucher une ligne ouvre le ticket concerné.</li>
+</ul>
+<div class="encadre or">Une ligne du journal ne peut être <b>ni modifiée ni effacée</b>, même par la direction. Chaque ticket porte aussi « par [nom] », et les Rapports montrent « Qui a encaissé » sur la période.</div>
+</div>{figure("92-journal","Qui a fait quoi")}</div>
 """, P))
 
 # 11. Catalogue et photos

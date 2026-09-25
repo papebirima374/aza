@@ -8,10 +8,10 @@ import { useCompte } from "@/components/gestion/EspaceGestion";
 import { useCatalogue } from "@/lib/client/catalogue";
 import { NouveauRendezVous } from "@/components/gestion/NouveauRendezVous";
 import { Rappels } from "@/components/gestion/Rappels";
-import { ROLES_CAISSE } from "@/lib/caisse/modes";
 import { LIBELLES, ROLES_AGENDA, statutsPermis, type Statut } from "@/lib/agenda/statuts";
 import { formatPrix, UNIVERS, type UniversId } from "@/lib/catalogue";
 import { firebaseClient } from "@/lib/client/firebase";
+import { peut } from "@/lib/acces";
 
 // Agenda du jour (cahier des charges M-01) : colonnes par praticienne ou par poste,
 // une couleur par univers, mise à jour en temps réel sur tous les postes.
@@ -383,7 +383,7 @@ function Detail({ rdv, fermer }: { rdv: RendezVous; fermer: () => void }) {
             ))}
           </div>
         )}
-        {rdv.statut === "termine" && ROLES_CAISSE.includes(compte.role) && (
+        {rdv.statut === "termine" && peut(compte, "caisse") && (
           <Link href={`/gestion/caisse?rdv=${rdv.id}`} className="mt-6 flex min-h-12 items-center justify-center rounded-full bg-profond px-5 font-bold text-white">
             Encaisser {formatPrix(rdv.total)}
           </Link>

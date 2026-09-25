@@ -7,7 +7,8 @@ import { recetteDuTicket } from "@/lib/caisse/modes";
 import type { Horaires } from "@/lib/reservation/disponibilites";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
-import { ErreurReservation, maintenantDakar } from "@/lib/serveur/reservations";
+import { maintenantDakar } from "@/lib/serveur/reservations";
+import { exigerAcces } from "@/lib/serveur/acces";
 
 type Intervalle = { debut: number; fin: number };
 
@@ -42,7 +43,7 @@ function recette(tickets: TicketLu[]) {
 }
 
 export async function ecranDuJour(membre: Membre, dateBrute?: string) {
-  if (membre.role !== "direction" && membre.role !== "manager") throw new ErreurReservation("Réservé à la direction et au manager.", 403);
+  exigerAcces(membre, "jour");
   const maintenant = maintenantDakar();
   const date = dateBrute && /^\d{4}-\d{2}-\d{2}$/.test(dateBrute) ? dateBrute : maintenant.date;
   const semaineDerniere = decaler(date, -7);

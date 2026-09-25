@@ -11,13 +11,14 @@ import { JOURS_POUR_AVIS, type Avis, type AvisPublic } from "@/lib/avis";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation, maintenantDakar } from "@/lib/serveur/reservations";
+import { exigerAcces } from "@/lib/serveur/acces";
 
 const Erreur = ErreurReservation;
 const texte = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 const ID_VALIDE = /^[A-Za-z0-9_-]{10,60}$/;
 
 function exiger(membre: Membre) {
-  if (membre.role !== "direction" && membre.role !== "manager") throw new Erreur("Réservé à la direction et au manager.", 403);
+  exigerAcces(membre, "avis");
 }
 
 function ecartJours(a: string, b: string) {

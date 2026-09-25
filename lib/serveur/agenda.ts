@@ -2,10 +2,11 @@
 
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { libereLeCreneau, statutsPermis, type Role, type Statut } from "@/lib/agenda/statuts";
+import type { AccesPerso } from "@/lib/acces";
 import { auth, db } from "@/lib/serveur/firebase";
 import { ErreurReservation } from "@/lib/serveur/reservations";
 
-export type Membre = { uid: string; nom: string; role: Role; praticienne?: string };
+export type Membre = { uid: string; nom: string; role: Role; praticienne?: string; acces?: AccesPerso };
 
 /** Vérifie le jeton de connexion envoyé par l'écran et renvoie le membre de l'équipe. */
 export async function membreConnecte(request: Request): Promise<Membre> {
@@ -19,7 +20,7 @@ export async function membreConnecte(request: Request): Promise<Membre> {
   }
   const compte = await db().doc(`comptes/${uid}`).get();
   if (!compte.exists || compte.get("actif") === false) throw new ErreurReservation("Ce compte n'a pas d'accès à la gestion.", 403);
-  return { uid, nom: compte.get("nom"), role: compte.get("role"), praticienne: compte.get("praticienne") };
+  return { uid, nom: compte.get("nom"), role: compte.get("role"), praticienne: compte.get("praticienne"), acces: (compte.get("acces") as AccesPerso | undefined) ?? {} };
 }
 
 /**

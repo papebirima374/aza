@@ -3,21 +3,28 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useCompte } from "@/components/gestion/EspaceGestion";
+import { useCompte, type Compte } from "@/components/gestion/EspaceGestion";
+import { peut, type Acces } from "@/lib/acces";
 
 // Tableau de bord de la direction : trois onglets sous une seule entrée du menu, pour que
 // la barre du haut reste courte.
-export const PAGES_PILOTAGE = ["/gestion/jour", "/gestion/rapports", "/gestion/avis"];
+const ONGLETS: { href: string; libelle: string; acces: Acces }[] = [
+  { href: "/gestion/jour", libelle: "Aujourd'hui", acces: "jour" },
+  { href: "/gestion/rapports", libelle: "Rapports", acces: "rapports" },
+  { href: "/gestion/avis", libelle: "Avis clientes", acces: "avis" },
+  { href: "/gestion/activite", libelle: "Qui a fait quoi", acces: "journal" },
+];
+export const PAGES_PILOTAGE = ONGLETS.map((o) => o.href);
+
+/** Le premier volet du tableau de bord que cette personne peut ouvrir (sinon ""). */
+export function premierePagePilotage(compte: Compte | null): string {
+  return (compte && ONGLETS.find((o) => peut(compte, o.acces))?.href) || "";
+}
 
 export function OngletsPilotage() {
   const compte = useCompte();
   const chemin = usePathname();
-  const direction = compte.role === "direction" || compte.role === "manager";
-  const onglets = [
-    { href: "/gestion/jour", libelle: "Aujourd'hui", visible: direction },
-    { href: "/gestion/rapports", libelle: "Rapports", visible: direction || compte.role === "comptable" },
-    { href: "/gestion/avis", libelle: "Avis clientes", visible: direction },
-  ].filter((o) => o.visible);
+  const onglets = ONGLETS.filter((o) => peut(compte, o.acces));
   if (onglets.length < 2) return null;
   return (
     <nav aria-label="Tableau de bord" className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4 pt-4 print:hidden">
@@ -41,7 +48,7 @@ export function PastilleAvis() {
   const compte = useCompte();
   const chemin = usePathname();
   const [n, setN] = useState(0);
-  const permis = compte.role === "direction" || compte.role === "manager";
+  const permis = peut(compte, "avis");
   useEffect(() => {
     if (!permis) return;
     let actif = true;

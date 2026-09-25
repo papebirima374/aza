@@ -8,15 +8,14 @@
 // prêt), puis suit la confection jusqu'à la remise. Le paiement passe par la caisse.
 
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import type { Role } from "@/lib/agenda/statuts";
 import { STATUTS_DEVIS, SUIVANTS_DEVIS, TEXTURES, TYPES_PERRUQUE, type StatutDevis } from "@/lib/perruques";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation, maintenantDakar } from "@/lib/serveur/reservations";
 import { telephoneCanonique, telephoneValide } from "@/lib/telephone";
+import { exigerAcces } from "@/lib/serveur/acces";
 
 const Erreur = ErreurReservation;
-const ROLES_DEVIS: Role[] = ["direction", "manager", "accueil"];
 const reference = (n: number) => `D-${String(n).padStart(6, "0")}`;
 const texte = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
 
@@ -72,7 +71,7 @@ export async function demanderDevis(c: Record<string, unknown>) {
 }
 
 function exiger(membre: Membre) {
-  if (!ROLES_DEVIS.includes(membre.role)) throw new Erreur("Réservé à l'accueil et à la direction.", 403);
+  exigerAcces(membre, "commandes");
 }
 
 export async function listerDevis(membre: Membre) {

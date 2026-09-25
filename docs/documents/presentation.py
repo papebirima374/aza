@@ -96,6 +96,7 @@ pages.append(page(f"""
 <li>Tickets numérotés sans trou ; <b>jamais supprimés</b> : une erreur s'annule par un avoir, avec motif et auteur.</li>
 <li>Fond de caisse le matin, <b>comptage et écart justifié</b> le soir.</li>
 <li><b>Ticket de caisse 80 mm</b> sur imprimante thermique, calibré une fois pour toutes, avec un QR code qui invite la cliente à donner son avis.</li>
+<li><b>En cabine</b>, la praticienne ajoute elle-même le soin que la cliente demande en plus : le rendez-vous s'allonge et le ticket est déjà complet.</li>
 <li><b>Coupure d'internet</b> : la vente est gardée sur l'appareil et part toute seule au retour — aucune vente perdue.</li>
 <li><b>💗 Carte de fidélité</b> : 1 point par passage, une carte à tampons sur le ticket ; au 10ᵉ passage (en caisse ou commande en ligne), la caisse prévient <b>avant de valider</b> qu'il faut remettre le cadeau — un soin ou un produit au choix, écrit à 0 F — puis les points repartent à zéro.</li>
 </ul>""", P))
@@ -148,7 +149,8 @@ pages.append(page(f"""
 <li><b>Écran du jour</b> : recette comparée à la semaine précédente, panier moyen, clientes reçues, absentes, temps libre de chaque praticienne, alertes de stock.</li>
 <li><b>Catalogue</b> : changer un prix, ajouter ou masquer une prestation — appliqué partout en moins d'une minute, avec trace.</li>
 <li><b>Réglages</b> : horaires, fermetures, postes, durées, règles d'acompte, ouverture de la réservation en ligne.</li>
-<li><b>Équipe</b> : un compte par personne, un rôle, des compétences ; nouveau mot de passe en un toucher.</li>
+<li><b>Équipe</b> : un compte par personne, un rôle, des compétences ; des <b>accès sur mesure</b> (ex. les Rapports au caissier) ; nouveau mot de passe en un toucher.</li>
+<li><b>Qui a fait quoi</b> : chaque encaissement, annulation, remise, changement de prix ou d'accès est noté avec le nom de la personne et l'heure — impossible à effacer.</li>
 </ul>""", P))
 
 # 10bis. Rapports et avis

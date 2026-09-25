@@ -7,6 +7,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { construireCatalogue, FAMILLES, nouvelIdentifiant, type Catalogue, type ModifCatalogue } from "@/lib/catalogue";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db, firebaseConfigure } from "@/lib/serveur/firebase";
+import { exigerAcces } from "@/lib/serveur/acces";
 import { ErreurReservation } from "@/lib/serveur/reservations";
 
 let memoire: { le: number; modifs: Record<string, ModifCatalogue> } | null = null;
@@ -37,7 +38,7 @@ export async function catalogueServeur(avecMasquees = false): Promise<Catalogue>
 const entier = (v: unknown) => Math.round(Number(v));
 
 export async function modifierCatalogue(membre: Membre, c: Record<string, unknown>) {
-  if (membre.role !== "direction") throw new ErreurReservation("Seule la direction modifie le catalogue et les prix.", 403);
+  exigerAcces(membre, "catalogue", "Le catalogue et les prix sont réservés à la direction (ou à qui elle en donne l'accès).");
   const base = db();
   const tout = await catalogueServeur(true);
   const trace = (detail: Record<string, unknown>) => ({

@@ -11,9 +11,10 @@ import { firebaseClient } from "@/lib/client/firebase";
 import { PastilleCaisse, SuiviCaisse } from "@/components/gestion/SuiviCaisse";
 import { PastilleStock } from "@/components/gestion/PastilleStock";
 import { PastilleCommandes } from "@/components/gestion/PastilleCommandes";
-import { PAGES_PILOTAGE, PastilleAvis } from "@/components/gestion/OngletsPilotage";
+import { PAGES_PILOTAGE, PastilleAvis, premierePagePilotage } from "@/components/gestion/OngletsPilotage";
+import { peut, type AccesPerso } from "@/lib/acces";
 
-export type Compte = { uid: string; nom: string; role: Role; praticienne?: string; user: User };
+export type Compte = { uid: string; nom: string; role: Role; praticienne?: string; acces?: AccesPerso; user: User };
 
 const ContexteCompte = createContext<Compte | null>(null);
 
@@ -86,7 +87,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
         setEtat("refuse");
         return;
       }
-      setCompte({ uid: user.uid, nom: d.nom, role: d.role, praticienne: d.praticienne, user });
+      setCompte({ uid: user.uid, nom: d.nom, role: d.role, praticienne: d.praticienne, acces: d.acces ?? {}, user });
       setEtat("connecte");
     });
   }, []);
@@ -130,29 +131,28 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
         <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} className="h-8 w-auto" />
         <nav className="order-last -mx-1 flex w-full items-center gap-1 overflow-x-auto text-sm font-semibold sm:order-none sm:mx-0 sm:w-auto sm:overflow-visible" aria-label="Gestion">
           {[
-            { href: "/gestion/jour", libelle: "Tableau de bord", visible: compte?.role === "direction" || compte?.role === "manager" },
-            { href: "/gestion/rapports", libelle: "Rapports", visible: compte?.role === "comptable" },
+            { href: premierePagePilotage(compte), libelle: "Tableau de bord", visible: Boolean(compte && premierePagePilotage(compte)) },
             { href: "/gestion", libelle: telephonePerso ? "Ma journée" : "Agenda", visible: true },
-            { href: "/gestion/clientes", libelle: "Clientes", visible: ["direction", "manager", "accueil"].includes(compte?.role ?? "") },
-            { href: "/gestion/caisse", libelle: "Caisse", visible: ["direction", "manager", "accueil", "comptable"].includes(compte?.role ?? "") },
-            { href: "/gestion/commandes", libelle: "Commandes", visible: ["direction", "manager", "accueil"].includes(compte?.role ?? "") },
-            { href: "/gestion/stock", libelle: "Stock", visible: ["direction", "manager", "accueil", "comptable"].includes(compte?.role ?? "") },
+            { href: "/gestion/clientes", libelle: "Clientes", visible: Boolean(compte && peut(compte, "clientes")) },
+            { href: "/gestion/caisse", libelle: "Caisse", visible: Boolean(compte && (peut(compte, "caisse") || compte.role === "comptable")) },
+            { href: "/gestion/commandes", libelle: "Commandes", visible: Boolean(compte && peut(compte, "commandes")) },
+            { href: "/gestion/stock", libelle: "Stock", visible: Boolean(compte && (["accueil", "comptable"].includes(compte.role) || peut(compte, "stock"))) },
           ]
             .filter((l) => l.visible)
             .map((l) => {
               const actif =
-                l.href === "/gestion/jour" ? PAGES_PILOTAGE.some((p) => chemin.startsWith(p)) : chemin === l.href || (l.href !== "/gestion" && chemin.startsWith(l.href));
+                l.libelle === "Tableau de bord" ? PAGES_PILOTAGE.some((p) => chemin.startsWith(p)) : chemin === l.href || (l.href !== "/gestion" && chemin.startsWith(l.href));
               return (
                 <Link key={l.href} href={l.href} className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 ${actif ? "bg-white/15 text-white" : "hover:text-white"}`}>
                   {l.libelle}
-                  {l.href === "/gestion/jour" && <PastilleAvis />}
+                  {l.libelle === "Tableau de bord" && <PastilleAvis />}
                   {l.href === "/gestion/caisse" && <PastilleCaisse />}
                   {l.href === "/gestion/stock" && <PastilleStock />}
                   {l.href === "/gestion/commandes" && <PastilleCommandes />}
                 </Link>
               );
             })}
-          {compte && <MenuPlus role={compte.role} chemin={chemin} />}
+          {compte && <MenuPlus compte={compte} chemin={chemin} />}
         </nav>
         <div className="ml-auto flex items-center gap-3 text-sm">
           <Link href="/gestion/mon-compte" className="flex min-h-10 max-w-[9rem] items-center gap-1 truncate rounded-full px-2 py-1 hover:bg-white/10 md:max-w-none" title="Mon compte">
@@ -178,16 +178,17 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
 }
 
 // Les écrans qu'on ouvre moins souvent, rangés derrière « Plus » pour garder la barre courte.
-function MenuPlus({ role, chemin }: { role: Role; chemin: string }) {
+function MenuPlus({ compte, chemin }: { compte: Compte; chemin: string }) {
+  const role = compte.role;
   // Le menu se referme tout seul quand on change de page.
   const [ouvertSur, setOuvertSur] = useState<string | null>(null);
   const ouvert = ouvertSur === chemin;
   const setOuvert = (v: boolean) => setOuvertSur(v ? chemin : null);
   const direction = role === "direction" || role === "manager";
   const liens = [
-    { href: "/gestion/catalogue", libelle: "📋 Catalogue et prix", visible: role === "direction" },
+    { href: "/gestion/catalogue", libelle: "📋 Catalogue et prix", visible: peut(compte, "catalogue") },
     { href: "/gestion/collection", libelle: "👗 Collection Couture", visible: direction },
-    { href: "/gestion/cartes", libelle: "🎁 Cartes cadeaux", visible: direction },
+    { href: "/gestion/cartes", libelle: "🎁 Cartes cadeaux", visible: direction || peut(compte, "caisse") },
     { href: "/gestion/photos", libelle: "🖼️ Photos du site", visible: direction },
     { href: "/gestion/equipe", libelle: "👥 Équipe", visible: direction },
     { href: "/gestion/reglages", libelle: "⚙️ Réglages", visible: direction },

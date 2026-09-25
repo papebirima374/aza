@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
+import { ACCES, accesDuRole, peut, type AccesPerso } from "@/lib/acces";
 import type { Role } from "@/lib/agenda/statuts";
 import { FAMILLES, UNIVERS } from "@/lib/catalogue";
 import { telephoneCanonique } from "@/lib/telephone";
@@ -9,7 +10,7 @@ import { telephoneCanonique } from "@/lib/telephone";
 // Écran « Équipe » : la direction crée les comptes (un par personne, jamais partagé).
 // La personne reçoit un lien pour choisir elle-même son mot de passe.
 
-type Ligne = { uid: string; nom: string; email: string; telephone: string; role: Role; praticienne: string | null; competences: string[]; actif: boolean };
+type Ligne = { uid: string; nom: string; email: string; telephone: string; role: Role; praticienne: string | null; competences: string[]; actif: boolean; acces: AccesPerso };
 
 const ROLES: { id: Role; libelle: string; aide: string }[] = [
   { id: "accueil", libelle: "Accueil / caisse", aide: "Agenda complet, rendez-vous, encaissement." },
@@ -104,6 +105,11 @@ export function Equipe() {
                   <div className="min-w-0">
                     <p className={`truncate font-semibold ${m.actif ? "" : "text-doux line-through"}`}>{m.nom}</p>
                     <p className="truncate text-sm text-doux">{[m.telephone, m.email].filter(Boolean).join(" · ") || "—"}</p>
+                    {Object.keys(m.acces ?? {}).length > 0 && (
+                      <p className="mt-0.5 text-xs font-semibold text-aza-fonce">
+                        🔐 Accès sur mesure : {ACCES.filter((x) => typeof m.acces[x.id] === "boolean").map((x) => `${m.acces[x.id] ? "+" : "−"} ${x.libelle}`).join(", ")}
+                      </p>
+                    )}
                     {m.competences.length > 0 && (
                       <p className="mt-0.5 text-xs text-doux">{m.competences.map((c) => FAMILLES.find((f) => f.id === c)?.nom ?? c).join(" · ")}</p>
                     )}
@@ -232,7 +238,7 @@ function ChoixCompetences({ competences, setCompetences }: { competences: string
   );
 }
 
-type Changes = { nom?: string; role?: Role; competences?: string[]; actif?: boolean; lien?: boolean; lienConnexion?: boolean; telephone?: string; motDePasse?: true };
+type Changes = { nom?: string; role?: Role; competences?: string[]; actif?: boolean; lien?: boolean; lienConnexion?: boolean; telephone?: string; motDePasse?: true; acces?: AccesPerso };
 
 function envoiIdentifiants(nom: string, telephone: string, motDePasse: string, titre: string): Envoi {
   return {
@@ -301,6 +307,7 @@ function Modifier({ m, soiMeme, enregistrer }: { m: Ligne; soiMeme: boolean; enr
   const [competences, setCompetences] = useState<string[]>(m.competences);
   const [telephone, setTelephone] = useState(m.telephone);
   const [envoi, setEnvoi] = useState(false);
+  const [acces, setAcces] = useState<AccesPerso>(m.acces ?? {});
   const intervenante = role === "praticienne" || role === "prestataire";
 
   async function envoyer(c: Changes) {
@@ -327,9 +334,10 @@ function Modifier({ m, soiMeme, enregistrer }: { m: Ligne; soiMeme: boolean; enr
       <ChoixRole role={role} setRole={setRole} desactive={soiMeme} />
       {soiMeme && <p className="mt-1 text-xs text-doux">Vous ne pouvez pas changer votre propre rôle.</p>}
       {intervenante && <ChoixCompetences competences={competences} setCompetences={setCompetences} />}
+      {!soiMeme && role !== "direction" && <ChoixAcces role={role} acces={acces} setAcces={setAcces} />}
       <button
         disabled={envoi}
-        onClick={() => envoyer({ nom, role, telephone, ...(intervenante ? { competences } : {}) })}
+        onClick={() => envoyer({ nom, role, telephone, ...(intervenante ? { competences } : {}), ...(!soiMeme && role !== "direction" ? { acces } : {}) })}
         className="mt-5 w-full rounded-full bg-aza py-2.5 font-bold text-white hover:bg-aza-fonce disabled:opacity-50"
       >
         {envoi ? "Enregistrement…" : "Enregistrer les modifications"}
@@ -378,5 +386,49 @@ function Modifier({ m, soiMeme, enregistrer }: { m: Ligne; soiMeme: boolean; enr
         )}
       </div>
     </div>
+  );
+}
+
+// Accès de cette personne : ceux de son rôle sont cochés d'office ; la direction peut en
+// donner un de plus ou en retirer un. « ✦ » signale ce qui diffère du rôle.
+function ChoixAcces({ role, acces, setAcces }: { role: Role; acces: AccesPerso; setAcces: (a: AccesPerso) => void }) {
+  return (
+    <details className="mt-4 rounded-xl border border-bordure" open={Object.keys(acces).length > 0}>
+      <summary className="cursor-pointer p-3 text-sm font-semibold">
+        🔐 Accès
+        {Object.keys(acces).length > 0 && <span className="ml-2 rounded-full bg-aza/10 px-2 py-0.5 text-xs text-aza-fonce">{Object.keys(acces).length} modifié(s)</span>}
+      </summary>
+      <div className="border-t border-bordure p-3">
+        <p className="text-xs text-doux">Cochés d&apos;office : ceux de son rôle. Cochez pour donner un accès en plus, décochez pour en retirer un.</p>
+        <ul className="mt-2 grid gap-1.5">
+          {ACCES.map((a) => {
+            const coche = peut({ role, acces }, a.id);
+            const different = coche !== accesDuRole(role, a.id);
+            return (
+              <li key={a.id}>
+                <label className={`flex cursor-pointer items-start gap-3 rounded-lg px-2 py-1.5 ${different ? "bg-aza/5" : ""}`}>
+                  <input
+                    type="checkbox"
+                    checked={coche}
+                    onChange={(e) => {
+                      const n = { ...acces };
+                      if (e.target.checked === accesDuRole(role, a.id)) delete n[a.id];
+                      else n[a.id] = e.target.checked;
+                      setAcces(n);
+                    }}
+                    className="mt-1 h-5 w-5 accent-[#7E0A4C]"
+                  />
+                  <span className="text-sm">
+                    <b>{a.libelle}</b>
+                    {different && <span className="ml-1 text-xs font-bold text-aza-fonce">✦ {coche ? "donné" : "retiré"}</span>}
+                    <span className="block text-xs text-doux">{a.detail}</span>
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </details>
   );
 }

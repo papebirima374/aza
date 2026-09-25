@@ -10,10 +10,11 @@ import { useAEncaisser, useFileCaisse } from "@/components/gestion/SuiviCaisse";
 import { erreurReseau, nouvelIdLocal } from "@/lib/client/file-caisse";
 import { normaliserCode } from "@/lib/caisse/cartes";
 import { cadeauAtteint, pointsGagnes, type ReglesFidelite } from "@/lib/caisse/fidelite";
-import { LIBELLE_MODE, MODES, ROLES_CAISSE, ROLES_REMISE, type Mode } from "@/lib/caisse/modes";
+import { LIBELLE_MODE, MODES, type Mode } from "@/lib/caisse/modes";
 import { dateTexte, heureTexte, lienRecuWhatsApp, type Ticket } from "@/lib/caisse/recu";
 import { formatPrix } from "@/lib/catalogue";
 import { correspond } from "@/lib/recherche";
+import { peut } from "@/lib/acces";
 
 // Écran « Caisse » (cahier des charges M-05) : ouverture avec fond de caisse, tickets
 // (rendez-vous terminés ou vente libre), paiement réparti sur plusieurs moyens, tickets du
@@ -69,7 +70,7 @@ export function Caisse() {
   const nbAttente = file.attente.length;
   const [erreur, setErreur] = useState("");
   const [version, setVersion] = useState(0);
-  const tientLaCaisse = ROLES_CAISSE.includes(compte.role);
+  const tientLaCaisse = peut(compte, "caisse");
 
   const appel = useCallback(
     async (q: string, corps?: object) => {
@@ -205,7 +206,7 @@ export function Caisse() {
             <Editeur
               brouillon={brouillon}
               setBrouillon={setBrouillon}
-              remisePermise={ROLES_REMISE.includes(compte.role)}
+              remisePermise={peut(compte, "remises")}
               annuler={() => setBrouillon(null)}
               encaisser={async (corps, info) => {
                 // Chaque vente a son identifiant, fabriqué ici : si la connexion coupe, elle est
@@ -237,7 +238,7 @@ export function Caisse() {
 
           <Tickets
             tickets={journal.tickets}
-            annulable={Boolean(ouverte) && ROLES_REMISE.includes(compte.role)}
+            annulable={Boolean(ouverte) && peut(compte, "remises")}
             annuler={(t) => {
               const motif = window.prompt(`Annuler le ticket ${t.reference} (${formatPrix(t.total)}) ? Un avoir sera créé. Motif :`);
               if (motif) action({ action: "annuler", id: t.id, motif });
@@ -301,7 +302,7 @@ function Editeur(props: {
   // Fichier clientes : pour retrouver une cliente existante par son nom ou son numéro.
   const [fichier, setFichier] = useState<FicheResume[]>([]);
   const [choixOuvert, setChoixOuvert] = useState(false);
-  const fichierPermis = ["direction", "manager", "accueil"].includes(compte.role);
+  const fichierPermis = peut(compte, "clientes");
   useEffect(() => {
     if (b.rendezVous || !fichierPermis) return;
     let actif = true;

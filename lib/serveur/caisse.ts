@@ -11,7 +11,7 @@
 import { FieldValue, Timestamp, type Transaction } from "firebase-admin/firestore";
 import { dateLongue, estExpiree, normaliserCode } from "@/lib/caisse/cartes";
 import { cadeauAtteint, lireRegles, pointsGagnes, type FideliteTicket, type ReglesFidelite } from "@/lib/caisse/fidelite";
-import { ROLES_JOURNAL, ROLES_CAISSE, ROLES_REMISE, MODES, recetteDuTicket, reference, type Mode } from "@/lib/caisse/modes";
+import { ROLES_JOURNAL, MODES, recetteDuTicket, reference, type Mode } from "@/lib/caisse/modes";
 import type { Catalogue } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import { appliquerSorties, preparerRetour, preparerSorties } from "@/lib/serveur/stock";
@@ -19,6 +19,8 @@ import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation, maintenantDakar } from "@/lib/serveur/reservations";
 import { telephoneCanonique, telephoneValide } from "@/lib/telephone";
+import { peut } from "@/lib/acces";
+import { exigerAcces } from "@/lib/serveur/acces";
 
 const Erreur = ErreurReservation;
 
@@ -39,6 +41,11 @@ export function exiger(membre: Membre, roles: string[], message = "Réservé à 
 }
 
 const entier = (v: unknown) => Math.round(Number(v));
+
+/** Lire les journaux de caisse : les rôles prévus, ou quiconque a la caisse ou les rapports. */
+export function exigerJournal(membre: Membre) {
+  if (!ROLES_JOURNAL.includes(membre.role) && !peut(membre, "caisse") && !peut(membre, "rapports")) throw new Erreur("Accès réservé.", 403);
+}
 
 export function trace(membre: Membre) {
   return { uid: membre.uid, nom: membre.nom };
@@ -61,7 +68,7 @@ function momentDeLaVente(faitLe: unknown) {
 }
 
 export async function ouvrirCaisse(membre: Membre, fondBrut: unknown) {
-  exiger(membre, ROLES_CAISSE);
+  exigerAcces(membre, "caisse");
   const fond = entier(fondBrut);
   if (!Number.isFinite(fond) || fond < 0 || fond > 10_000_000) throw new Erreur("Fond de caisse invalide.", 400);
   const { date } = maintenantDakar();
@@ -164,7 +171,7 @@ export type Encaissement = {
  * deux caisses qui encaissent en même temps obtiennent deux numéros qui se suivent.
  */
 export async function encaisser(membre: Membre, e: Encaissement) {
-  exiger(membre, ROLES_CAISSE);
+  exigerAcces(membre, "caisse");
   const lignes = lignesValides(e.lignes, await catalogueServeur(), e.cadeau === true);
   const sousTotal = lignes.reduce((s, l) => s + l.montant, 0);
   const ligneCadeau = lignes.find((l) => l.offert);
@@ -173,7 +180,7 @@ export async function encaisser(membre: Membre, e: Encaissement) {
   const remiseMotif = String(e.remise?.motif ?? "").trim().slice(0, 200);
   if (remiseMontant < 0 || remiseMontant > sousTotal) throw new Erreur("Remise invalide.", 400);
   if (remiseMontant > 0) {
-    exiger(membre, ROLES_REMISE, "Seuls la direction et le manager accordent une remise.");
+    exigerAcces(membre, "remises", "Remise non autorisée pour ce compte (accès « Remises et annulations »).");
     if (remiseMotif.length < 3) throw new Erreur("Indiquez le motif de la remise.", 400);
   }
   // Fidélité : règles de la direction ; la remise « points » est connue avant le paiement,
@@ -324,7 +331,7 @@ export async function encaisser(membre: Membre, e: Encaissement) {
 
 /** Annule un ticket par un avoir : un ticket négatif, numéroté à la suite, avec motif et auteur. */
 export async function annulerTicket(membre: Membre, id: string, motifBrut: unknown) {
-  exiger(membre, ROLES_REMISE, "Seuls la direction et le manager annulent un ticket.");
+  exigerAcces(membre, "remises", "Annulation non autorisée pour ce compte (accès « Remises et annulations »).");
   const motif = String(motifBrut ?? "").trim().slice(0, 200);
   if (motif.length < 3) throw new Erreur("Indiquez le motif de l'annulation.", 400);
   const base = db();
@@ -454,7 +461,7 @@ function totaux(fond: number, tickets: TicketLu[]) {
 
 /** Journal d'une journée : caisse, tickets, totaux par mode, espèces attendues dans le tiroir. */
 export async function journal(membre: Membre, dateBrute?: string) {
-  exiger(membre, ROLES_JOURNAL, "Accès réservé.");
+  exigerJournal(membre);
   const date = dateBrute && /^\d{4}-\d{2}-\d{2}$/.test(dateBrute) ? dateBrute : maintenantDakar().date;
   const base = db();
   const [caisse, snap] = await Promise.all([base.doc(`caisses/${date}`).get(), base.collection("tickets").where("date", "==", date).get()]);
@@ -479,7 +486,7 @@ export async function journal(membre: Membre, dateBrute?: string) {
 
 /** Clôture du soir : comptage des espèces, écart, justification obligatoire s'il y a un écart. */
 export async function cloturerCaisse(membre: Membre, compteBrut: unknown, justificationBrute: unknown) {
-  exiger(membre, ROLES_CAISSE);
+  exigerAcces(membre, "caisse");
   const compte = entier(compteBrut);
   if (!Number.isFinite(compte) || compte < 0) throw new Erreur("Indiquez le montant compté dans le tiroir.", 400);
   const justification = String(justificationBrute ?? "").trim().slice(0, 500);
@@ -515,7 +522,7 @@ export async function cloturerCaisse(membre: Membre, compteBrut: unknown, justif
 
 /** Rendez-vous terminés du jour, prêts à passer en caisse. */
 export async function aEncaisser(membre: Membre) {
-  exiger(membre, ROLES_CAISSE);
+  exigerAcces(membre, "caisse");
   const { date } = maintenantDakar();
   const snap = await db().collection("rendezVous").where("date", "==", date).where("statut", "==", "termine").get();
   return snap.docs
@@ -524,14 +531,14 @@ export async function aEncaisser(membre: Membre) {
 }
 
 export async function lireTicket(membre: Membre, id: string) {
-  exiger(membre, ROLES_JOURNAL, "Accès réservé.");
+  exigerJournal(membre);
   const t = await db().doc(`tickets/${id}`).get();
   if (!t.exists) throw new Erreur("Ticket introuvable.", 404);
   return { id: t.id, ...t.data(), creeLe: undefined };
 }
 
 export async function lireRendezVous(membre: Membre, id: string) {
-  exiger(membre, ROLES_CAISSE);
+  exigerAcces(membre, "caisse");
   const r = await db().doc(`rendezVous/${id}`).get();
   if (!r.exists) throw new Erreur("Rendez-vous introuvable.", 404);
   return { id: r.id, statut: r.get("statut"), cliente: r.get("cliente"), prestations: r.get("prestations"), date: r.get("date") };
@@ -543,7 +550,7 @@ export async function lireRendezVous(membre: Membre, id: string) {
  * Ticket « règlement » : paiement reçu (+) et crédit soldé (−), total 0.
  */
 export async function reglerCredit(membre: Membre, clienteId: string, paiementsBruts: unknown) {
-  exiger(membre, ROLES_CAISSE);
+  exigerAcces(membre, "caisse");
   const paiements = paiementsValides(paiementsBruts);
   if (paiements.some((p) => p.mode === "credit")) throw new Erreur("Choisissez comment elle paie (espèces, Wave…).", 400);
   const montant = paiements.reduce((s, p) => s + p.montant, 0);
@@ -588,7 +595,7 @@ export async function reglerCredit(membre: Membre, clienteId: string, paiementsB
  * qu'un avoir remette bien les produits en stock.
  */
 export async function encaisserCommande(membre: Membre, commandeId: string, paiementsBruts: unknown, cadeau?: { remis?: unknown; texte?: unknown }) {
-  exiger(membre, ROLES_CAISSE);
+  exigerAcces(membre, "caisse");
   const paiements = paiementsValides(paiementsBruts);
   // Les commandes en ligne comptent aussi pour la carte de fidélité (un passage).
   const regles = lireRegles((await db().doc("reglages/institut").get()).get("fidelite"));
@@ -687,7 +694,7 @@ export async function encaisserCommande(membre: Membre, commandeId: string, paie
 
 /** Points de fidélité d'une cliente (par son téléphone) et règles en vigueur, pour l'écran de caisse. */
 export async function fideliteCliente(membre: Membre, telephone: string) {
-  exiger(membre, ROLES_CAISSE);
+  exigerAcces(membre, "caisse");
   const regles = lireRegles((await db().doc("reglages/institut").get()).get("fidelite"));
   if (!regles.actif || !telephoneValide(telephone)) return { regles, points: 0 };
   const fiche = await db().doc(`clientes/${telephoneCanonique(telephone)}`).get();

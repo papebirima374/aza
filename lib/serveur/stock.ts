@@ -17,6 +17,8 @@ import type { Membre } from "@/lib/serveur/agenda";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation } from "@/lib/serveur/reservations";
+import { peut } from "@/lib/acces";
+import { exigerAcces } from "@/lib/serveur/acces";
 
 const Erreur = ErreurReservation;
 export const ROLES_STOCK: Role[] = ["direction", "manager"];
@@ -31,7 +33,10 @@ function quantiteValide(v: unknown, libelle = "Quantité", zeroPermis = false): 
   return n;
 }
 function exiger(membre: Membre, roles: Role[]) {
-  if (!roles.includes(membre.role)) throw new Erreur("Réservé à la direction et au manager.", 403);
+  // Gérer le stock : l'accès « stock » (rôle ou exception de la direction) ; le lire : aussi
+  // les rôles de lecture.
+  if (roles === ROLES_STOCK) return exigerAcces(membre, "stock");
+  if (!roles.includes(membre.role) && !peut(membre, "stock")) throw new Erreur("Réservé à la direction et au manager.", 403);
 }
 const qui = (m: Membre) => ({ uid: m.uid, nom: m.nom });
 

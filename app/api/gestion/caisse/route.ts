@@ -1,5 +1,6 @@
 import { membreConnecte } from "@/lib/serveur/agenda";
 import { aEncaisser, annulerTicket, fideliteCliente, encaisserCommande, reglerCredit, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
+import { noter, nomDe, prix } from "@/lib/serveur/activite";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
 
@@ -33,11 +34,13 @@ export async function POST(request: Request) {
     const membre = await membreConnecte(request);
     const c = await request.json().catch(() => ({}));
     switch (c.action) {
-      case "ouvrir":
-        return Response.json(await ouvrirCaisse(membre, c.fond), { status: 201 });
-      case "encaisser":
-        return Response.json(
-          await encaisser(membre, {
+      case "ouvrir": {
+        const r = await ouvrirCaisse(membre, c.fond);
+        await noter(membre, "caisse", `Caisse ouverte, fond de caisse ${prix(c.fond)}`);
+        return Response.json(r, { status: 201 });
+      }
+      case "encaisser": {
+        const r = await encaisser(membre, {
             lignes: c.lignes,
             paiements: c.paiements,
             remise: c.remise,
@@ -48,17 +51,38 @@ export async function POST(request: Request) {
             cadeau: c.cadeau === true,
             idLocal: c.idLocal ? String(c.idLocal) : undefined,
             faitLe: c.faitLe,
-          }),
-          { status: 201 },
-        );
-      case "annuler":
-        return Response.json(await annulerTicket(membre, String(c.id ?? "-"), c.motif), { status: 201 });
-      case "commande":
-        return Response.json(await encaisserCommande(membre, String(c.commande ?? "-"), c.paiements, c.cadeau), { status: 201 });
-      case "reglement":
-        return Response.json(await reglerCredit(membre, String(c.cliente ?? "-"), c.paiements), { status: 201 });
-      case "cloturer":
-        return Response.json(await cloturerCaisse(membre, c.compte, c.justification));
+          });
+        if (!("deja" in r && r.deja)) {
+          const qui = c.cliente?.nom ? ` — ${String(c.cliente.nom).slice(0, 60)}` : c.rendezVous ? ` — ${await nomDe(`rendezVous/${c.rendezVous}`, "cliente")}` : "";
+          const remise = c.remise?.montant ? ` · remise ${prix(c.remise.montant)} (${String(c.remise.motif ?? "").slice(0, 80)})` : "";
+          const plus = `${c.fidelite === true ? " · points de fidélité utilisés" : ""}${c.cadeau === true ? " · 🎁 cadeau fidélité remis" : ""}${c.carteCadeau ? " · payé en partie par carte cadeau" : ""}`;
+          await noter(membre, "caisse", `Ticket ${r.reference} encaissé : ${prix(r.total)}${qui}${remise}${plus}`, `/gestion/caisse/ticket/${r.id}`);
+        }
+        return Response.json(r, { status: 201 });
+      }
+      case "annuler": {
+        const origine = await nomDe(`tickets/${String(c.id ?? "-")}`, "reference");
+        const r = await annulerTicket(membre, String(c.id ?? "-"), c.motif);
+        await noter(membre, "caisse", `Ticket ${origine} annulé par l'avoir ${r.reference} — motif : ${String(c.motif ?? "").slice(0, 120)}`, `/gestion/caisse/ticket/${r.id}`);
+        return Response.json(r, { status: 201 });
+      }
+      case "commande": {
+        const r = await encaisserCommande(membre, String(c.commande ?? "-"), c.paiements, c.cadeau);
+        const ref = await nomDe(`commandes/${String(c.commande ?? "-")}`, "reference");
+        await noter(membre, "caisse", `Commande ${ref} remise et encaissée (ticket ${r.reference}, ${prix(r.total)})${c.cadeau?.remis ? " · 🎁 cadeau fidélité" : ""}`, `/gestion/caisse/ticket/${r.id}`);
+        return Response.json(r, { status: 201 });
+      }
+      case "reglement": {
+        const r = await reglerCredit(membre, String(c.cliente ?? "-"), c.paiements);
+        const nom = await nomDe(`clientes/${String(c.cliente ?? "-")}`, "nom");
+        await noter(membre, "caisse", `Crédit réglé par ${nom} (ticket ${r.reference}) — reste dû ${prix(r.reste)}`, `/gestion/caisse/ticket/${r.id}`);
+        return Response.json(r, { status: 201 });
+      }
+      case "cloturer": {
+        const r = await cloturerCaisse(membre, c.compte, c.justification);
+        await noter(membre, "caisse", `Caisse clôturée : ${prix(c.compte)} comptés, écart ${prix(r.ecart)}${c.justification ? ` (${String(c.justification).slice(0, 120)})` : ""}`);
+        return Response.json(r);
+      }
       default:
         return Response.json({ erreur: "Action inconnue." }, { status: 400 });
     }

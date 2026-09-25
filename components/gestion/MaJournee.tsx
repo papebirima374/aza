@@ -6,7 +6,8 @@ import { AlerteCliente } from "@/components/gestion/AlerteCliente";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { useCatalogue } from "@/lib/client/catalogue";
 import { statutsPermis, type Statut } from "@/lib/agenda/statuts";
-import { type UniversId } from "@/lib/catalogue";
+import { formatPrix, type UniversId } from "@/lib/catalogue";
+import { correspond } from "@/lib/recherche";
 import { firebaseClient } from "@/lib/client/firebase";
 import { alarme, avertir, garderEcranAllume, preparerSon, sonPret } from "@/lib/client/minuteur";
 
@@ -206,8 +207,99 @@ function Carte({ r }: { r: Rdv }) {
           ✅ J&apos;ai fini
         </button>
       )}
+      {(r.statut === "arrivee" || r.statut === "en-cours" || r.statut === "termine") && <AjoutPrestation r={r} />}
       {erreur && <p className="mt-2 font-semibold text-aza-fonce">⚠️ {erreur}</p>}
     </li>
+  );
+}
+
+// La cliente demande un soin de plus pendant la séance : la praticienne l'ajoute ici.
+// Le rendez-vous s'allonge de la durée du soin, et l'accueil le trouve sur le ticket.
+function AjoutPrestation({ r }: { r: Rdv }) {
+  const compte = useCompte();
+  const cat = useCatalogue();
+  const [ouvert, setOuvert] = useState(false);
+  const [recherche, setRecherche] = useState("");
+  const [choisie, setChoisie] = useState<{ id: string; nom: string; prix: number } | null>(null);
+  const [envoi, setEnvoi] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null);
+  const resultats = recherche.trim().length < 2 ? [] : cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, recherche)).slice(0, 6);
+
+  async function ajouter() {
+    if (!choisie) return;
+    setEnvoi(true);
+    try {
+      const res = await fetch(`/api/gestion/rendez-vous/${r.id}/prestations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await compte.user.getIdToken()}` },
+        body: JSON.stringify({ prestation: choisie.id }),
+      });
+      const j = await res.json();
+      if (!res.ok) setMessage({ ok: false, texte: j.erreur ?? "Refusé." });
+      else {
+        setMessage({ ok: true, texte: `✅ ${j.nom} ajouté${j.duree ? ` : fin prévue à ${heure(j.fin)}` : ""}. L'accueil le verra sur le ticket.${j.conflit ? ` ${j.conflit}` : ""}` });
+        setChoisie(null);
+        setRecherche("");
+        setOuvert(false);
+      }
+    } catch {
+      setMessage({ ok: false, texte: "Pas de connexion internet." });
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      {message && <p className={`mb-2 rounded-xl p-3 font-semibold ${message.ok ? "bg-[#e7f5ec] text-[#0d6b37]" : "bg-rose-50 text-aza-fonce"}`}>{message.texte}</p>}
+      {!ouvert ? (
+        <button onClick={() => { setOuvert(true); setMessage(null); }} className="min-h-12 w-full rounded-2xl border-2 border-dashed border-profond/40 text-lg font-bold text-profond">
+          ➕ La cliente ajoute une prestation
+        </button>
+      ) : (
+        <div className="rounded-2xl border-2 border-profond/30 p-3">
+          {choisie ? (
+            <>
+              <p className="text-lg">
+                Ajouter <b>{choisie.nom}</b> ({formatPrix(choisie.prix)}) ?
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button disabled={envoi} onClick={ajouter} className="min-h-14 rounded-2xl bg-[#0d6b37] text-lg font-bold text-white disabled:opacity-50">
+                  {envoi ? "…" : "✅ Oui, ajouter"}
+                </button>
+                <button onClick={() => setChoisie(null)} className="min-h-14 rounded-2xl border border-bordure text-lg font-semibold">
+                  ↩ Autre
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <input
+                type="search"
+                autoFocus
+                value={recherche}
+                onChange={(e) => setRecherche(e.target.value)}
+                placeholder="Tapez le soin : gommage, vernis, massage…"
+                className="w-full rounded-xl border border-bordure px-4 py-3 text-lg"
+              />
+              <ul className="mt-2 grid gap-1.5">
+                {resultats.map((p) => (
+                  <li key={p.id}>
+                    <button onClick={() => setChoisie({ id: p.id, nom: p.nom, prix: p.prix })} className="flex min-h-12 w-full items-center justify-between gap-3 rounded-xl bg-creme px-4 text-left">
+                      <span className="font-semibold">{p.nom}</span>
+                      <span className="prix shrink-0 text-doux">{formatPrix(p.prix)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <button onClick={() => setOuvert(false)} className="mt-2 px-2 py-2 text-sm font-semibold text-doux underline">
+                Fermer
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

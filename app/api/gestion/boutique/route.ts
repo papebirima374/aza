@@ -2,6 +2,7 @@ import { membreConnecte } from "@/lib/serveur/agenda";
 import { etatBoutique, reglerBoutique } from "@/lib/serveur/boutique";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
+import { noter } from "@/lib/serveur/activite";
 
 // GET  /api/gestion/boutique                         ouverture, zones de livraison, produits publiés
 // POST /api/gestion/boutique { action: "ouverture" | "zones", … }
@@ -21,7 +22,9 @@ export async function POST(request: Request) {
   try {
     const membre = await membreConnecte(request);
     const c = await request.json().catch(() => ({}));
-    return Response.json(await reglerBoutique(membre, c ?? {}));
+    const r = await reglerBoutique(membre, c ?? {});
+    await noter(membre, "boutique", c?.action === "ouverture" ? `Boutique en ligne ${c.ouverte ? "ouverte" : "fermée"}` : c?.action === "zones" ? "Zones de livraison modifiées" : `Boutique : ${String(c?.action)}`, "/gestion/commandes");
+    return Response.json(r);
   } catch (e) {
     return reponseErreur(e);
   }

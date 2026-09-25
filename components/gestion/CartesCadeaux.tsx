@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { dateLongue, estExpiree, lienCarteWhatsApp, normaliserCode, type CarteCadeau } from "@/lib/caisse/cartes";
-import { MODES, ROLES_CAISSE, type Mode } from "@/lib/caisse/modes";
+import { MODES, type Mode } from "@/lib/caisse/modes";
 import { dateTexte } from "@/lib/caisse/recu";
 import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
+import { peut } from "@/lib/acces";
 
 // Écran « Cartes cadeaux » : vendre une carte (ticket de caisse + code), la retrouver par son
 // code (solde, historique), voir toutes les cartes et ce qu'il reste à consommer.
@@ -77,7 +78,7 @@ export function CartesCadeaux() {
       </Link>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
         <h1 className="font-serif text-4xl font-semibold text-profond">🎁 Cartes cadeaux</h1>
-        {ROLES_CAISSE.includes(compte.role) && !vente && (
+        {peut(compte, "caisse") && !vente && (
           <button onClick={() => { setVendue(null); setVente(true); }} className={`${bouton} bg-aza text-white`}>
             + Vendre une carte
           </button>

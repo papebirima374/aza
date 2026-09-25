@@ -6,6 +6,7 @@ import { useCompte } from "@/components/gestion/EspaceGestion";
 import { formatPrix, UNIVERS, type Famille, type Prestation } from "@/lib/catalogue";
 import { rafraichirCatalogue, useCatalogue } from "@/lib/client/catalogue";
 import { correspond } from "@/lib/recherche";
+import { peut } from "@/lib/acces";
 
 // Écran « Catalogue » (direction) : changer un prix, masquer une ligne, ajouter une
 // prestation ou un produit. La plaquette reste la base ; les changements s'appliquent
@@ -44,7 +45,7 @@ export function Catalogue() {
     }
   }
 
-  if (compte.role !== "direction") return <p className="p-8 text-center text-doux">Réservé à la direction.</p>;
+  if (!peut(compte, "catalogue")) return <p className="p-8 text-center text-doux">Réservé à la direction.</p>;
   const recherche = requete.trim().length >= 2;
 
   return (

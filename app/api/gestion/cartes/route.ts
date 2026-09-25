@@ -2,6 +2,7 @@ import { membreConnecte } from "@/lib/serveur/agenda";
 import { lireCarte, listerCartes, vendreCarte } from "@/lib/serveur/cartes-cadeaux";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
+import { noter, prix } from "@/lib/serveur/activite";
 
 // GET  /api/gestion/cartes             toutes les cartes (les plus récentes d'abord)
 // GET  /api/gestion/cartes?code=…      une carte (solde, historique)
@@ -25,7 +26,9 @@ export async function POST(request: Request) {
   try {
     const membre = await membreConnecte(request);
     const c = await request.json().catch(() => ({}));
-    return Response.json(await vendreCarte(membre, c), { status: 201 });
+    const r = await vendreCarte(membre, c);
+    await noter(membre, "caisse", `Carte cadeau ${r.code} vendue : ${prix(c.montant)}${c.pour ? ` pour ${String(c.pour).slice(0, 60)}` : ""} (ticket ${r.reference})`, `/gestion/cartes/${r.code}`);
+    return Response.json(r, { status: 201 });
   } catch (e) {
     return reponseErreur(e);
   }
