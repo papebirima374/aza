@@ -4,15 +4,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
+import { peut } from "@/lib/acces";
 import { Rangee, ReglageImprimante, TicketTest, Trait, useImprimante, usePageAuTicket } from "@/components/gestion/Imprimante";
 import { LIBELLE_MODE, MODES, recetteDuTicket, type Mode } from "@/lib/caisse/modes";
 import { dateTexte, heureTexte, type Ticket } from "@/lib/caisse/recu";
 import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
 
-// Feuille de caisse du jour (le « Z » du soir) : ouverture, tickets, totaux par moyen de
-// paiement, espèces attendues, compté et écart, clôture, signatures. Sur l'imprimante de
-// tickets (même réglage que les reçus) ou sur une feuille A4.
+// Feuilles de caisse du jour. Chaque personne tire SA feuille : ses tickets, ses totaux, les
+// espèces qu'elle remet. La direction et le manager tirent aussi celle de toute la caisse
+// (le « Z » du soir : fond, qui a encaissé, espèces attendues, compté, écart, clôture).
+// Sur l'imprimante de tickets (même réglage que les reçus) ou sur une feuille A4.
 
 type Journal = {
   date: string;
@@ -40,6 +42,9 @@ export function FeuilleCaisse({ date }: { date?: string }) {
   const [a4, setA4] = useState(false);
   const [detail, setDetail] = useState(true);
   const ref = useRef<HTMLElement>(null);
+  // La feuille de toute la caisse : direction et manager (ou qui a le tableau de bord du jour).
+  const peutTout = compte.role === "direction" || compte.role === "manager" || peut(compte, "jour");
+  const [choix, setChoix] = useState<string | null>(null);
   const imprimerTicket = usePageAuTicket(ref, r);
 
   useEffect(() => {
@@ -71,6 +76,11 @@ export function FeuilleCaisse({ date }: { date?: string }) {
   }
 
   if (!j) return <p className="p-8 text-center text-doux">{erreur || "Préparation de la feuille de caisse…"}</p>;
+  const personnes = new Map<string, string>();
+  for (const x of j.tickets) personnes.set(x.par.uid ?? x.par.nom, x.par.nom);
+  // Par défaut : sa propre feuille. Toute la caisse : seulement pour la direction et le manager.
+  const qui = peutTout ? (choix ?? (personnes.has(compte.uid) ? compte.uid : "")) : compte.uid;
+  const personne = qui ? { uid: qui, nom: personnes.get(qui) ?? compte.nom } : null;
   if (!j.caisse) {
     return (
       <div className="mx-auto max-w-md px-4 py-10 text-center">
@@ -97,6 +107,20 @@ export function FeuilleCaisse({ date }: { date?: string }) {
           </button>
         )}
       </div>
+      {peutTout && (
+        <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 print:hidden">
+          {[["", "Toute la caisse"] as [string, string], ...[...personnes.entries()]].map(([uid, nom]) => (
+            <button
+              key={uid || "tout"}
+              onClick={() => setChoix(uid)}
+              aria-pressed={qui === uid}
+              className={`min-h-10 shrink-0 whitespace-nowrap rounded-full px-4 text-sm font-semibold ${qui === uid ? "bg-profond text-white" : "border border-bordure text-profond"}`}
+            >
+              {uid ? `Feuille de ${nom}` : "🧾 Toute la caisse"}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="mb-4 flex flex-wrap gap-x-6 gap-y-2 text-sm print:hidden">
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={a4} onChange={(e) => setA4(e.target.checked)} className="h-5 w-5" />
@@ -123,7 +147,7 @@ export function FeuilleCaisse({ date }: { date?: string }) {
 
       {a4 ? (
         <article className="mx-auto max-w-[170mm] bg-white p-6 text-black shadow-[0_2px_14px_rgba(0,0,0,.12)] print:max-w-none print:p-0 print:shadow-none" style={{ fontSize: "13px" }}>
-          <Contenu j={j} detail={detail} logo imprimePar={compte.nom} />
+          <Contenu j={j} personne={personne} detail={detail} logo imprimePar={compte.nom} />
         </article>
       ) : (
         <div className="mx-auto bg-white py-4 shadow-[0_2px_14px_rgba(0,0,0,.12)] print:m-0 print:py-0 print:shadow-none" style={{ width: `${r.papier}mm` }}>
@@ -132,7 +156,7 @@ export function FeuilleCaisse({ date }: { date?: string }) {
             className="text-black"
             style={{ width: `${r.zone}mm`, marginLeft: `calc((${r.papier}mm - ${r.zone}mm) / 2 + ${r.decalage}mm)`, fontSize: `${r.texte}px` }}
           >
-            {test ? <TicketTest r={r} /> : <Contenu j={j} detail={detail} logo={r.logo} imprimePar={compte.nom} />}
+            {test ? <TicketTest r={r} /> : <Contenu j={j} personne={personne} detail={detail} logo={r.logo} imprimePar={compte.nom} />}
           </article>
         </div>
       )}
@@ -140,14 +164,26 @@ export function FeuilleCaisse({ date }: { date?: string }) {
   );
 }
 
-function Contenu({ j, detail, logo, imprimePar }: { j: Journal; detail: boolean; logo: boolean; imprimePar: string }) {
+/** Totaux d'une liste de tickets (comme la caisse : la monnaie rendue sort des espèces). */
+function totauxDe(tickets: Ticket[]) {
+  const parMode: Record<string, number> = {};
+  for (const x of tickets) {
+    for (const p of x.paiements) parMode[p.mode] = (parMode[p.mode] ?? 0) + p.montant;
+    if (x.rendu) parMode.especes = (parMode.especes ?? 0) - x.rendu;
+  }
+  return { parMode, recette: tickets.reduce((s, x) => s + recetteDuTicket(x), 0) };
+}
+
+function Contenu(props: { j: Journal; personne: { uid: string; nom: string } | null; detail: boolean; logo: boolean; imprimePar: string }) {
+  const { j, personne, detail, logo, imprimePar } = props;
   const c = j.caisse!;
-  const t = j.totaux;
-  const ventes = j.tickets.filter((x) => x.type === "vente");
-  const avoirs = j.tickets.filter((x) => x.type === "avoir");
-  const reglements = j.tickets.filter((x) => x.type === "reglement");
+  const siens = personne ? j.tickets.filter((x) => (x.par.uid ?? x.par.nom) === personne.uid) : j.tickets;
+  const t = personne ? { ...totauxDe(siens), especesAttendues: 0 } : j.totaux;
+  const ventes = siens.filter((x) => x.type === "vente");
+  const avoirs = siens.filter((x) => x.type === "avoir");
+  const reglements = siens.filter((x) => x.type === "reglement");
   const remises = ventes.filter((x) => !x.annule).reduce((s, x) => s + (x.remise?.montant ?? 0) + (x.fidelite?.remise ?? 0), 0);
-  const cartesVendues = j.tickets.reduce((s, x) => s + x.lignes.filter((l) => l.type === "carte-cadeau").reduce((a, l) => a + l.montant, 0), 0);
+  const cartesVendues = siens.reduce((s, x) => s + x.lignes.filter((l) => l.type === "carte-cadeau").reduce((a, l) => a + l.montant, 0), 0);
   const especesEncaissees = t.parMode.especes ?? 0;
   const parPersonne = new Map<string, { tickets: number; montant: number }>();
   for (const x of j.tickets) {
@@ -171,17 +207,24 @@ function Contenu({ j, detail, logo, imprimePar }: { j: Journal; detail: boolean;
       </div>
       <Trait />
       <p className="text-center text-[1.25em] font-bold">FEUILLE DE CAISSE</p>
+      {personne && <p className="text-center text-[1.1em] font-bold">de {personne.nom}</p>}
       <p className="text-center font-bold first-letter:uppercase">{dateTexte(j.date)}</p>
       {!cloturee && <p className="mt-[1mm] border-2 border-black p-[1mm] text-center font-bold">PROVISOIRE — caisse encore ouverte</p>}
       <Trait />
-      <Rangee a={`Ouverture${c.ouvertLe ? ` à ${heureDe(c.ouvertLe)}` : ""}`} b={c.ouvertPar.nom} />
-      <Rangee a="Fond de caisse" b={formatPrix(c.fond)} />
+      {personne ? (
+        <Rangee a="Tickets encaissés par" b={personne.nom} />
+      ) : (
+        <>
+          <Rangee a={`Ouverture${c.ouvertLe ? ` à ${heureDe(c.ouvertLe)}` : ""}`} b={c.ouvertPar.nom} />
+          <Rangee a="Fond de caisse" b={formatPrix(c.fond)} />
+        </>
+      )}
 
-      {detail && j.tickets.length > 0 && (
+      {detail && siens.length > 0 && (
         <>
           <Trait />
-          <p className="font-bold">TICKETS ({j.tickets.length})</p>
-          {j.tickets.map((x) => (
+          <p className="font-bold">TICKETS ({siens.length})</p>
+          {siens.map((x) => (
             <div key={x.id} className="mb-[0.8mm]">
               <Rangee
                 a={
@@ -211,7 +254,7 @@ function Contenu({ j, detail, logo, imprimePar }: { j: Journal; detail: boolean;
       {remises > 0 && <Rangee a="Remises accordées" b={`−${formatPrix(remises)}`} />}
       {cartesVendues > 0 && <Rangee a="dont cartes cadeaux vendues" b={formatPrix(cartesVendues)} />}
       <div className="text-[1.2em]">
-        <Rangee a="RECETTE DU JOUR" b={formatPrix(t.recette)} gras />
+        <Rangee a={personne ? "TOTAL ENCAISSÉ" : "RECETTE DU JOUR"} b={formatPrix(t.recette)} gras />
       </div>
       <Trait />
       <p className="font-bold">PAR MOYEN DE PAIEMENT</p>
@@ -220,7 +263,7 @@ function Contenu({ j, detail, logo, imprimePar }: { j: Journal; detail: boolean;
       )}
       {t.parMode["carte-cadeau"] ? <p className="text-[0.85em]">Carte cadeau : déjà encaissée le jour de la vente de la carte.</p> : null}
 
-      {parPersonne.size > 1 && (
+      {!personne && parPersonne.size > 1 && (
         <>
           <Trait />
           <p className="font-bold">QUI A ENCAISSÉ</p>
@@ -230,35 +273,47 @@ function Contenu({ j, detail, logo, imprimePar }: { j: Journal; detail: boolean;
         </>
       )}
 
-      <Trait />
-      <p className="font-bold">ESPÈCES DU TIROIR</p>
-      <Rangee a="Fond de caisse" b={formatPrix(c.fond)} />
-      <Rangee a="+ Espèces encaissées" b={formatPrix(especesEncaissees)} />
-      <Rangee a="= Espèces attendues" b={formatPrix(t.especesAttendues)} gras />
-      {cloturee ? (
+      {personne ? (
         <>
-          <Rangee a="Espèces comptées" b={formatPrix(c.cloture!.compte)} gras />
-          <div className="text-[1.15em]">
-            <Rangee a="ÉCART" b={`${c.cloture!.ecart > 0 ? "+" : ""}${formatPrix(c.cloture!.ecart)}`} gras />
-          </div>
-          {c.cloture!.justification && <p className="text-[0.9em]">Explication : {c.cloture!.justification}</p>}
           <Trait />
-          <Rangee a={`Clôture${c.cloture!.le ? ` à ${heureDe(c.cloture!.le)}` : ""}`} b={c.cloture!.par.nom} />
+          <p className="font-bold">À REMETTRE</p>
+          <Rangee a="Espèces encaissées (monnaie rendue déduite)" b={formatPrix(especesEncaissees)} gras />
+          {(t.parMode.credit ?? 0) > 0 && <Rangee a="Ventes à crédit (non payées)" b={formatPrix(t.parMode.credit)} />}
+          <p className="mt-[1mm] text-[0.85em]">Fond de caisse, comptage du tiroir et écart : sur la feuille de toute la caisse.</p>
         </>
       ) : (
         <>
-          <Rangee a="Espèces comptées" b="…………………" />
-          <Rangee a="Écart" b="…………………" />
+      <Trait />
+        <p className="font-bold">ESPÈCES DU TIROIR</p>
+        <Rangee a="Fond de caisse" b={formatPrix(c.fond)} />
+        <Rangee a="+ Espèces encaissées" b={formatPrix(especesEncaissees)} />
+        <Rangee a="= Espèces attendues" b={formatPrix(t.especesAttendues)} gras />
+        {cloturee ? (
+          <>
+            <Rangee a="Espèces comptées" b={formatPrix(c.cloture!.compte)} gras />
+            <div className="text-[1.15em]">
+              <Rangee a="ÉCART" b={`${c.cloture!.ecart > 0 ? "+" : ""}${formatPrix(c.cloture!.ecart)}`} gras />
+            </div>
+            {c.cloture!.justification && <p className="text-[0.9em]">Explication : {c.cloture!.justification}</p>}
+            <Trait />
+            <Rangee a={`Clôture${c.cloture!.le ? ` à ${heureDe(c.cloture!.le)}` : ""}`} b={c.cloture!.par.nom} />
+          </>
+        ) : (
+          <>
+            <Rangee a="Espèces comptées" b="…………………" />
+            <Rangee a="Écart" b="…………………" />
+          </>
+        )}
+        {c.ticketsApresCloture && c.ticketsApresCloture.length > 0 && (
+          <p className="mt-[1mm] text-[0.85em]">Arrivés après la clôture (ventes hors connexion) : {c.ticketsApresCloture.join(", ")}.</p>
+        )}
+  
         </>
       )}
-      {c.ticketsApresCloture && c.ticketsApresCloture.length > 0 && (
-        <p className="mt-[1mm] text-[0.85em]">Arrivés après la clôture (ventes hors connexion) : {c.ticketsApresCloture.join(", ")}.</p>
-      )}
-
       <Trait />
       <div className="mt-[3mm] grid grid-cols-2 gap-[3mm] text-[0.9em]">
         <div>
-          Caisse :
+          {personne ? personne.nom : "Caisse"} :
           <div className="mt-[9mm] border-t border-black" />
         </div>
         <div>

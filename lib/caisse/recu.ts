@@ -22,7 +22,7 @@ export type Ticket = {
   rendu: number;
   credit: number;
   cliente: { nom: string; telephone: string } | null;
-  par: { nom: string };
+  par: { uid?: string; nom: string };
   annule?: { reference: string; motif: string; par: { nom: string } };
   origine?: { reference: string };
   motif?: string;

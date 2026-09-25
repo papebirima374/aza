@@ -21,20 +21,37 @@ await api(man, { action: "annuler", id: t3.id, motif: "Erreur de prestation" });
 await api(man, { action: "cloturer", compte: 74500, justification: "Pièce de 500 F manquante" });
 
 const b = await pw.chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
-const p = await (await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: "fr-FR" })).newPage();
-await p.goto(S + "/gestion");
-await p.fill("input[type=tel]", "77 900 00 02");
-await p.fill("input[type=password]", "AzaTest2026!");
-await p.click("button[type=submit]");
-await p.locator('a[href="/gestion/mon-compte"]').waitFor();
-await p.goto(S + "/gestion/caisse");
-const lien = p.getByRole("link", { name: /Imprimer la feuille de caisse/ });
+async function page(tel) {
+  const p = await (await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: "fr-FR" })).newPage();
+  await p.goto(S + "/gestion");
+  await p.fill("input[type=tel]", tel);
+  await p.fill("input[type=password]", "AzaTest2026!");
+  await p.click("button[type=submit]");
+  await p.locator('a[href="/gestion/mon-compte"]').waitFor();
+  return p;
+}
+// L'accueil : sa propre feuille, sans choix.
+const a = await page("77 900 00 03");
+await a.goto(S + "/gestion/caisse");
+const lien = a.getByRole("link", { name: /Imprimer la feuille de caisse/ });
 await lien.waitFor();
 await lien.evaluate((e) => window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - 150));
-await p.waitForTimeout(800);
-await p.screenshot({ path: `${D}95-caisse-bouton-feuille.png` });
+await a.waitForTimeout(800);
+await a.screenshot({ path: `${D}95-caisse-bouton-feuille.png` });
 await lien.click();
+await a.getByText("FEUILLE DE CAISSE").waitFor();
+await a.waitForTimeout(1000);
+console.log("choix visibles pour l'accueil :", await a.getByRole("button", { name: /Toute la caisse/ }).count());
+await a.screenshot({ path: `${D}97-feuille-personne.png`, fullPage: true });
+await a.evaluate(() => window.dispatchEvent(new Event("beforeprint")));
+await a.emulateMedia({ media: "print" });
+await a.pdf({ path: `${D}../feuille-personne-80mm.pdf`, preferCSSPageSize: true, printBackground: true });
+
+// Le manager : sa feuille par défaut, et « Toute la caisse ».
+const p = await page("77 900 00 02");
+await p.goto(S + "/gestion/caisse/feuille");
 await p.getByText("FEUILLE DE CAISSE").waitFor();
+await p.getByRole("button", { name: /Toute la caisse/ }).click();
 await p.waitForTimeout(1000);
 await p.screenshot({ path: `${D}96-feuille-caisse.png`, fullPage: true });
 await p.evaluate(() => window.dispatchEvent(new Event("beforeprint")));
@@ -48,5 +65,5 @@ await p.evaluate(() => {
 });
 await p.emulateMedia({ media: "print" });
 await p.pdf({ path: `${D}../feuille-A4.pdf`, preferCSSPageSize: true, printBackground: true });
-console.log("📸 95, 96 ; 🧾 feuille-80mm.pdf, feuille-A4.pdf");
+console.log("📸 95, 96, 97 ; 🧾 feuilles 80 mm (personne, toute la caisse) et A4");
 await b.close();

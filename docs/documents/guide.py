@@ -271,16 +271,17 @@ pages.append(page(f"""
 
 pages.append(page(f"""
 <span class="etiquette">5 · La caisse</span>
-<h2>Imprimer la feuille de caisse</h2>
-<div class="duo" style="grid-template-columns:1fr 62mm;"><div>
+<h2>Imprimer sa feuille de caisse</h2>
+<div class="duo" style="grid-template-columns:1fr 50mm 50mm;"><div>
+<p><b>Chacun tire sa propre feuille</b> : on ne mélange pas les caissières.</p>
 <ol class="etapes">
 <li>En bas de la Caisse, dans le bilan : <span class="touche">🖨️ Imprimer la feuille de caisse</span>.</li>
-<li><span class="bouton">🖨️ Imprimer la feuille de caisse</span> : elle sort sur l'imprimante de tickets (même réglage que les reçus).</li>
-<li>Pas d'imprimante de tickets ? Cochez <b>Sur une feuille A4</b> pour l'imprimante de bureau.</li>
+<li>La feuille qui s'affiche est <b>la vôtre</b> : vos tickets, votre total, et les <b>espèces à remettre</b>.</li>
+<li><span class="bouton">🖨️ Imprimer la feuille de caisse</span> : sur l'imprimante de tickets (même réglage que les reçus), ou cochez <b>Sur une feuille A4</b>.</li>
 </ol>
-<p>Sur la feuille : l'ouverture (heure, qui, fond de caisse), <b>chaque ticket</b> (heure, cliente, paiement, qui l'a encaissé, annulations), les totaux, chaque moyen de paiement, <b>qui a encaissé</b> quoi, les <b>espèces attendues</b>, le compté, l'<b>écart</b> et son explication, la clôture, et deux lignes pour les <b>signatures</b> de la caisse et de la direction.</p>
-<div class="encadre">Imprimée avant la clôture, elle porte « PROVISOIRE ». Décochez « Détail des tickets » pour une feuille courte. Pour un autre jour : choisissez « Journal du » en haut de la Caisse, puis imprimez.</div>
-</div>{figure("96-feuille-caisse","La feuille de caisse")}</div>
+<p><b>Direction et manager</b> : en haut, choisissez « Feuille de … » pour chaque personne, ou <b>🧾 Toute la caisse</b> : l'ouverture et le fond, tous les tickets, qui a encaissé quoi, les espèces attendues, le compté, l'<b>écart</b> et la clôture. Une caissière ne voit pas la feuille des autres.</p>
+<div class="encadre">Avant la clôture, la feuille porte « PROVISOIRE ». Décochez « Détail des tickets » pour une feuille courte. Pour un autre jour : « Journal du » en haut de la Caisse, puis imprimez.</div>
+</div>{figure("97-feuille-personne","Sa feuille (caissière)","tel-petit")}{figure("96-feuille-caisse","Toute la caisse (direction)","tel-petit")}</div>
 """, P))
 
 pages.append(page(f"""
