@@ -94,7 +94,7 @@ pages.append(page(f"""
 <ul class="puces">
 <li>Espèces (monnaie calculée), Wave, Orange Money, carte, virement, <b>paiement partagé</b> ou <b>à crédit</b>.</li>
 <li>Tickets numérotés sans trou ; <b>jamais supprimés</b> : une erreur s'annule par un avoir, avec motif et auteur.</li>
-<li>Fond de caisse le matin, <b>comptage et écart justifié</b> le soir.</li>
+<li>Fond de caisse le matin, <b>comptage et écart justifié</b> le soir, <b>feuille de caisse imprimée</b> (ticket ou A4) avec qui a encaissé quoi et les signatures.</li>
 <li><b>Ticket de caisse 80 mm</b> sur imprimante thermique, calibré une fois pour toutes, avec un QR code qui invite la cliente à donner son avis.</li>
 <li><b>En cabine</b>, la praticienne ajoute elle-même le soin que la cliente demande en plus : le rendez-vous s'allonge et le ticket est déjà complet.</li>
 <li><b>Coupure d'internet</b> : la vente est gardée sur l'appareil et part toute seule au retour — aucune vente perdue.</li>

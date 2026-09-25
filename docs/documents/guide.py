@@ -271,6 +271,20 @@ pages.append(page(f"""
 
 pages.append(page(f"""
 <span class="etiquette">5 · La caisse</span>
+<h2>Imprimer la feuille de caisse</h2>
+<div class="duo" style="grid-template-columns:1fr 62mm;"><div>
+<ol class="etapes">
+<li>En bas de la Caisse, dans le bilan : <span class="touche">🖨️ Imprimer la feuille de caisse</span>.</li>
+<li><span class="bouton">🖨️ Imprimer la feuille de caisse</span> : elle sort sur l'imprimante de tickets (même réglage que les reçus).</li>
+<li>Pas d'imprimante de tickets ? Cochez <b>Sur une feuille A4</b> pour l'imprimante de bureau.</li>
+</ol>
+<p>Sur la feuille : l'ouverture (heure, qui, fond de caisse), <b>chaque ticket</b> (heure, cliente, paiement, qui l'a encaissé, annulations), les totaux, chaque moyen de paiement, <b>qui a encaissé</b> quoi, les <b>espèces attendues</b>, le compté, l'<b>écart</b> et son explication, la clôture, et deux lignes pour les <b>signatures</b> de la caisse et de la direction.</p>
+<div class="encadre">Imprimée avant la clôture, elle porte « PROVISOIRE ». Décochez « Détail des tickets » pour une feuille courte. Pour un autre jour : choisissez « Journal du » en haut de la Caisse, puis imprimez.</div>
+</div>{figure("96-feuille-caisse","La feuille de caisse")}</div>
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">5 · La caisse</span>
 <h2>Régler l'imprimante de tickets (une seule fois)</h2>
 <div class="duo" style="grid-template-columns:1fr 58mm;"><div>
 <ol class="etapes">

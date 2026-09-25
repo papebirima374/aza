@@ -894,7 +894,12 @@ function Bilan({ journal, attente, cloturer }: { journal: Journal; attente: numb
   const ecart = compte.trim() === "" ? null : nombre(compte) - t.especesAttendues;
   return (
     <section className="mt-8 rounded-2xl border border-bordure p-5">
-      <h2 className="font-serif text-2xl font-semibold text-profond">{c.statut === "cloturee" ? "Caisse clôturée" : "Bilan et clôture"}</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-serif text-2xl font-semibold text-profond">{c.statut === "cloturee" ? "Caisse clôturée" : "Bilan et clôture"}</h2>
+        <Link href={`/gestion/caisse/feuille?date=${journal.date}`} className="flex min-h-11 items-center rounded-full border border-bordure px-4 text-sm font-semibold text-profond">
+          🖨️ Imprimer la feuille de caisse
+        </Link>
+      </div>
       <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         <div className="flex justify-between">
           <dt>Recette du jour ({t.nombre} ticket{t.nombre > 1 ? "s" : ""})</dt>

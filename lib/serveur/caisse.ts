@@ -475,7 +475,8 @@ export async function journal(membre: Membre, dateBrute?: string) {
           statut: caisse.get("statut"),
           fond,
           ouvertPar: caisse.get("ouvertPar"),
-          cloture: caisse.get("cloture") ?? null,
+          ouvertLe: (caisse.get("ouvertLe") as Timestamp | undefined)?.toMillis?.() ?? null,
+          cloture: caisse.get("cloture") ? { ...caisse.get("cloture"), le: (caisse.get("cloture.le") as Timestamp | undefined)?.toMillis?.() ?? null } : null,
           ticketsApresCloture: (caisse.get("ticketsApresCloture") as string[] | undefined) ?? [],
         }
       : null,

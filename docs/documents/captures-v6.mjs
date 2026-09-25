@@ -28,7 +28,7 @@ const SOINS = [
   ["onglerie--vernis-french", "Vernis french", 7000],
   ["onglerie--vernis-simple", "Vernis simple", 3000],
   ["tresses--knotless-mi-long", "Knotless mi-long", 20000],
-  ["massage--massage-aux-pierres-chaudes", "Massage à la pierre chaude", 25000],
+  ["massage--massage-a-la-pierre-chaude", "Massage à la pierre chaude", 25000],
 ];
 const PRODUITS = [
   ["locks--lot-de-10-tiges-locks-6-pouces", "Lot de 10 tiges locks 6 pouces", 6000],
