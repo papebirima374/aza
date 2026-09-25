@@ -296,6 +296,8 @@ function Editeur(props: {
   const [utiliserPoints, setUtiliserPoints] = useState(false);
   // Cadeau de fidélité : proposé d'office dès que la cliente atteint le seuil.
   const [garderCadeau, setGarderCadeau] = useState(false);
+  const [cadeauChoisi, setCadeauChoisi] = useState<{ id: string; nom: string } | null>(null);
+  const [rechercheCadeau, setRechercheCadeau] = useState("");
   // Fichier clientes : pour retrouver une cliente existante par son nom ou son numéro.
   const [fichier, setFichier] = useState<FicheResume[]>([]);
   const [choixOuvert, setChoixOuvert] = useState(false);
@@ -342,6 +344,10 @@ function Editeur(props: {
   }, [telCliente, compte.user]);
   const fidConnue = fid && telCliente.replace(/\D/g, "").length >= 9 ? fid : null;
 
+  const resultatsCadeau = useMemo(
+    () => (rechercheCadeau.trim().length < 2 ? [] : cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, rechercheCadeau)).slice(0, 6)),
+    [rechercheCadeau, cat],
+  );
   const resultats = useMemo(
     () => (recherche.trim().length < 2 ? [] : cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, recherche)).slice(0, 8)),
     [recherche, cat],
@@ -581,6 +587,51 @@ function Editeur(props: {
             Cadeau remis avec ce ticket
           </label>
           {garderCadeau && <p className="mt-1 text-sm text-doux">Le cadeau est reporté : ses points sont gardés, la caisse le proposera à son prochain passage.</p>}
+          {!garderCadeau && (
+            <div className="relative mt-3">
+              {cadeauChoisi ? (
+                <p className="flex items-center justify-between gap-2 rounded-xl bg-white p-3 text-sm">
+                  <span>
+                    Offert : <strong>{cadeauChoisi.nom}</strong> (0 F)
+                  </span>
+                  <button onClick={() => setCadeauChoisi(null)} aria-label="Changer de cadeau" className="h-9 w-9 rounded-full text-doux hover:bg-creme">
+                    ✕
+                  </button>
+                </p>
+              ) : (
+                <>
+                  <input
+                    type="search"
+                    value={rechercheCadeau}
+                    onChange={(e) => setRechercheCadeau(e.target.value)}
+                    placeholder="Quel cadeau ? Un soin ou un produit (facultatif)"
+                    className="w-full rounded-xl border border-bordure bg-white px-4 py-2.5 text-sm"
+                  />
+                  {resultatsCadeau.length > 0 && (
+                    <ul className="absolute inset-x-0 z-10 mt-1 max-h-60 overflow-y-auto rounded-xl border border-bordure bg-white shadow-lg">
+                      {resultatsCadeau.map((p) => (
+                        <li key={p.id}>
+                          <button
+                            onClick={() => {
+                              setCadeauChoisi({ id: p.id, nom: p.nom });
+                              setRechercheCadeau("");
+                            }}
+                            className="flex w-full justify-between gap-3 px-4 py-2.5 text-left text-sm hover:bg-creme"
+                          >
+                            <span>
+                              {p.nom} <span className="text-xs text-doux">· {p.note === "Produit" ? "produit" : p.famille}</span>
+                            </span>
+                            <span className="prix text-doux line-through">{formatPrix(p.prix)}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="mt-1 text-xs text-doux">Choisi dans la liste, il est écrit sur le ticket à 0 F et sort du stock.</p>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -718,7 +769,7 @@ function Editeur(props: {
           setEnvoi(true);
           await props.encaisser({
             rendezVous: b.rendezVous,
-            lignes: b.lignes,
+            lignes: donnerCadeau && cadeauChoisi ? [...b.lignes, { id: cadeauChoisi.id, quantite: 1, offert: true }] : b.lignes,
             paiements: MODES.map((m) => ({ mode: m.id, montant: nombre(montants[m.id] ?? "") })).filter((p) => p.montant > 0),
             ...(remiseN > 0 ? { remise: { montant: remiseN, motif } } : {}),
             ...(carte && parCarte > 0 ? { carteCadeau: carte.code } : {}),

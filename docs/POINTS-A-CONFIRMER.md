@@ -39,9 +39,9 @@ ne comptent plus.
     le minuteur de « Ma journée » s'en sert.
 12. **Coiffure** : la gérante signale qu'il manque des prestations ; liste complète à
     fournir (déjà ajoutés le 25/09 : les trois ponytails).
-13. **Carte de fidélité** : réglée comme demandé par la gérante (1 point par passage,
-    cadeau au 10e, points remis à zéro). Reste à écrire le cadeau exact (par défaut « Un
-    cadeau de la boutique ») et à activer le programme dans Réglages.
+13. **Carte de fidélité** : réglée comme demandé par la gérante (1 point par passage, en
+    caisse ou commande en ligne ; cadeau au 10e, un soin ou un produit au choix de
+    l'institut ; points remis à zéro). Reste à activer le programme dans Réglages.
 14. **Imprimante de tickets** : modèle et largeur du rouleau (80 mm ou 58 mm) ; faire le
     ticket de réglage une fois sur le poste de l'accueil.
 15. **Avis Google** : lien « Demander des avis » de la fiche Google de l'institut (facultatif),

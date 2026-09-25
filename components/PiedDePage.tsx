@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { MENU } from "@/lib/menu";
 import { IconeInstagram } from "@/components/Icones";
+import { Installer } from "@/components/pwa/Installer";
 import { INSTITUT, LIEN_ITINERAIRE } from "@/lib/institut";
 
 export function PiedDePage() {
@@ -70,6 +71,9 @@ export function PiedDePage() {
           <a href={INSTITUT.instagram} target="_blank" rel="noopener" className="mt-4 inline-flex items-center gap-2 text-sm hover:text-white">
             <IconeInstagram /> {INSTITUT.instagramPseudo}
           </a>
+          <div className="mt-4">
+            <Installer nom="Anna Zen" discret />
+          </div>
         </div>
       </div>
       <p className="border-t border-white/10 py-4 text-center text-xs text-or-clair/70">

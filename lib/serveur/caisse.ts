@@ -22,7 +22,16 @@ import { telephoneCanonique, telephoneValide } from "@/lib/telephone";
 
 const Erreur = ErreurReservation;
 
-export type LigneTicket = { id: string; nom: string; type: "prestation" | "produit" | "livraison" | "carte-cadeau"; prixUnitaire: number; quantite: number; montant: number };
+export type LigneTicket = {
+  id: string;
+  nom: string;
+  type: "prestation" | "produit" | "livraison" | "carte-cadeau";
+  prixUnitaire: number;
+  quantite: number;
+  montant: number;
+  /** Soin ou produit offert en cadeau de fidélité (0 F ; le stock sort quand même). */
+  offert?: true;
+};
 export type Paiement = { mode: Mode; montant: number };
 
 export function exiger(membre: Membre, roles: string[], message = "Réservé à l'accueil et à la direction.") {
@@ -64,24 +73,54 @@ export async function ouvrirCaisse(membre: Membre, fondBrut: unknown) {
   return { ok: true, date };
 }
 
-function lignesValides(brutes: unknown, catalogue: Catalogue): LigneTicket[] {
+function lignesValides(brutes: unknown, catalogue: Catalogue, cadeauPermis = false): LigneTicket[] {
   if (!Array.isArray(brutes) || brutes.length === 0) throw new Erreur("Le ticket est vide.", 400);
   if (brutes.length > 50) throw new Erreur("Trop de lignes.", 400);
+  if (brutes.filter((l) => l?.offert === true).length > 1) throw new Erreur("Un seul cadeau de fidélité par ticket.", 400);
   return brutes.map((l) => {
     const p = catalogue.parId(String(l?.id ?? ""));
     if (!p) throw new Erreur("Prestation ou produit inconnu.", 400);
+    const type = p.note === "Produit" ? "produit" : "prestation";
+    // Le cadeau de fidélité (un soin ou un produit, au choix de l'institut) : 0 F, une seule fois.
+    if (l?.offert === true) {
+      if (!cadeauPermis) throw new Erreur("Cette cliente n'a pas encore droit à son cadeau.", 409);
+      return { id: p.id, nom: `${p.nom} (cadeau fidélité)`, type, prixUnitaire: p.prix, quantite: 1, montant: 0, offert: true as const };
+    }
     const quantite = entier(l?.quantite ?? 1);
     if (!Number.isInteger(quantite) || quantite < 1 || quantite > 99) throw new Erreur("Quantité invalide.", 400);
     // Le prix vient toujours du catalogue : une baisse de prix passe par une remise tracée.
     return {
       id: p.id,
       nom: p.nom,
-      type: p.note === "Produit" ? "produit" : "prestation",
+      type,
       prixUnitaire: p.prix,
       quantite,
       montant: p.prix * quantite,
     };
   });
+}
+
+/**
+ * Fidélité d'un ticket : points gagnés, et cadeau remis si la cliente atteint le seuil
+ * (la caisse l'a annoncé avant de valider). Le cadeau remet les points à zéro.
+ */
+function calculFidelite(o: { regles: ReglesFidelite; cliente: unknown; pointsAvant: number; total: number; sousTotal: number; cadeau: boolean; cadeauTexte?: string; remise: number; remiseUtilisee: boolean }): FideliteTicket | null {
+  const { regles, pointsAvant } = o;
+  const gagnes = o.cliente ? pointsGagnes(o.total, regles, o.sousTotal) : 0;
+  if (o.cadeau && (!o.cliente || !cadeauAtteint(pointsAvant, gagnes, regles))) {
+    throw new Erreur(`Pas encore de cadeau : ${pointsAvant + gagnes} point(s) sur ${regles.seuil}.`, 409);
+  }
+  const utilises = o.remiseUtilisee || o.cadeau ? regles.seuil : 0;
+  if (!o.cliente || (!regles.actif && !utilises)) return null;
+  return {
+    gagnes,
+    utilises,
+    remise: o.remise,
+    solde: pointsAvant - utilises + gagnes,
+    seuil: regles.seuil,
+    ...(regles.gain === "passage" ? { parPassage: true } : {}),
+    ...(o.cadeau ? { cadeau: o.cadeauTexte || regles.cadeau } : {}),
+  };
 }
 
 export function paiementsValides(bruts: unknown, carteCadeauPermise = false): Paiement[] {
@@ -126,8 +165,9 @@ export type Encaissement = {
  */
 export async function encaisser(membre: Membre, e: Encaissement) {
   exiger(membre, ROLES_CAISSE);
-  const lignes = lignesValides(e.lignes, await catalogueServeur());
+  const lignes = lignesValides(e.lignes, await catalogueServeur(), e.cadeau === true);
   const sousTotal = lignes.reduce((s, l) => s + l.montant, 0);
+  const ligneCadeau = lignes.find((l) => l.offert);
 
   const remiseMontant = entier(e.remise?.montant ?? 0) || 0;
   const remiseMotif = String(e.remise?.motif ?? "").trim().slice(0, 200);
@@ -194,25 +234,18 @@ export async function encaisser(membre: Membre, e: Encaissement) {
       if (!cliente) throw new Erreur("Pour utiliser des points, indiquez le téléphone de la cliente.", 400);
       if (pointsAvant < regles.seuil) throw new Erreur(`Elle a ${pointsAvant} points : il en faut ${regles.seuil}.`, 409);
     }
-    const gagnes = cliente ? pointsGagnes(total, regles, sousTotal) : 0;
-    // Cadeau : la caisse a prévenu avant de valider ; il est remis avec ce ticket.
-    if (e.cadeau && (!cliente || !cadeauAtteint(pointsAvant, gagnes, regles))) {
-      throw new Erreur(`Pas encore de cadeau : ${pointsAvant + gagnes} point(s) sur ${regles.seuil}.`, 409);
-    }
-    const cadeauRemis = Boolean(e.cadeau);
-    const utilises = e.fidelite || cadeauRemis ? regles.seuil : 0;
-    const fidelite: FideliteTicket | null =
-      cliente && (regles.actif || utilises)
-        ? {
-            gagnes,
-            utilises,
-            remise: remiseFidelite,
-            solde: pointsAvant - utilises + gagnes,
-            seuil: regles.seuil,
-            ...(regles.gain === "passage" ? { parPassage: true } : {}),
-            ...(cadeauRemis ? { cadeau: regles.cadeau } : {}),
-          }
-        : null;
+    const fidelite = calculFidelite({
+      regles,
+      cliente,
+      pointsAvant,
+      total,
+      sousTotal,
+      cadeau: e.cadeau === true,
+      cadeauTexte: ligneCadeau?.nom.replace(/ \(cadeau fidélité\)$/, ""),
+      remise: remiseFidelite,
+      remiseUtilisee: e.fidelite === true,
+    });
+    const cadeauRemis = Boolean(fidelite?.cadeau);
     const carte = code ? await tx.get(base.doc(`cartesCadeaux/${code}`)) : null;
     if (carte) {
       if (!carte.exists) throw new Erreur("Carte cadeau inconnue : vérifiez le code.", 404);
@@ -554,9 +587,13 @@ export async function reglerCredit(membre: Membre, clienteId: string, paiementsB
  * Le stock est déjà sorti à la commande ; ses mouvements sont rattachés au ticket, pour
  * qu'un avoir remette bien les produits en stock.
  */
-export async function encaisserCommande(membre: Membre, commandeId: string, paiementsBruts: unknown) {
+export async function encaisserCommande(membre: Membre, commandeId: string, paiementsBruts: unknown, cadeau?: { remis?: unknown; texte?: unknown }) {
   exiger(membre, ROLES_CAISSE);
   const paiements = paiementsValides(paiementsBruts);
+  // Les commandes en ligne comptent aussi pour la carte de fidélité (un passage).
+  const regles = lireRegles((await db().doc("reglages/institut").get()).get("fidelite"));
+  const cadeauRemis = cadeau?.remis === true;
+  if (cadeauRemis && (!regles.actif || regles.recompense !== "cadeau")) throw new Erreur("Pas de cadeau de fidélité à remettre.", 400);
   const base = db();
   const { date, minutes } = maintenantDakar();
   const cmdRef = base.doc(`commandes/${commandeId}`);
@@ -581,6 +618,17 @@ export async function encaisserCommande(membre: Membre, commandeId: string, paie
     const cliente = cmd.get("cliente") as { id: string; nom: string; telephone: string };
     const fiche = await tx.get(base.doc(`clientes/${cliente.id}`));
     const livraison = cmd.get("livraison") as { mode: string; zone: string; prix: number };
+    const fidelite = calculFidelite({
+      regles,
+      cliente,
+      pointsAvant: (fiche.get("points") as number | undefined) ?? 0,
+      total,
+      sousTotal: total,
+      cadeau: cadeauRemis,
+      cadeauTexte: String(cadeau?.texte ?? "").trim().slice(0, 80),
+      remise: 0,
+      remiseUtilisee: false,
+    });
     const lignes: LigneTicket[] = [
       ...(cmd.get("lignes") as { produit: string; nom: string; variante: string; prixUnitaire: number; quantite: number; montant: number }[]).map((l) => ({
         id: l.produit,
@@ -609,6 +657,7 @@ export async function encaisserCommande(membre: Membre, commandeId: string, paie
       cliente,
       rendezVous: null,
       commande: { id: commandeId, reference: cmd.get("reference") },
+      ...(fidelite ? { fidelite } : {}),
       par: trace(membre),
       creeLe: FieldValue.serverTimestamp(),
     });
@@ -627,6 +676,8 @@ export async function encaisserCommande(membre: Membre, commandeId: string, paie
         derniereVisite: date,
         premiereVisite: (fiche.get("premiereVisite") as string | undefined) ?? date,
         dernierTicket: ticketRef.id,
+        ...(fidelite ? { points: FieldValue.increment(fidelite.gagnes - fidelite.utilises) } : {}),
+        ...(fidelite?.cadeau ? { cadeauxFidelite: FieldValue.increment(1) } : {}),
       },
       { merge: true },
     );

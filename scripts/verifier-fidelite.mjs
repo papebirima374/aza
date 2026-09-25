@@ -86,8 +86,48 @@ const onze = await passage({ cadeau: true });
 const recu11 = (await api(`/api/gestion/caisse?ticket=${onze.corps.id}`, accueil)).corps;
 ok(onze.statut === 201 && recu11.fidelite.solde === 1, "cadeau remis au passage suivant : il reste 1 point");
 ok((await passage({ fidelite: true })).statut === 400, "récompense « cadeau » : pas de remise en points");
+// Le cadeau est au choix de l'institut : un soin ou un produit, écrit à 0 F sur le ticket.
+const TEL3 = "77 000 44 30";
+const cliente3 = { nom: "Cliente soin offert (test)", telephone: TEL3 };
+const passage3 = (extra = {}) => api("/api/gestion/caisse", accueil, { action: "encaisser", lignes: [{ id: "onglerie--vernis-simple" }], paiements: [{ mode: "especes", montant: 3000 }], cliente: cliente3, ...extra });
+ok((await api("/api/gestion/caisse", accueil, { action: "encaisser", lignes: [{ id: "onglerie--vernis-simple" }, { id: "soins-visage--hydrafacial", offert: true }], paiements: [{ mode: "especes", montant: 3000 }], cliente: cliente3 })).statut === 409, "un soin offert sans cadeau dû : refusé");
+for (let i = 1; i <= 9; i++) await passage3();
+const offert = await api("/api/gestion/caisse", accueil, {
+  action: "encaisser",
+  lignes: [{ id: "onglerie--vernis-simple" }, { id: "soins-visage--hydrafacial", offert: true }],
+  paiements: [{ mode: "especes", montant: 3000 }],
+  cliente: cliente3,
+  cadeau: true,
+});
+const recuOffert = (await api(`/api/gestion/caisse?ticket=${offert.corps.id}`, accueil)).corps;
+const ligneOfferte = recuOffert.lignes?.find((l) => l.offert);
+ok(offert.statut === 201 && offert.corps.total === 3000, "10e passage : Hydrafacial offert, la cliente ne paie que son vernis (3 000 F)");
+ok(ligneOfferte?.montant === 0 && recuOffert.fidelite?.cadeau === "Hydrafacial" && recuOffert.fidelite.solde === 0, "le ticket : « Hydrafacial (cadeau fidélité) » à 0 F, points à zéro");
+
+// Les commandes en ligne comptent aussi comme un passage.
+const stock = (corps) => api("/api/gestion/stock", direction, corps);
+const art = (await stock({ action: "creer", nom: "Tiges fidélité", type: "revente", unite: "boîte", seuil: 1, produit: "locks--lot-de-10-tiges-locks-6-pouces" })).corps.id;
+await stock({ action: "reception", id: art, quantite: 20, cout: 3000 });
+await stock({ action: "boutique", id: art, visible: true, titre: "Tiges pour locks", variante: "6 pouces", rayon: "capillaire", description: "Lot de 10 tiges." });
+await api("/api/gestion/boutique", direction, { action: "ouverture", ouverte: true });
+const TEL4 = "77 000 44 40";
+const commanderEtRemettre = async (extra = {}) => {
+  const c = await api("/api/boutique/commandes", null, { nom: "Cliente en ligne (test)", telephone: TEL4, paiement: "sur-place", lignes: [{ article: art, quantite: 1 }], mode: "retrait" });
+  const liste = (await api("/api/gestion/commandes", accueil)).corps;
+  const id = liste.find((x) => x.reference === c.corps.reference).id;
+  await api("/api/gestion/commandes", accueil, { id, statut: "confirmee" });
+  return api("/api/gestion/caisse", accueil, { action: "commande", commande: id, paiements: [{ mode: "wave", montant: 6000 }], ...extra });
+};
+const cmd1 = await commanderEtRemettre();
+const recuCmd = (await api(`/api/gestion/caisse?ticket=${cmd1.corps.id}`, accueil)).corps;
+ok(cmd1.statut === 201 && recuCmd.fidelite?.gagnes === 1 && recuCmd.fidelite.solde === 1, "commande en ligne remise : +1 passage (1 / 10)");
+for (let i = 2; i <= 9; i++) await commanderEtRemettre();
+const cmd10 = await commanderEtRemettre({ cadeau: { remis: true, texte: "Un sérum" } });
+const recu10c = (await api(`/api/gestion/caisse?ticket=${cmd10.corps.id}`, accueil)).corps;
+ok(cmd10.statut === 201 && recu10c.fidelite?.cadeau === "Un sérum" && recu10c.fidelite.solde === 0, "10e commande : cadeau joint (« Un sérum »), points à zéro");
+
 const d = new Date().toISOString().slice(0, 10);
-ok((await api(`/api/gestion/rapports?du=${d}&au=${d}`, direction)).corps.ventes.cadeauxFidelite === 1, "le rapport compte 1 cadeau remis (l'annulé ne compte pas)");
+ok((await api(`/api/gestion/rapports?du=${d}&au=${d}`, direction)).corps.ventes.cadeauxFidelite === 3, "le rapport compte 3 cadeaux remis (l'annulé ne compte pas)");
 
 console.log(echecs ? `\n${echecs} échec(s).` : "\nTout est bon.");
 process.exit(echecs ? 1 : 0);

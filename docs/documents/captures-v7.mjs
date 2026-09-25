@@ -10,7 +10,7 @@ async function jeton(email) {
 }
 const api = async (chemin, tok, corps) => (await fetch(S + chemin, { method: corps ? "POST" : "GET", headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` }, body: corps ? JSON.stringify(corps) : undefined })).json();
 const [dir, acc] = await Promise.all(["direction", "accueil"].map((n) => jeton(`${n}@test.aza`)));
-await api("/api/gestion/reglages", dir, { action: "fidelite", actif: true, gain: "passage", seuil: 10, recompense: "cadeau", cadeau: "Un cadeau de la boutique" });
+await api("/api/gestion/reglages", dir, { action: "fidelite", actif: true, gain: "passage", seuil: 10, recompense: "cadeau", cadeau: "Un soin ou un produit, au choix de l'institut" });
 await api("/api/gestion/caisse", acc, { action: "ouvrir", fond: 20000 });
 const vente = (cliente, extra = {}) => api("/api/gestion/caisse", acc, { action: "encaisser", lignes: [{ id: "onglerie--vernis-permanent" }], paiements: [{ mode: "especes", montant: 5000 }], cliente, ...extra });
 const awa = { nom: "Awa Diop (test)", telephone: "77 000 01 01" };
@@ -53,6 +53,11 @@ await haut(c, c.getByText("avec ce passage"), 330);
 await cap(c, "75-caisse-fidelite");
 await nouvelle(fatou);
 await c.getByRole("alert").filter({ hasText: "Remettez-lui son cadeau" }).waitFor();
+await c.getByPlaceholder(/Quel cadeau/).fill("pose vernis");
+await c.getByRole("button", { name: /Vernis simple/ }).last().click().catch(async () => {
+  await c.getByPlaceholder(/Quel cadeau/).fill("vernis");
+  await c.getByRole("button", { name: /Vernis/ }).last().click();
+});
 await c.getByRole("button", { name: /^Espèces/ }).click().catch(() => {});
 await haut(c, c.getByRole("alert").filter({ hasText: "Remettez-lui" }), 200);
 await cap(c, "89-caisse-cadeau");

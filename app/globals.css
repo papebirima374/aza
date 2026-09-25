@@ -21,6 +21,19 @@
 
 html {
   scroll-behavior: smooth;
+  /* Comme une application : pas de zoom au double toucher, pas de grossissement du texte. */
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* iPhone agrandit l'écran quand on touche un champ écrit en moins de 16 px : on l'évite. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em) !important;
+  }
 }
 
 body {

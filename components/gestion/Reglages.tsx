@@ -786,7 +786,7 @@ function Fidelite(props: { regles: ReglesFidelite; direction: boolean; enregistr
       <p className="mt-4 rounded-xl bg-creme p-3 text-sm">
         {gain === "passage" ? "Chaque passage en caisse donne 1 point." : `Une cliente qui paie 25 000 F gagne ${Number(tranche) > 0 ? Math.floor(25000 / Number(tranche)) : 0} points.`}{" "}
         {recompense === "cadeau"
-          ? `Au ${n}ᵉ ${gain === "passage" ? "passage" : "point"}, la caisse affiche « 🎁 Remettez-lui son cadeau : ${cadeau} » avant de valider ; ses points repartent à zéro.`
+          ? `Au ${n}ᵉ ${gain === "passage" ? "passage" : "point"}, la caisse affiche « 🎁 Remettez-lui son cadeau : ${cadeau} » avant de valider ; l'accueil choisit le soin ou le produit offert, et ses points repartent à zéro.`
           : `À ${n} points, l'accueil peut les utiliser : ${Number(valeur).toLocaleString("fr-FR")} F de remise.`}
       </p>
       {props.direction ? (

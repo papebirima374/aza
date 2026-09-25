@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       case "annuler":
         return Response.json(await annulerTicket(membre, String(c.id ?? "-"), c.motif), { status: 201 });
       case "commande":
-        return Response.json(await encaisserCommande(membre, String(c.commande ?? "-"), c.paiements), { status: 201 });
+        return Response.json(await encaisserCommande(membre, String(c.commande ?? "-"), c.paiements, c.cadeau), { status: 201 });
       case "reglement":
         return Response.json(await reglerCredit(membre, String(c.cliente ?? "-"), c.paiements), { status: 201 });
       case "cloturer":

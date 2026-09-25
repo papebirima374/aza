@@ -97,7 +97,7 @@ pages.append(page(f"""
 <li>Fond de caisse le matin, <b>comptage et écart justifié</b> le soir.</li>
 <li><b>Ticket de caisse 80 mm</b> sur imprimante thermique, calibré une fois pour toutes, avec un QR code qui invite la cliente à donner son avis.</li>
 <li><b>Coupure d'internet</b> : la vente est gardée sur l'appareil et part toute seule au retour — aucune vente perdue.</li>
-<li><b>💗 Carte de fidélité</b> : 1 point par passage, une carte à tampons sur le ticket ; au 10ᵉ passage, la caisse prévient <b>avant de valider</b> qu'il faut remettre le cadeau, puis les points repartent à zéro.</li>
+<li><b>💗 Carte de fidélité</b> : 1 point par passage, une carte à tampons sur le ticket ; au 10ᵉ passage (en caisse ou commande en ligne), la caisse prévient <b>avant de valider</b> qu'il faut remettre le cadeau — un soin ou un produit au choix, écrit à 0 F — puis les points repartent à zéro.</li>
 </ul>""", P))
 
 # 8. Clientes
@@ -161,6 +161,7 @@ pages.append(page(f"""
 <li>Imprimable, et <b>export Excel</b> de tous les tickets pour le comptable.</li>
 <li><b>Avis des clientes</b> : un lien sur le reçu et un QR code sur le ticket ; les avis de 3 étoiles ou moins remontent en premier, avec une réponse WhatsApp prête ; les plus beaux vont sur le site, <b>si la cliente l'accepte</b>.</li>
 <li>Un écran léger : l'essentiel en quatre chiffres, le détail rangé dans des volets ; les écrans rares derrière « Plus ».</li>
+<li><b>Deux applications à installer</b> sans store : « AZA Gestion » pour l'équipe, « Anna Zen » pour les clientes ; plein écran, sans zoom, pages gardées sans réseau.</li>
 </ul>""", P))
 
 # 11. Sécurité

@@ -20,7 +20,7 @@ pages.append(f"""<section class="page bandeau" style="display:flex;flex-directio
 pages.append(page("""
 <h2>Sommaire</h2>
 <ol class="sommaire" style="list-style:none;padding:0;font-size:11.5pt">
-<li><span>1 · Avant de commencer : se connecter, Mon compte, qui voit quoi</span><span>3</span></li>
+<li><span>1 · Avant de commencer : se connecter, installer l'application, Mon compte</span><span>3</span></li>
 <li><span>2 · La praticienne : Ma journée</span><span>5</span></li>
 <li><span>3 · L'accueil : l'agenda et les rendez-vous</span><span>6</span></li>
 <li><span>4 · L'accueil : les rappels de la veille</span><span>9</span></li>
@@ -53,6 +53,30 @@ pages.append(page(f"""
 <div class="encadre"><b>Mot de passe oublié ?</b> Demandez à la direction : elle vous en donne un nouveau en un instant (Équipe → Modifier → 🔑 Nouveau mot de passe).</div>
 <div class="encadre or"><b>Sécurité.</b> Après 5 erreurs sur un même numéro, il faut attendre 15 minutes. Le poste d'accueil se déconnecte seul après 20 minutes sans activité. Le téléphone d'une praticienne, lui, reste connecté.</div>
 <p class="doux">La direction peut aussi se connecter avec son email : lien « Se connecter avec un email » en bas.</p>''', "11-connexion", "L'écran de connexion")}
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">1 · Avant de commencer</span>
+<h2>Installer l'application sur le téléphone</h2>
+<p>L'espace de gestion s'installe comme une application : une icône <b>AZA Gestion</b> sur l'écran d'accueil, qui s'ouvre directement sur l'agenda ou la caisse, en plein écran, sans barre d'adresse. <b>Pas de store, pas de téléchargement</b> : c'est le même site, toujours à jour.</p>
+<div class="duo" style="grid-template-columns:1fr 1fr;gap:8mm"><div>
+<h3>📱 Android (Chrome)</h3>
+<ol class="etapes">
+<li>Ouvrez <b>aza-neon-ten.vercel.app/gestion</b> et connectez-vous.</li>
+<li>Touchez 👤 votre prénom (Mon compte) → <span class="bouton">📲 Installer l'application AZA Gestion</span>.</li>
+<li>Confirmez « Installer ». L'icône apparaît sur l'écran d'accueil.</li>
+</ol></div><div>
+<h3>🍎 iPhone (Safari)</h3>
+<ol class="etapes">
+<li>Ouvrez <b>aza-neon-ten.vercel.app/gestion</b> dans <b>Safari</b>.</li>
+<li>Touchez <b>Partager</b> (le carré avec une flèche vers le haut).</li>
+<li>Touchez <b>Sur l'écran d'accueil</b>, puis <b>Ajouter</b>.</li>
+</ol></div></div>
+<ul class="puces">
+<li><b>Comme une application</b> : l'écran ne zoome pas quand on pince ou qu'on touche deux fois, et il ne s'agrandit pas quand on touche un champ.</li>
+<li><b>Sans réseau</b>, les pages déjà ouvertes restent affichées ; la caisse garde ses ventes et les envoie au retour d'internet.</li>
+<li>Les clientes peuvent aussi installer <b>Anna Zen</b> (le site) depuis le bas de n'importe quelle page du site.</li>
+</ul>
 """, P))
 
 pages.append(page(f"""
@@ -309,8 +333,10 @@ pages.append(page(f"""
 <ol class="etapes">
 <li>Tapez (ou choisissez) la cliente avec son <b>téléphone</b> : sa carte à tampons s'affiche, « 💗 Fidélité : 5 / 10 avec ce passage ». Sans téléphone, pas de point.</li>
 <li>Au <b>10ᵉ passage</b>, <b>avant de valider</b>, un encadré doré prévient : « 🎁 Fatou atteint 10 passages ! Remettez-lui son cadeau ». Le bouton devient « Encaisser … · 🎁 cadeau remis ».</li>
+<li>Le cadeau est <b>au choix de l'institut</b> : un soin ou un produit. Tapez-le dans « Quel cadeau ? » et touchez-le : il s'ajoute au ticket <b>à 0 F</b> (et sort du stock).</li>
 <li>Encaissez et <b>remettez le cadeau</b>. Ses points repartent <b>à zéro</b> tout seuls ; le ticket l'écrit (« CADEAU OFFERT »).</li>
 </ol>
+<p class="doux"><b>Commandes en ligne</b> : chaque commande remise compte aussi comme un passage. Au 10ᵉ, l'écran « Encaisser » de la commande prévient de même : joignez le cadeau au colis (ou donnez-le au retrait).</p>
 <p class="doux">Cadeau pas disponible ? Décochez « Cadeau remis avec ce ticket » : ses points sont gardés et la caisse le proposera au passage suivant. Un ticket annulé remet les points comme avant. La fiche cliente compte les cadeaux reçus ; les Rapports, les cadeaux remis sur la période.</p>
 <div class="quatre">{figure("77-reglages-fidelite","Les règles (direction)","tel-petit")}{figure("75-caisse-fidelite","La carte à tampons","tel-petit")}{figure("89-caisse-cadeau","Le cadeau, avant de valider","tel-petit")}{figure("76-recu-fidelite","Le ticket","tel-petit")}</div>
 <div class="encadre or"><b>La direction</b> règle tout dans Plus ▾ → Réglages → 💗 Carte de fidélité : 1 point par passage (ou selon le montant), le nombre de passages, le cadeau écrit en clair (ou une remise en francs). Puis « Programme actif ».</div>

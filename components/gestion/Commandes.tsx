@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { DevisPerruques, type Devis } from "@/components/gestion/DevisPerruques";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { STATUTS_COMMANDE, type StatutCommande } from "@/lib/boutique";
+import { cadeauAtteint, pointsGagnes, type ReglesFidelite } from "@/lib/caisse/fidelite";
 import { MODES, type Mode } from "@/lib/caisse/modes";
 import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
@@ -281,8 +282,52 @@ function CarteCommande({ c, agir, imprimer }: { c: Commande; agir: (chemin: stri
 function Paiement({ c, agir, fermer }: { c: Commande; agir: (chemin: string, corps: object, ok: string) => Promise<boolean>; fermer: () => void }) {
   const [mode, setMode] = useState<Mode | "">("");
   const [envoi, setEnvoi] = useState(false);
+  // Carte de fidélité : une commande en ligne compte comme un passage.
+  const compte = useCompte();
+  const [fid, setFid] = useState<{ regles: ReglesFidelite; points: number } | null>(null);
+  const [garder, setGarder] = useState(false);
+  const [cadeauTexte, setCadeauTexte] = useState("");
+  useEffect(() => {
+    let actif = true;
+    (async () => {
+      const r = await fetch(`/api/gestion/caisse?fidelite=${encodeURIComponent(c.cliente.telephone)}`, { headers: { Authorization: `Bearer ${await compte.user.getIdToken()}` } });
+      if (r.ok && actif) setFid(await r.json());
+    })().catch(() => {});
+    return () => {
+      actif = false;
+    };
+  }, [c.cliente.telephone, compte.user]);
+  const gagnes = fid ? pointsGagnes(c.total, fid.regles, c.total) : 0;
+  const cadeauDu = Boolean(fid && cadeauAtteint(fid.points, gagnes, fid.regles));
+  const donner = cadeauDu && !garder;
   return (
     <div className="mt-3 rounded-xl bg-creme p-3">
+      {fid?.regles.actif && !cadeauDu && (
+        <p className="mb-2 text-sm">
+          💗 Fidélité : <strong>{fid.points + gagnes}</strong> / {fid.regles.seuil} {fid.regles.gain === "passage" ? "passages" : "points"} avec cette commande
+        </p>
+      )}
+      {fid && cadeauDu && (
+        <div role="alert" className="mb-3 rounded-xl border-2 border-[#d69e2e] bg-[#fff8e6] p-3">
+          <p className="font-bold text-profond">
+            🎁 {c.cliente.nom} atteint {fid.regles.seuil} {fid.regles.gain === "passage" ? "passages" : "points"} : son cadeau est à remettre ({fid.regles.cadeau}).
+          </p>
+          <label className="mt-2 flex items-center gap-3 text-sm font-semibold">
+            <input type="checkbox" checked={!garder} onChange={(e) => setGarder(!e.target.checked)} className="h-6 w-6 accent-[#7E0A4C]" />
+            Cadeau remis ou joint à la commande (ses points repartent à zéro)
+          </label>
+          {!garder && (
+            <input
+              value={cadeauTexte}
+              onChange={(e) => setCadeauTexte(e.target.value)}
+              maxLength={80}
+              placeholder="Quel cadeau ? (facultatif, ex. un sérum)"
+              className="mt-2 w-full rounded-xl border border-bordure bg-white px-3 py-2 text-sm"
+            />
+          )}
+          {garder && <p className="mt-1 text-xs text-doux">Reporté : la caisse le proposera à son prochain passage.</p>}
+        </div>
+      )}
       <p className="text-sm font-semibold">
         La cliente paie <span className="prix">{formatPrix(c.total)}</span> par :
       </p>
@@ -298,13 +343,14 @@ function Paiement({ c, agir, fermer }: { c: Commande; agir: (chemin: string, cor
           disabled={!mode || envoi}
           onClick={async () => {
             setEnvoi(true);
-            const ok = await agir("/api/gestion/caisse", { action: "commande", commande: c.id, paiements: [{ mode, montant: c.total }] }, `${c.reference} remise et encaissée.`);
+            const ok = await agir("/api/gestion/caisse", { action: "commande", commande: c.id, paiements: [{ mode, montant: c.total }], ...(donner ? { cadeau: { remis: true, texte: cadeauTexte } } : {}) }, `${c.reference} remise et encaissée.`);
             setEnvoi(false);
             if (ok) fermer();
           }}
           className="min-h-11 rounded-full bg-[#0d6b37] px-5 text-sm font-bold text-white disabled:opacity-40"
         >
           Encaisser {formatPrix(c.total)}
+          {donner ? " · 🎁 cadeau" : ""}
         </button>
         <button onClick={fermer} className="px-3 text-sm font-semibold text-doux underline">
           Annuler

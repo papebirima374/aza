@@ -3,6 +3,7 @@
 import { signOut } from "firebase/auth";
 import { useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
+import { Installer } from "@/components/pwa/Installer";
 import { firebaseClient } from "@/lib/client/firebase";
 
 // « Mon compte » : son nom, son rôle, et changer son mot de passe.
@@ -32,6 +33,9 @@ export function MonCompte() {
       </p>
       <h1 className="mt-2 font-serif text-4xl font-semibold text-profond">{compte.nom}</h1>
       <p className="text-doux">{ROLE[compte.role] ?? compte.role}</p>
+      <div className="mt-5">
+        <Installer nom="AZA Gestion" />
+      </div>
 
       <section className="mt-8 rounded-2xl border border-bordure p-5">
         <h2 className="font-serif text-2xl font-semibold text-profond">🔑 Changer mon mot de passe</h2>

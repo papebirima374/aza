@@ -4,6 +4,8 @@ import { EspaceGestion } from "@/components/gestion/EspaceGestion";
 export const metadata: Metadata = {
   title: "Gestion",
   robots: { index: false, follow: false },
+  manifest: "/gestion/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "AZA Gestion", statusBarStyle: "default" },
 };
 
 // Espace de l'équipe : connexion obligatoire, droits selon le rôle (firestore.rules).

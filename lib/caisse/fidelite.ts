@@ -21,7 +21,7 @@ export type ReglesFidelite = {
   valeur: number;
 };
 
-export const CADEAU_PAR_DEFAUT = "Un cadeau de la boutique";
+export const CADEAU_PAR_DEFAUT = "Un soin ou un produit, au choix de l'institut";
 
 export const FIDELITE_ETEINTE: ReglesFidelite = {
   actif: false,
