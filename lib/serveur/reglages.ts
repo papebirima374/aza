@@ -3,6 +3,7 @@
 // de la réservation en ligne (direction seulement).
 
 import { FieldValue } from "firebase-admin/firestore";
+import { CADEAU_PAR_DEFAUT } from "@/lib/caisse/fidelite";
 import type { Catalogue } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import type { Membre } from "@/lib/serveur/agenda";
@@ -172,9 +173,12 @@ export async function modifierReglages(membre: Membre, c: Record<string, unknown
         {
           fidelite: {
             actif: c.actif === true,
-            tranche: entier(c.tranche, 100, 1_000_000, "Montant pour 1 point"),
+            gain: c.gain === "montant" ? "montant" : "passage",
+            tranche: entier(c.tranche ?? 1000, 100, 1_000_000, "Montant pour 1 point"),
             seuil: entier(c.seuil, 1, 100_000, "Points pour une récompense"),
-            valeur: entier(c.valeur, 0, 1_000_000, "Montant de la récompense"),
+            recompense: c.recompense === "remise" ? "remise" : "cadeau",
+            cadeau: String(c.cadeau ?? "").trim().slice(0, 80) || CADEAU_PAR_DEFAUT,
+            valeur: entier(c.valeur ?? 0, 0, 1_000_000, "Montant de la récompense"),
           },
           ...trace,
         },

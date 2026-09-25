@@ -34,7 +34,7 @@ type TicketLu = {
   rendu: number;
   credit: number;
   remise?: { montant: number; motif: string };
-  fidelite?: { remise: number };
+  fidelite?: { remise: number; cadeau?: string };
   cliente: { nom: string; telephone: string } | null;
   rendezVous?: string | null;
   annule?: unknown;
@@ -83,6 +83,7 @@ export async function rapport(membre: Membre, duBrut?: string | null, auBrut?: s
   let remises = 0;
   let creditAccorde = 0;
   let creditRembourse = 0;
+  let cadeauxFidelite = 0;
   const avoirs = { nombre: 0, montant: 0 };
   const parJour = new Map<string, { recette: number; tickets: number }>();
   for (let i = 0; i < jours; i++) parJour.set(decaler(du, i), { recette: 0, tickets: 0 });
@@ -111,6 +112,7 @@ export async function rapport(membre: Membre, duBrut?: string | null, auBrut?: s
     }
     if (t.type === "vente" && !t.annule) {
       remises += (t.remise?.montant ?? 0) + (t.fidelite?.remise ?? 0);
+      if (t.fidelite?.cadeau) cadeauxFidelite++;
       creditAccorde += t.credit ?? 0;
       parHeure.set(Math.floor(t.heure / 60), (parHeure.get(Math.floor(t.heure / 60)) ?? 0) + 1);
       if (t.cliente?.telephone) {
@@ -211,6 +213,7 @@ export async function rapport(membre: Membre, duBrut?: string | null, auBrut?: s
       avoirs,
       creditAccorde,
       creditRembourse,
+      cadeauxFidelite,
     },
     precedente: totaux(ticketsAvant),
     parJour: [...parJour.entries()].map(([date, v]) => ({ date, ...v })),

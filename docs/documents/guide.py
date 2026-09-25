@@ -203,7 +203,7 @@ pages.append(page(f"""
 <ol class="etapes">
 <li>Touchez <span class="bouton">+ Nouvelle vente</span> et ajoutez les prestations ou produits.</li>
 <li>Une ligne ajoutée par erreur ? Touchez la croix <span class="touche">✕</span> au bout de la ligne : elle disparaît de la vente, et le total se corrige.</li>
-<li>Dans « Nom de la cliente », tapez <b>le début de son nom ou de son numéro</b> : les clientes déjà connues s'affichent, avec leurs points de fidélité et ce qu'elles doivent.</li>
+<li>Dans « Nom de la cliente », tapez <b>le début de son nom ou de son numéro</b> : les clientes déjà connues s'affichent, avec leurs points de fidélité et ce qu'elles doivent. Le téléphone permet de compter ses passages.</li>
 <li>Touchez la bonne cliente : son nom et son téléphone se remplissent tout seuls. Le ticket va sur <b>sa fiche</b> et ses points sont comptés.</li>
 <li>Nouvelle cliente ? Tapez simplement son nom et son numéro : sa fiche est créée à l'encaissement.</li>
 </ol>
@@ -305,15 +305,15 @@ pages.append(page(f"""
 # 5ter. Fidélité
 pages.append(page(f"""
 <span class="etiquette">5 · La caisse</span>
-<h2>La carte de fidélité</h2>
-<p><b>La direction</b> la règle dans Réglages → 💗 Carte de fidélité : combien de francs donnent 1 point, combien de points pour une récompense, et le montant de la remise. Elle l'active ou la désactive.</p>
+<h2>La carte de fidélité : 1 point par passage, un cadeau au 10ᵉ</h2>
 <ol class="etapes">
-<li>À la caisse, dès que le <b>téléphone de la cliente</b> est connu (rendez-vous ou saisi), ses points s'affichent : « 💗 Fidélité : 70 points ».</li>
-<li>Chaque vente lui <b>ajoute des points</b>, écrits sur son <b>reçu</b> (imprimé ou WhatsApp) : points gagnés et total.</li>
-<li>Quand elle a assez de points : touchez <span class="bouton">Utiliser 50 points : −5 000 F</span>. La remise s'applique au total.</li>
+<li>Tapez (ou choisissez) la cliente avec son <b>téléphone</b> : sa carte à tampons s'affiche, « 💗 Fidélité : 5 / 10 avec ce passage ». Sans téléphone, pas de point.</li>
+<li>Au <b>10ᵉ passage</b>, <b>avant de valider</b>, un encadré doré prévient : « 🎁 Fatou atteint 10 passages ! Remettez-lui son cadeau ». Le bouton devient « Encaisser … · 🎁 cadeau remis ».</li>
+<li>Encaissez et <b>remettez le cadeau</b>. Ses points repartent <b>à zéro</b> tout seuls ; le ticket l'écrit (« CADEAU OFFERT »).</li>
 </ol>
-<p class="doux">Un ticket annulé retire les points gagnés et rend les points utilisés. Les points se voient aussi sur la fiche cliente.</p>
-<div class="trio">{figure("77-reglages-fidelite","Les règles (direction)")}{figure("75-caisse-fidelite","Les points à la caisse")}{figure("76-recu-fidelite","Les points sur le reçu")}</div>
+<p class="doux">Cadeau pas disponible ? Décochez « Cadeau remis avec ce ticket » : ses points sont gardés et la caisse le proposera au passage suivant. Un ticket annulé remet les points comme avant. La fiche cliente compte les cadeaux reçus ; les Rapports, les cadeaux remis sur la période.</p>
+<div class="quatre">{figure("77-reglages-fidelite","Les règles (direction)","tel-petit")}{figure("75-caisse-fidelite","La carte à tampons","tel-petit")}{figure("89-caisse-cadeau","Le cadeau, avant de valider","tel-petit")}{figure("76-recu-fidelite","Le ticket","tel-petit")}</div>
+<div class="encadre or"><b>La direction</b> règle tout dans Plus ▾ → Réglages → 💗 Carte de fidélité : 1 point par passage (ou selon le montant), le nombre de passages, le cadeau écrit en clair (ou une remise en francs). Puis « Programme actif ».</div>
 """, P))
 
 # 6. Clientes

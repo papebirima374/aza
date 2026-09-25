@@ -250,8 +250,34 @@ function TicketCaisse({ t, r, origine }: { t: Ticket; r: Imprimante; origine: st
         <>
           <Trait />
           <p className="text-center font-bold">CARTE DE FIDÉLITÉ</p>
-          <Rangee a="Points gagnés aujourd'hui" b={`+${t.fidelite.gagnes}`} />
-          <Rangee a="Votre total" b={`${t.fidelite.solde} points`} gras />
+          {t.fidelite.cadeau && (
+            <p className="my-[1mm] border-2 border-black p-[1mm] text-center font-bold">
+              CADEAU OFFERT : {t.fidelite.cadeau}
+              <br />
+              <span className="font-medium">Vos points repartent à zéro.</span>
+            </p>
+          )}
+          {t.fidelite.parPassage && t.fidelite.seuil ? (
+            <>
+              {t.fidelite.seuil <= 20 && (
+                <p className="text-center text-[1.3em] tracking-[0.15em]" aria-hidden>
+                  {"●".repeat(Math.min(t.fidelite.solde, t.fidelite.seuil))}
+                  {"○".repeat(Math.max(0, t.fidelite.seuil - t.fidelite.solde))}
+                </p>
+              )}
+              <p className="text-center">
+                <b>
+                  {t.fidelite.solde} / {t.fidelite.seuil} passages
+                </b>
+                {!t.fidelite.cadeau && t.fidelite.solde < t.fidelite.seuil && ` — cadeau dans ${t.fidelite.seuil - t.fidelite.solde}`}
+              </p>
+            </>
+          ) : (
+            <>
+              <Rangee a="Points gagnés aujourd'hui" b={`+${t.fidelite.gagnes}`} />
+              <Rangee a="Votre total" b={`${t.fidelite.solde} points`} gras />
+            </>
+          )}
         </>
       )}
       <Trait />

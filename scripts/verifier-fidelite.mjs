@@ -30,10 +30,10 @@ const vendre = (id, montant, extra = {}) =>
 const points = async () => (await api(`/api/gestion/caisse?fidelite=${encodeURIComponent(TEL)}`, accueil)).corps.points;
 
 await api("/api/gestion/caisse", accueil, { action: "ouvrir", fond: 0 });
-ok((await api("/api/gestion/reglages", accueil, { action: "fidelite", actif: true, tranche: 1000, seuil: 10, valeur: 2000 })).statut === 403, "l'accueil ne règle pas la fidélité");
+ok((await api("/api/gestion/reglages", accueil, { action: "fidelite", actif: true, gain: "montant", tranche: 1000, seuil: 10, recompense: "remise", valeur: 2000 })).statut === 403, "l'accueil ne règle pas la fidélité");
 const sansProgramme = await vendre("onglerie--vernis-permanent", 5000);
 ok(sansProgramme.statut === 201 && (await points()) === 0, "programme éteint : aucun point");
-ok((await api("/api/gestion/reglages", direction, { action: "fidelite", actif: true, tranche: 1000, seuil: 10, valeur: 2000 })).statut === 200, "la direction active : 1 point par 1 000 F, 10 points = 2 000 F");
+ok((await api("/api/gestion/reglages", direction, { action: "fidelite", actif: true, gain: "montant", tranche: 1000, seuil: 10, recompense: "remise", valeur: 2000 })).statut === 200, "la direction active : 1 point par 1 000 F, 10 points = 2 000 F");
 
 const t1 = await vendre("onglerie--vernis-permanent", 5000);
 ok(t1.statut === 201, `vente 5 000 F (${t1.corps.reference})`);
@@ -52,6 +52,42 @@ ok((await points()) === 12, "les points reviennent : 12");
 const fiche = (await api(`/api/gestion/clientes?id=770004410`, accueil)).corps;
 ok(fiche.points === 12, "la fiche cliente affiche 12 points");
 ok((await api("/api/gestion/caisse", accueil, { action: "encaisser", lignes: [{ id: "onglerie--vernis-simple" }], paiements: [{ mode: "especes", montant: 1000 }], fidelite: true })).statut === 400, "points sans téléphone de cliente : refusé");
+
+// Le choix de la gérante : 1 point par passage, cadeau au 10e passage, points remis à zéro.
+ok(
+  (await api("/api/gestion/reglages", direction, { action: "fidelite", actif: true, gain: "passage", seuil: 10, recompense: "cadeau", cadeau: "Un soin des mains offert" })).statut === 200,
+  "la direction passe à 1 point par passage, cadeau au 10e",
+);
+const TEL2 = "77 000 44 20";
+const cliente2 = { nom: "Cliente cadeau (test)", telephone: TEL2 };
+const passage = (extra = {}) => api("/api/gestion/caisse", accueil, { action: "encaisser", lignes: [{ id: "onglerie--vernis-simple" }], paiements: [{ mode: "especes", montant: 3000 }], cliente: cliente2, ...extra });
+const points2 = async () => (await api(`/api/gestion/caisse?fidelite=${encodeURIComponent(TEL2)}`, accueil)).corps;
+const r1 = await passage();
+const recuP = (await api(`/api/gestion/caisse?ticket=${r1.corps.id}`, accueil)).corps;
+ok(recuP.fidelite?.gagnes === 1 && recuP.fidelite.solde === 1 && recuP.fidelite.parPassage && recuP.fidelite.seuil === 10, "1er passage : 1 / 10 sur le ticket");
+ok((await passage({ cadeau: true })).statut === 409, "cadeau demandé trop tôt : refusé");
+for (let i = 2; i <= 9; i++) await passage();
+const avant = await points2();
+ok(avant.points === 9 && avant.regles.recompense === "cadeau" && avant.regles.cadeau === "Un soin des mains offert", "après 9 passages : 9 points, la caisse connaît le cadeau");
+const dixieme = await passage({ cadeau: true });
+ok(dixieme.statut === 201, "10e passage : ticket validé avec le cadeau");
+const recu10 = (await api(`/api/gestion/caisse?ticket=${dixieme.corps.id}`, accueil)).corps;
+ok(recu10.fidelite?.cadeau === "Un soin des mains offert" && recu10.fidelite.solde === 0 && recu10.fidelite.utilises === 10, "le ticket porte le cadeau, les points repartent à 0");
+ok((await points2()).points === 0, "la fiche : 0 point");
+const fiche2 = (await api(`/api/gestion/clientes?id=770004420`, accueil)).corps;
+ok(fiche2.cadeauxFidelite === 1, "la fiche compte 1 cadeau reçu");
+ok((await api("/api/gestion/caisse", direction, { action: "annuler", id: dixieme.corps.id, motif: "Test cadeau" })).statut === 201, "annulation du ticket du cadeau");
+ok((await points2()).points === 9, "les 9 points reviennent");
+ok((await api(`/api/gestion/clientes?id=770004420`, accueil)).corps.cadeauxFidelite === 0, "le cadeau est retiré de la fiche");
+// Cadeau reporté (pas en stock) : les points sont gardés, la caisse le proposera au passage suivant.
+const reporte = await passage();
+ok(reporte.statut === 201 && (await points2()).points === 10, "cadeau reporté : 10 points gardés");
+const onze = await passage({ cadeau: true });
+const recu11 = (await api(`/api/gestion/caisse?ticket=${onze.corps.id}`, accueil)).corps;
+ok(onze.statut === 201 && recu11.fidelite.solde === 1, "cadeau remis au passage suivant : il reste 1 point");
+ok((await passage({ fidelite: true })).statut === 400, "récompense « cadeau » : pas de remise en points");
+const d = new Date().toISOString().slice(0, 10);
+ok((await api(`/api/gestion/rapports?du=${d}&au=${d}`, direction)).corps.ventes.cadeauxFidelite === 1, "le rapport compte 1 cadeau remis (l'annulé ne compte pas)");
 
 console.log(echecs ? `\n${echecs} échec(s).` : "\nTout est bon.");
 process.exit(echecs ? 1 : 0);

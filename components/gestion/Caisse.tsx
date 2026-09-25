@@ -9,7 +9,7 @@ import { useCatalogue } from "@/lib/client/catalogue";
 import { useAEncaisser, useFileCaisse } from "@/components/gestion/SuiviCaisse";
 import { erreurReseau, nouvelIdLocal } from "@/lib/client/file-caisse";
 import { normaliserCode } from "@/lib/caisse/cartes";
-import type { ReglesFidelite } from "@/lib/caisse/fidelite";
+import { cadeauAtteint, pointsGagnes, type ReglesFidelite } from "@/lib/caisse/fidelite";
 import { LIBELLE_MODE, MODES, ROLES_CAISSE, ROLES_REMISE, type Mode } from "@/lib/caisse/modes";
 import { dateTexte, heureTexte, lienRecuWhatsApp, type Ticket } from "@/lib/caisse/recu";
 import { formatPrix } from "@/lib/catalogue";
@@ -294,6 +294,8 @@ function Editeur(props: {
   // Fidélité : points de la cliente (dès que son téléphone est connu) et remise « points ».
   const [fid, setFid] = useState<{ regles: ReglesFidelite; points: number } | null>(null);
   const [utiliserPoints, setUtiliserPoints] = useState(false);
+  // Cadeau de fidélité : proposé d'office dès que la cliente atteint le seuil.
+  const [garderCadeau, setGarderCadeau] = useState(false);
   // Fichier clientes : pour retrouver une cliente existante par son nom ou son numéro.
   const [fichier, setFichier] = useState<FicheResume[]>([]);
   const [choixOuvert, setChoixOuvert] = useState(false);
@@ -347,9 +349,12 @@ function Editeur(props: {
   const lignes = b.lignes.map((l) => ({ ...l, p: cat.parId(l.id)! })).filter((l) => l.p);
   const sousTotal = lignes.reduce((s, l) => s + l.p.prix * l.quantite, 0);
   const remiseN = Math.min(nombre(remise), sousTotal);
-  const pointsPossibles = Boolean(fidConnue?.regles.actif && fidConnue.points >= fidConnue.regles.seuil);
+  const pointsPossibles = Boolean(fidConnue?.regles.actif && fidConnue.regles.recompense === "remise" && fidConnue.points >= fidConnue.regles.seuil);
   const remisePoints = utiliserPoints && pointsPossibles && fidConnue ? Math.min(fidConnue.regles.valeur, sousTotal - remiseN) : 0;
   const total = sousTotal - remiseN - remisePoints;
+  const gagnesPrevus = fidConnue ? pointsGagnes(total, fidConnue.regles, sousTotal) : 0;
+  const cadeauDu = Boolean(fidConnue && cadeauAtteint(fidConnue.points, gagnesPrevus, fidConnue.regles));
+  const donnerCadeau = cadeauDu && !garderCadeau;
   const recu = MODES.reduce((s, m) => s + nombre(montants[m.id] ?? ""), 0);
   const especes = nombre(montants.especes ?? "");
   const reste = total - recu;
@@ -532,11 +537,24 @@ function Editeur(props: {
         </div>
       )}
 
-      {fidConnue?.regles.actif && (
+      {fidConnue?.regles.actif && !cadeauDu && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-aza/30 bg-aza/5 p-3">
           <p className="text-sm">
-            💗 Fidélité : <strong>{fidConnue.points} points</strong>
-            {!pointsPossibles && <span className="text-doux"> (récompense à {fidConnue.regles.seuil} points)</span>}
+            💗 Fidélité :{" "}
+            {fidConnue.regles.gain === "passage" ? (
+              <>
+                <strong>
+                  {fidConnue.points + gagnesPrevus} / {fidConnue.regles.seuil}
+                </strong>{" "}
+                avec ce passage
+                <Tampons n={fidConnue.points + gagnesPrevus} seuil={fidConnue.regles.seuil} />
+              </>
+            ) : (
+              <>
+                <strong>{fidConnue.points} points</strong>
+                {!pointsPossibles && <span className="text-doux"> (récompense à {fidConnue.regles.seuil} points)</span>}
+              </>
+            )}
           </p>
           {pointsPossibles && (
             <button
@@ -547,6 +565,22 @@ function Editeur(props: {
               {utiliserPoints ? "✓ " : ""}Utiliser {fidConnue.regles.seuil} points : −{formatPrix(fidConnue.regles.valeur)}
             </button>
           )}
+        </div>
+      )}
+
+      {fidConnue && cadeauDu && (
+        <div role="alert" className="mt-4 rounded-2xl border-2 border-[#d69e2e] bg-[#fff8e6] p-4">
+          <p className="text-lg font-bold text-profond">
+            🎁 {b.cliente?.nom ?? (nom.trim() || "La cliente")} atteint {fidConnue.regles.seuil} {fidConnue.regles.gain === "passage" ? "passages" : "points"} !
+          </p>
+          <p className="mt-1">
+            Remettez-lui son cadeau : <strong>{fidConnue.regles.cadeau}</strong>. À la validation, ses points repartent à zéro.
+          </p>
+          <label className="mt-3 flex items-center gap-3 text-sm font-semibold">
+            <input type="checkbox" checked={!garderCadeau} onChange={(e) => setGarderCadeau(!e.target.checked)} className="h-6 w-6 accent-[#7E0A4C]" />
+            Cadeau remis avec ce ticket
+          </label>
+          {garderCadeau && <p className="mt-1 text-sm text-doux">Le cadeau est reporté : ses points sont gardés, la caisse le proposera à son prochain passage.</p>}
         </div>
       )}
 
@@ -689,6 +723,7 @@ function Editeur(props: {
             ...(remiseN > 0 ? { remise: { montant: remiseN, motif } } : {}),
             ...(carte && parCarte > 0 ? { carteCadeau: carte.code } : {}),
             ...(remisePoints > 0 ? { fidelite: true } : {}),
+            ...(donnerCadeau ? { cadeau: true } : {}),
             ...(!b.rendezVous && telephone.trim() ? { cliente: { nom: nom.trim() || "Cliente", telephone } } : {}),
           }, {
             total,
@@ -698,9 +733,21 @@ function Editeur(props: {
         }}
         className={`${bouton} mt-4 w-full bg-aza text-lg text-white`}
       >
-        {envoi ? "Enregistrement…" : `Encaisser ${formatPrix(total)}`}
+        {envoi ? "Enregistrement…" : `Encaisser ${formatPrix(total)}${donnerCadeau ? " · 🎁 cadeau remis" : ""}`}
       </button>
     </section>
+  );
+}
+
+/** La carte à tampons : un rond par passage, rempli quand il est gagné. */
+function Tampons({ n, seuil }: { n: number; seuil: number }) {
+  if (seuil > 20) return null;
+  return (
+    <span className="ml-2 inline-flex gap-0.5 align-middle" aria-hidden>
+      {Array.from({ length: seuil }, (_, i) => (
+        <span key={i} className={`inline-block h-3 w-3 rounded-full border border-aza ${i < n ? "bg-aza" : "bg-white"}`} />
+      ))}
+    </span>
   );
 }
 
@@ -721,6 +768,9 @@ function Confirmation({ fait, ticket, fermer }: { fait: { id: string; reference:
   return (
     <div className="mt-6 rounded-2xl border border-[#0d6b37]/40 bg-[#e7f5ec] p-5" role="status">
       <p className="text-lg font-bold text-[#0d6b37]">Ticket {fait.reference} enregistré.</p>
+      {ticket?.fidelite?.cadeau && (
+        <p className="mt-2 rounded-xl bg-[#fff8e6] p-3 font-bold text-profond">🎁 N&apos;oubliez pas le cadeau de fidélité : {ticket.fidelite.cadeau}. Ses points sont repartis à zéro.</p>
+      )}
       {fait.rendu > 0 && <p className="mt-1 text-2xl font-bold text-encre">Monnaie à rendre : {formatPrix(fait.rendu)}</p>}
       <div className="mt-3 flex flex-wrap gap-2">
         <Link href={`/gestion/caisse/ticket/${fait.id}`} className={`${bouton} flex items-center border border-bordure bg-white text-profond`}>

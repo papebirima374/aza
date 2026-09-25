@@ -720,41 +720,78 @@ function Regles(props: { delai: number; acompte: { montantMin: number; dureeMinM
 
 function Fidelite(props: { regles: ReglesFidelite; direction: boolean; enregistrer: (v: ReglesFidelite) => void }) {
   const [actif, setActif] = useState(props.regles.actif);
+  const [gain, setGain] = useState(props.regles.gain);
   const [tranche, setTranche] = useState(String(props.regles.tranche));
   const [seuil, setSeuil] = useState(String(props.regles.seuil));
+  const [recompense, setRecompense] = useState(props.regles.recompense);
+  const [cadeau, setCadeau] = useState(props.regles.cadeau);
   const [valeur, setValeur] = useState(String(props.regles.valeur));
   const champ = "w-28 rounded-lg border border-bordure px-2 py-1.5 text-right disabled:bg-creme";
-  const exemple = Number(tranche) > 0 ? Math.floor(25000 / Number(tranche)) : 0;
+  const choix = (actifChoix: boolean) => `min-h-10 rounded-full px-4 text-sm font-semibold disabled:opacity-60 ${actifChoix ? "bg-profond text-white" : "border border-bordure"}`;
+  const n = Number(seuil) || 0;
   return (
     <Carte
       id="fidelite"
       titre="💗 Carte de fidélité"
-      aide="La cliente gagne des points à chaque passage en caisse ; ses points sont écrits sur son reçu. À la caisse, dès qu'elle a assez de points, l'accueil peut les utiliser en remise."
+      aide="La cliente gagne des points à chaque passage en caisse (son téléphone doit être saisi) ; ils sont écrits sur son ticket. Quand elle atteint le seuil, la caisse prévient avant de valider le ticket."
     >
       <label className="flex items-center gap-3 font-semibold">
         <input type="checkbox" checked={actif} disabled={!props.direction} onChange={(e) => setActif(e.target.checked)} className="h-5 w-5" />
         {actif ? "Programme actif" : "Programme désactivé"}
       </label>
-      <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        <label className="flex items-center justify-between gap-3">
-          <span>1 point pour chaque (F)</span>
-          <input type="number" value={tranche} disabled={!props.direction} onChange={(e) => setTranche(e.target.value)} className={champ} />
-        </label>
-        <label className="flex items-center justify-between gap-3">
-          <span>Récompense à (points)</span>
-          <input type="number" value={seuil} disabled={!props.direction} onChange={(e) => setSeuil(e.target.value)} className={champ} />
-        </label>
-        <label className="flex items-center justify-between gap-3">
-          <span>Remise offerte (F)</span>
-          <input type="number" value={valeur} disabled={!props.direction} onChange={(e) => setValeur(e.target.value)} className={champ} />
-        </label>
+
+      <p className="mt-4 text-sm font-semibold">La cliente gagne</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <button type="button" disabled={!props.direction} onClick={() => setGain("passage")} aria-pressed={gain === "passage"} className={choix(gain === "passage")}>
+          1 point par passage
+        </button>
+        <button type="button" disabled={!props.direction} onClick={() => setGain("montant")} aria-pressed={gain === "montant"} className={choix(gain === "montant")}>
+          Des points selon le montant
+        </button>
+        {gain === "montant" && (
+          <label className="flex items-center gap-2 text-sm">
+            1 point pour chaque
+            <input type="number" value={tranche} disabled={!props.direction} onChange={(e) => setTranche(e.target.value)} className={champ} /> F
+          </label>
+        )}
       </div>
-      <p className="mt-3 text-sm text-doux">
-        Exemple : une cliente qui paie 25 000 F gagne {exemple} point{exemple > 1 ? "s" : ""}. À {seuil} points, elle peut avoir {Number(valeur).toLocaleString("fr-FR")} F de remise.
+
+      <label className="mt-4 flex flex-wrap items-center gap-2 text-sm font-semibold">
+        Récompense à
+        <input type="number" value={seuil} disabled={!props.direction} onChange={(e) => setSeuil(e.target.value)} className={champ} />
+        {gain === "passage" ? "passages" : "points"}
+      </label>
+
+      <p className="mt-4 text-sm font-semibold">La récompense</p>
+      <div className="mt-1 flex flex-wrap gap-2">
+        <button type="button" disabled={!props.direction} onClick={() => setRecompense("cadeau")} aria-pressed={recompense === "cadeau"} className={choix(recompense === "cadeau")}>
+          🎁 Un cadeau
+        </button>
+        <button type="button" disabled={!props.direction} onClick={() => setRecompense("remise")} aria-pressed={recompense === "remise"} className={choix(recompense === "remise")}>
+          Une remise en F
+        </button>
+      </div>
+      {recompense === "cadeau" ? (
+        <label className="mt-2 block text-sm">
+          Le cadeau (écrit à la caisse et sur le ticket)
+          <input value={cadeau} maxLength={80} disabled={!props.direction} onChange={(e) => setCadeau(e.target.value)} className="mt-1 block w-full rounded-lg border border-bordure px-3 py-2 disabled:bg-creme" />
+        </label>
+      ) : (
+        <label className="mt-2 flex items-center gap-2 text-sm">
+          Remise offerte
+          <input type="number" value={valeur} disabled={!props.direction} onChange={(e) => setValeur(e.target.value)} className={champ} /> F
+        </label>
+      )}
+
+      <p className="mt-4 rounded-xl bg-creme p-3 text-sm">
+        {gain === "passage" ? "Chaque passage en caisse donne 1 point." : `Une cliente qui paie 25 000 F gagne ${Number(tranche) > 0 ? Math.floor(25000 / Number(tranche)) : 0} points.`}{" "}
+        {recompense === "cadeau"
+          ? `Au ${n}ᵉ ${gain === "passage" ? "passage" : "point"}, la caisse affiche « 🎁 Remettez-lui son cadeau : ${cadeau} » avant de valider ; ses points repartent à zéro.`
+          : `À ${n} points, l'accueil peut les utiliser : ${Number(valeur).toLocaleString("fr-FR")} F de remise.`}
       </p>
       {props.direction ? (
         <button
-          onClick={() => props.enregistrer({ actif, tranche: Number(tranche), seuil: Number(seuil), valeur: Number(valeur) })}
+          onClick={() => props.enregistrer({ actif, gain, tranche: Number(tranche), seuil: Number(seuil), recompense, cadeau, valeur: Number(valeur) })}
           className="mt-4 rounded-full bg-aza px-6 py-2.5 font-bold text-white hover:bg-aza-fonce"
         >
           Enregistrer la fidélité

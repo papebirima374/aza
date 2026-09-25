@@ -1,6 +1,7 @@
 // Reçu d'un ticket : texte pour WhatsApp (le reçu imprimable reprend les mêmes données).
 
 import { lienAvis } from "@/lib/avis";
+import type { FideliteTicket } from "@/lib/caisse/fidelite";
 import { LIBELLE_MODE, type Mode } from "@/lib/caisse/modes";
 import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
@@ -15,7 +16,7 @@ export type Ticket = {
   lignes: { id: string; nom: string; prixUnitaire: number; quantite: number; montant: number }[];
   sousTotal: number;
   remise?: { montant: number; motif: string };
-  fidelite?: { gagnes: number; utilises: number; remise: number; solde: number };
+  fidelite?: FideliteTicket;
   total: number;
   paiements: { mode: Mode; montant: number }[];
   rendu: number;
@@ -45,6 +46,12 @@ export function avisPossible(t: Ticket): boolean {
   return t.type === "vente" && !t.annule;
 }
 
+/** « 4 / 10 passages » ou « +25 points · vous avez 60 points ». */
+export function soldeFidelite(f: FideliteTicket): string {
+  if (f.parPassage && f.seuil) return `${f.solde} / ${f.seuil} passage${f.seuil > 1 ? "s" : ""}${f.cadeau ? "" : f.solde >= f.seuil ? " — cadeau à votre prochain passage" : ""}`;
+  return `+${f.gagnes} point${f.gagnes > 1 ? "s" : ""} · vous avez ${f.solde} points`;
+}
+
 export function texteRecu(t: Ticket, origine = origineDuSite()): string {
   const l = [
     `*${INSTITUT.nom}*`,
@@ -60,7 +67,8 @@ export function texteRecu(t: Ticket, origine = origineDuSite()): string {
     ...t.paiements.map((p) => `${LIBELLE_MODE[p.mode]} : ${formatPrix(p.montant)}`),
     ...(t.rendu ? [`Monnaie rendue : ${formatPrix(t.rendu)}`] : []),
     ...(t.credit > 0 ? [`Reste à régler : ${formatPrix(t.credit)}`] : []),
-    ...(t.fidelite && t.type === "vente" ? ["", `💗 Fidélité : +${t.fidelite.gagnes} point${t.fidelite.gagnes > 1 ? "s" : ""} · vous avez ${t.fidelite.solde} points`] : []),
+    ...(t.fidelite?.cadeau ? ["", `🎁 Cadeau fidélité offert : ${t.fidelite.cadeau}. Vos points repartent à zéro.`] : []),
+    ...(t.fidelite && t.type === "vente" ? ["", `💗 Fidélité : ${soldeFidelite(t.fidelite)}`] : []),
     ...(avisPossible(t) && origine ? ["", `⭐ Votre avis compte (2 touches) : ${lienAvis(origine, t.id)}`] : []),
     "",
     "Merci de votre visite !",

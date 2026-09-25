@@ -266,6 +266,7 @@ export function Rapports() {
                       ["Nouvelles", String(r.clientes.nouvelles)],
                       ["Déjà venues", String(r.clientes.revenues)],
                       ...(r.ventes.creditAccorde ? [["Ventes à crédit", formatPrix(r.ventes.creditAccorde)] as [string, string]] : []),
+                      ...(r.ventes.cadeauxFidelite ? [["🎁 Cadeaux fidélité remis", String(r.ventes.cadeauxFidelite)] as [string, string]] : []),
                     ]}
                   />
                   {direction && r.clientes.meilleures.length > 0 && (

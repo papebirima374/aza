@@ -97,7 +97,7 @@ pages.append(page(f"""
 <li>Fond de caisse le matin, <b>comptage et écart justifié</b> le soir.</li>
 <li><b>Ticket de caisse 80 mm</b> sur imprimante thermique, calibré une fois pour toutes, avec un QR code qui invite la cliente à donner son avis.</li>
 <li><b>Coupure d'internet</b> : la vente est gardée sur l'appareil et part toute seule au retour — aucune vente perdue.</li>
-<li><b>💗 Carte de fidélité</b> : des points à chaque passage, écrits sur le reçu ; une remise quand la cliente atteint le seuil fixé par la direction.</li>
+<li><b>💗 Carte de fidélité</b> : 1 point par passage, une carte à tampons sur le ticket ; au 10ᵉ passage, la caisse prévient <b>avant de valider</b> qu'il faut remettre le cadeau, puis les points repartent à zéro.</li>
 </ul>""", P))
 
 # 8. Clientes

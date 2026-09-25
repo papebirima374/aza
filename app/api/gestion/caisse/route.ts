@@ -45,6 +45,7 @@ export async function POST(request: Request) {
             cliente: c.cliente ? { nom: String(c.cliente.nom ?? ""), telephone: String(c.cliente.telephone ?? "") } : undefined,
             carteCadeau: c.carteCadeau ? String(c.carteCadeau) : undefined,
             fidelite: c.fidelite === true,
+            cadeau: c.cadeau === true,
             idLocal: c.idLocal ? String(c.idLocal) : undefined,
             faitLe: c.faitLe,
           }),
