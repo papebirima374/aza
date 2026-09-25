@@ -1,3 +1,26 @@
+# Nouveau diagnostic — 25 septembre 2026 (après les ajouts du jour)
+
+Après : ticket 80 mm, feuilles de caisse, rapports, avis, fidélité par passages, application
+installable et zoom bloqué, accès sur mesure, « Qui a fait quoi », ajout en cabine,
+anniversaires et relances.
+
+| Contrôle | Résultat |
+|---|---|
+| Pages examinées | 92 (46 pages × téléphone et ordinateur, 4 rôles), toutes répondent |
+| Erreurs JavaScript / requêtes en échec | **0 / 0** |
+| Liens internes vérifiés | 247, **0 cassé** |
+| Page plus large que l'écran | **0** (les éléments « hors écran » sont dans des bandes qui défilent) |
+| Petites cibles | barres du graphique des Rapports → on glisse le doigt ; liens du journal agrandis |
+| Suites de contrôles | 25 suites, toutes réussies (+ anniversaires et relances) |
+| Lighthouse, accueil (téléphone) | Vitesse 97 · Accessibilité **90** · Bonnes pratiques 100 · Référencement 100 |
+
+L'accessibilité passe de 96 à 90 à cause du **zoom bloqué** (demandé, « comme une
+application ») : Google le compte comme une gêne pour les personnes qui voient mal. Le reste
+(contraste du rose de la charte) est inchangé. Le zoom peut être rendu au site public seul si
+l'institut le souhaite.
+
+---
+
 # Diagnostic complet — 24 septembre 2026
 
 Site de test (base d'essai, noms fictifs), après la refonte de la Collection.

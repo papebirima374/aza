@@ -58,6 +58,10 @@ export async function ecranDuJour(membre: Membre, dateBrute?: string) {
     base.doc(`caisses/${date}`).get(),
     base.collection("articles").get(),
   ]);
+  const anniversaires = (await base.collection("clientes").where("anniversaire", "==", date.slice(5)).limit(20).get()).docs.map((d) => ({
+    id: d.id,
+    nom: d.get("nom") as string,
+  }));
 
   // Rendez-vous
   const compte: Partial<Record<Statut, number>> = {};
@@ -132,5 +136,6 @@ export async function ecranDuJour(membre: Membre, dateBrute?: string) {
     equipe,
     libreRestant: equipe.reduce((s, p) => s + p.libreRestant, 0),
     alertesStock,
+    anniversaires,
   };
 }

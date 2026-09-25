@@ -78,5 +78,19 @@ await api("/api/gestion/rappels", accueil, { rdv: premier.id });
 ok((await api("/api/gestion/rappels", accueil)).corps.rendezVous.find((x) => x.id === premier.id).rappel?.par === "Accueil test", "rappel noté « envoyé par Accueil test »");
 ok((await api("/api/gestion/rappels", coiffeuse)).statut === 403, "une praticienne n'a pas la liste des rappels");
 
+// Anniversaires et relances WhatsApp
+const auj = new Date().toISOString().slice(0, 10);
+const cree = await api("/api/gestion/clientes", accueil, { nom: "Anniversaire Test", telephone: "77 000 99 11", naissance: `1990-${auj.slice(5)}` });
+ok(cree.statut === 200, "fiche créée avec une date de naissance");
+const jour = (await api(`/api/gestion/jour?date=${auj}`, manager)).corps;
+ok(jour.anniversaires?.some((a) => a.nom === "Anniversaire Test"), "le tableau de bord du jour annonce son anniversaire");
+const resumeAnniv = (await api("/api/gestion/clientes", accueil)).corps.find((c) => c.id === cree.corps.id);
+ok(resumeAnniv?.naissance === `1990-${auj.slice(5)}`, "la liste des clientes connaît sa date de naissance");
+ok((await api("/api/gestion/clientes", accueil, { action: "relance", id: cree.corps.id, type: "inconnu" })).statut === 400, "relance inconnue refusée");
+ok((await api("/api/gestion/clientes", coiffeuse, { action: "relance", id: cree.corps.id, type: "anniversaire" })).statut === 403, "une praticienne ne relance pas les clientes");
+ok((await api("/api/gestion/clientes", accueil, { action: "relance", id: cree.corps.id, type: "anniversaire" })).statut === 200, "l'accueil note l'anniversaire souhaité");
+const apresRelance = (await api("/api/gestion/clientes", accueil)).corps.find((c) => c.id === cree.corps.id);
+ok(apresRelance?.derniereRelance?.type === "anniversaire" && apresRelance.derniereRelance.par === "Accueil test" && apresRelance.derniereRelance.date === auj, "la fiche garde « souhaité le … par Accueil test »");
+
 console.log(echecs === 0 ? "\nTout est bon." : `\n${echecs} contrôle(s) en échec.`);
 process.exit(echecs === 0 ? 0 : 1);

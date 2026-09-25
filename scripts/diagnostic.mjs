@@ -12,12 +12,13 @@ const b = await pw.chromium.launch({ executablePath: "/opt/pw-browsers/chromium"
 const PUBLIQUES = [
   "/", "/prestations", "/prestations/institut", "/prestations/onglerie", "/prestations/epilation", "/prestations/coiffure",
   "/forfaits", "/reservation", "/boutique", "/boutique/couture", "/boutique/couture/C-01", "/boutique/perruques-sur-mesure",
-  "/boutique/panier", "/institut", "/contact", "/mentions-legales", "/page-qui-n-existe-pas",
+  "/boutique/panier", "/institut", "/contact", "/mentions-legales", "/hors-ligne", "/avis/lien-de-test-inexistant", "/page-qui-n-existe-pas",
 ];
 const GESTION = {
-  "77 900 00 01": ["/gestion/jour", "/gestion", "/gestion/clientes", "/gestion/caisse", "/gestion/cartes", "/gestion/commandes", "/gestion/collection", "/gestion/collection/C-01", "/gestion/collection/nouveau", "/gestion/stock", "/gestion/catalogue", "/gestion/photos", "/gestion/equipe", "/gestion/reglages", "/gestion/mon-compte"],
+  "77 900 00 01": ["/gestion/jour", "/gestion/rapports", "/gestion/avis", "/gestion/activite", "/gestion", "/gestion/clientes", "/gestion/caisse", "/gestion/caisse/feuille", "/gestion/cartes", "/gestion/commandes", "/gestion/collection", "/gestion/collection/C-01", "/gestion/collection/nouveau", "/gestion/stock", "/gestion/catalogue", "/gestion/photos", "/gestion/equipe", "/gestion/reglages", "/gestion/mon-compte"],
+  "77 900 00 03": ["/gestion", "/gestion/caisse", "/gestion/caisse/feuille", "/gestion/commandes"],
   "77 900 00 04": ["/gestion"],
-  "77 900 00 06": ["/gestion/caisse", "/gestion/stock"],
+  "77 900 00 06": ["/gestion/rapports", "/gestion/caisse", "/gestion/stock"],
 };
 
 const resultats = [];

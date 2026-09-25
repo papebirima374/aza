@@ -118,7 +118,7 @@ export function JournalActivite() {
                     {(TYPES[l.type] ?? "").split(" ")[0]}
                   </span>
                   {l.lien ? (
-                    <Link href={l.lien} className="hover:underline">
+                    <Link href={l.lien} className="inline-block py-1 hover:underline">
                       {l.texte}
                     </Link>
                   ) : (

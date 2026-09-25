@@ -112,6 +112,7 @@ pages.append(page(f"""
 <li><b>Chiffres automatiques</b> : total dépensé, venues, panier moyen, fréquence, absences.</li>
 <li><b>Groupes</b> : nouvelles, fidèles, VIP, doivent de l'argent, inactives depuis 3 ou 6 mois.</li>
 <li>Crédit : encaisser un règlement, ou envoyer un rappel poli par WhatsApp.</li>
+<li><b>Faire revenir les clientes</b> : anniversaires du jour et de la semaine, clientes pas venues depuis 3 ou 6 mois, crédits à régler — un message WhatsApp déjà écrit, en un toucher.</li>
 </ul>""", P))
 
 # 9. Stock et boutique

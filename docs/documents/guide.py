@@ -407,6 +407,26 @@ pages.append(page(f"""
 </div>{figure("26-fiche-cliente","La fiche")}{figure("27-fiche-credit","Le crédit")}</div>
 """, P))
 
+# 6bis. Anniversaires et relances
+pages.append(page(f"""
+<span class="etiquette">6 · Les clientes</span>
+<h2>Anniversaires et relances par WhatsApp</h2>
+<div class="duo" style="grid-template-columns:1fr 50mm 50mm;"><div>
+<p>Pour faire revenir les clientes, en quelques touches :</p>
+<ul class="puces">
+<li><b>🎂 Anniversaires (7 jours)</b> : les clientes dont l'anniversaire arrive (le plus proche en premier). Le jour même, le <b>Tableau de bord</b> l'annonce en haut. Il faut que sa <b>date de naissance</b> soit sur sa fiche.</li>
+<li><b>😴 Pas venues depuis 3 mois</b>, <b>💤 depuis 6 mois</b> : le bouton <b>📲 Relancer</b> l'invite à reprendre rendez-vous.</li>
+<li><b>💳 Doivent de l'argent</b> : <b>📲 Rappeler</b> envoie un rappel poli du montant à régler.</li>
+</ul>
+<ol class="etapes">
+<li>Clientes → touchez le groupe.</li>
+<li>Touchez le bouton vert : <b>WhatsApp s'ouvre avec un message déjà écrit</b>. Relisez, puis envoyez.</li>
+<li>La fiche garde « ✓ Déjà relancée le … par … » : personne ne la relance deux fois dans le mois.</li>
+</ol>
+<div class="encadre">Le message part du téléphone de l'accueil : rien n'est envoyé tout seul. Chaque relance est notée dans « Qui a fait quoi ».</div>
+</div>{figure("98-clientes-anniversaires","Les anniversaires","tel-petit")}{figure("99-clientes-relance","Relancer","tel-petit")}</div>
+""", P))
+
 # 7. Commandes
 pages.append(page(f"""
 <span class="etiquette">7 · La boutique en ligne</span>

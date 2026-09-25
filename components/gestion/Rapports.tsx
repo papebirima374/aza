@@ -425,11 +425,25 @@ function Courbe({ jours }: { jours: Rapport["parJour"] }) {
               {dateCourte(actif.date)} : <b className="prix text-profond">{formatPrix(actif.recette)}</b> · {actif.tickets} ticket{actif.tickets > 1 ? "s" : ""}
             </>
           ) : (
-            "Touchez une barre pour le détail"
+            "Touchez ou glissez sur les barres"
           )}
         </p>
       </div>
-      <div className="mt-3 flex h-40 items-end gap-[2px]" onMouseLeave={() => setSurvol(null)} role="img" aria-label={`Recette ${regroupe ? "par semaine" : "par jour"}, maximum ${formatPrix(maxB)}`}>
+      <div
+        className="mt-3 flex h-40 touch-pan-y items-end gap-[2px]"
+        onMouseLeave={() => setSurvol(null)}
+        // Sur téléphone, les barres sont fines : on fait glisser le doigt, la barre sous le doigt s'affiche.
+        onPointerMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setSurvol(Math.max(0, Math.min(barres.length - 1, Math.floor(((e.clientX - r.left) / r.width) * barres.length))));
+        }}
+        onPointerDown={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          setSurvol(Math.max(0, Math.min(barres.length - 1, Math.floor(((e.clientX - r.left) / r.width) * barres.length))));
+        }}
+        role="img"
+        aria-label={`Recette ${regroupe ? "par semaine" : "par jour"}, maximum ${formatPrix(maxB)}`}
+      >
         {barres.map((b, i) => (
           <button
             key={b.date}

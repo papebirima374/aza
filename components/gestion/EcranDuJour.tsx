@@ -21,6 +21,7 @@ type Jour = {
   equipe: { id: string; nom: string; occupation: number; libreRestant: number }[];
   libreRestant: number;
   alertesStock: { nom: string; quantite: number; unite: string }[];
+  anniversaires?: { id: string; nom: string }[];
 };
 
 const heure = (m: number) => `${Math.floor(m / 60)}h${m % 60 ? String(m % 60).padStart(2, "0") : ""}`;
@@ -119,6 +120,15 @@ export function EcranDuJour() {
               detail="cumulé, toute l'équipe"
             />
           </div>
+
+          {jour.aujourdhui && (jour.anniversaires?.length ?? 0) > 0 && (
+            <Link href="/gestion/clientes?groupe=anniversaires" className="mt-4 flex items-center justify-between gap-3 rounded-2xl border-2 border-[#d69e2e] bg-[#fff8e6] p-4">
+              <span>
+                <b className="text-profond">🎂 Anniversaire aujourd&apos;hui :</b> {jour.anniversaires!.map((a) => a.nom).join(", ")}
+              </span>
+              <span className="shrink-0 text-sm font-bold text-profond underline">Souhaiter →</span>
+            </Link>
+          )}
 
           <div className="mt-6 grid gap-6 md:grid-cols-2">
             <Bloc titre="Encaissements">

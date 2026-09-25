@@ -49,6 +49,8 @@ function resume(d: FirebaseFirestore.DocumentSnapshot) {
     absences: (x.absences as number) ?? 0,
     credit: (x.credit as number) ?? 0,
     points: (x.points as number) ?? 0,
+    naissance: (x.naissance as string) ?? "",
+    derniereRelance: (x.derniereRelance as { type: string; date: string; par: string } | undefined) ?? null,
     cadeauxFidelite: (x.cadeauxFidelite as number) ?? 0,
     derniereVisite: (x.derniereVisite as string) ?? null,
     premiereVisite: (x.premiereVisite as string) ?? null,
@@ -119,6 +121,23 @@ export async function ficheCliente(membre: Membre, id: string) {
   };
 }
 
+export const TYPES_RELANCE = ["anniversaire", "revoir", "credit"] as const;
+
+/**
+ * Relance d'une cliente par WhatsApp (anniversaire, pas venue depuis longtemps, crédit) :
+ * le message part du téléphone de l'accueil ; on note seulement qu'elle a été relancée,
+ * pour ne pas la relancer deux fois.
+ */
+export async function noterRelance(membre: Membre, id: string, type: string) {
+  exiger(membre);
+  if (!TYPES_RELANCE.includes(type as (typeof TYPES_RELANCE)[number])) throw new Erreur("Relance inconnue.", 400);
+  const ref = db().doc(`clientes/${id}`);
+  const fiche = await ref.get();
+  if (!fiche.exists) throw new Erreur("Fiche introuvable.", 404);
+  await ref.set({ derniereRelance: { type, date: new Date().toISOString().slice(0, 10), par: membre.nom } }, { merge: true });
+  return { ok: true, nom: fiche.get("nom") as string };
+}
+
 /** Création (au comptoir) ou modification d'une fiche. Le numéro ne change jamais : c'est l'identité. */
 export async function enregistrerCliente(membre: Membre, c: Record<string, unknown>) {
   exiger(membre);
@@ -128,6 +147,8 @@ export async function enregistrerCliente(membre: Membre, c: Record<string, unkno
     if (c[k] !== undefined) maj[k] = String(c[k] ?? "").trim().slice(0, max);
   }
   if (maj.naissance && !/^\d{4}-\d{2}-\d{2}$/.test(maj.naissance as string)) throw new Erreur("Date de naissance invalide.", 400);
+  // « MM-JJ » : pour trouver les anniversaires du jour sans lire tout le fichier.
+  if (maj.naissance !== undefined) maj.anniversaire = maj.naissance ? (maj.naissance as string).slice(5) : "";
   if (maj.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(maj.email as string)) throw new Erreur("Email invalide.", 400);
   if (maj.whatsapp && !telephoneValide(maj.whatsapp as string)) throw new Erreur("Numéro WhatsApp invalide.", 400);
   const trace = { modifiePar: { uid: membre.uid, nom: membre.nom }, modifieLe: FieldValue.serverTimestamp() };
