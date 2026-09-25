@@ -44,11 +44,10 @@ autres pages 46 à 75 Ko.
 - **Google** : données « Product » (prix en francs CFA) sur chaque modèle Couture, adresse
   canonique par modèle.
 
-## À décider par la direction
-- **Contraste du rose des boutons** : le texte blanc sur le rose vif #F0349A (couleur de la
-  charte) est un peu en dessous du contraste conseillé pour les petites lettres. C'est le
-  seul point qui retient l'accessibilité à 96. Si la directrice le souhaite, un rose un peu
-  plus soutenu pour les boutons porterait la note à 100 ; sinon on garde la charte.
+## Décision de la direction
+- **Contraste du rose des boutons** : le texte blanc sur le rose vif #F0349A est un peu en
+  dessous du contraste conseillé pour les petites lettres (accessibilité 96). **Décision :
+  on garde la charte** (24/09/2026).
 
 ## Ce qui reste hors du site
 - Mise en ligne des vrais prix Couture, du tableau des tailles et des zones de livraison.

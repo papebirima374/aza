@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
       { pathname: "/api/site/photo/**", search: "" },
     ],
     formats: ["image/webp"],
+    // Une photo ne change jamais (une nouvelle photo a une nouvelle adresse) : on garde la
+    // version redimensionnée 31 jours. Sur Vercel, chaque redimensionnement compte dans le
+    // quota du compte ; sans cela il serait refait toutes les 4 heures.
+    minimumCacheTTL: 2_678_400,
   },
 };
 
