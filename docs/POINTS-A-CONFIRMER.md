@@ -1,5 +1,7 @@
 # Points à confirmer avec Anna Zen Attitude
 
+> **Projet validé par le client le 6 octobre 2026.** La suite : `docs/MISE-EN-LIGNE.md`.
+
 **Référence : la plaquette « Zen Attitude V2 »**, la plus récente. Adresse, horaires,
 téléphones et tarifs du site en sont repris tels quels. Le catalogue 2023 et l'ancien site
 ne comptent plus.

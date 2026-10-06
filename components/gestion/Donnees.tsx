@@ -8,7 +8,7 @@ import { useCompte } from "@/components/gestion/EspaceGestion";
 // Chaque action demande le code de sécurité (posé dans Vercel, jamais dans le code).
 
 const PARTIES = [
-  { id: "activite", libelle: "Rendez-vous, clientes, tickets et caisse", aide: "Tout ce qui a servi aux essais." },
+  { id: "activite", libelle: "Rendez-vous, clientes, tickets, caisse et avis", aide: "Tout ce qui a servi aux essais." },
   { id: "stock", libelle: "Stock (articles et mouvements)", aide: "Pour repartir d'un inventaire propre." },
   { id: "reglages", libelle: "Réglages, durées, postes et prix modifiés", aide: "Les horaires et les prix reviennent à ceux de la plaquette." },
   { id: "equipe", libelle: "Équipe (sauf votre compte)", aide: "Les autres comptes sont supprimés." },
