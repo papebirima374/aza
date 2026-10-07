@@ -625,7 +625,7 @@ export async function aEncaisser(membre: Membre) {
   const { date } = maintenantDakar();
   const snap = await db().collection("rendezVous").where("date", "==", date).where("statut", "==", "termine").get();
   return snap.docs
-    .map((d) => ({ id: d.id, debut: d.get("debut") as number, cliente: d.get("cliente"), prestations: d.get("prestations"), total: d.get("total") }))
+    .map((d) => ({ id: d.id, debut: d.get("debut") as number, cliente: d.get("cliente"), prestations: d.get("prestations"), total: d.get("total"), affectations: d.get("affectations") ?? [] }))
     .sort((a, b) => a.debut - b.debut);
 }
 
@@ -640,7 +640,7 @@ export async function lireRendezVous(membre: Membre, id: string) {
   exigerAcces(membre, "caisse");
   const r = await db().doc(`rendezVous/${id}`).get();
   if (!r.exists) throw new Erreur("Rendez-vous introuvable.", 404);
-  return { id: r.id, statut: r.get("statut"), cliente: r.get("cliente"), prestations: r.get("prestations"), date: r.get("date") };
+  return { id: r.id, statut: r.get("statut"), cliente: r.get("cliente"), prestations: r.get("prestations"), date: r.get("date"), affectations: r.get("affectations") ?? [] };
 }
 
 /**

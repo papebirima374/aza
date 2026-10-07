@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
+import { telephoneAffiche } from "@/lib/telephone";
 import { formatPrix } from "@/lib/catalogue";
 import { ressemble } from "@/lib/recherche";
 
@@ -172,7 +173,7 @@ export function Clientes() {
                     {c.totalAchats >= SEUIL_VIP && " ⭐"}
                   </span>
                   <span className="block text-sm text-doux">
-                    {c.telephone}
+                    {telephoneAffiche(c.telephone)}
                     {c.derniereVisite ? ` · venue le ${new Date(`${c.derniereVisite}T12:00:00Z`).toLocaleDateString("fr-FR")}` : " · jamais venue"}
                   </span>
                   {c.allergies && <span className="mt-0.5 block truncate text-sm font-bold text-[#b3261e]">⚠️ {c.allergies}</span>}

@@ -128,5 +128,32 @@ ok((await lire(`tickets/${ticketMauvais.corps.id}`)).cliente?.mapValue.fields.id
 const fiche = await appel("/api/gestion/clientes?id=710005510", accueil);
 ok(fiche.statut === 200 && fiche.corps.historique.length >= 2, "l'historique s'affiche sous le nouveau numéro");
 
+// Modifier un rendez-vous déjà enregistré : ajouter, retirer, changer la prestataire
+const amodif = await appel("/api/gestion/comptoir", accueil, {
+  action: "libre", date: AUJ, debut: 13 * 60 + 30, lignes: [{ id: "onglerie--gainage", praticienne: "test-prothesiste-1" }, { id: VERNIS, praticienne: "test-prothesiste-1" }],
+  nom: "Rendez-vous à modifier (test)", telephone: "77 000 55 20", dejaFaite: false,
+});
+const modifier = (tok, lignes) =>
+  fetch(`${SITE}/api/gestion/rendez-vous/${amodif.corps.id}/prestations`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` }, body: JSON.stringify({ lignes }) }).then(async (r) => ({ statut: r.status, corps: await r.json() }));
+ok((await modifier(coiffeuse, [{ id: VERNIS }])).statut === 403, "une praticienne ne modifie pas les prestations d'un rendez-vous");
+ok((await modifier(accueil, [])).statut === 400, "retirer tout : refusé (on annule le rendez-vous plutôt)");
+const m1 = await modifier(accueil, [{ id: VERNIS, praticienne: "test-prothesiste-2" }, { id: HYDRA, praticienne: "test-estheticienne-1" }]);
+const apresModif = await lire(`rendezVous/${amodif.corps.id}`);
+const prest = valeurs(apresModif.prestations).map((x) => x.mapValue.fields.id.stringValue);
+const qui = valeurs(apresModif.affectations).map((x) => x.mapValue.fields.praticiennes.arrayValue.values[0].stringValue);
+ok(m1.statut === 200 && prest.join() === `${VERNIS},${HYDRA}`, "gainage retiré, Hydrafacial ajouté");
+ok(qui.join() === "test-prothesiste-2,test-estheticienne-1", "chaque prestation a sa nouvelle prestataire");
+ok(Number(apresModif.total.integerValue) === 5000 + 45000, `total recalculé : ${apresModif.total.integerValue} F`);
+ok(valeurs(apresModif.historique).some((h) => /Retrait : Gainage/.test(h.mapValue.fields.motif?.stringValue ?? "")), "la modification est notée dans le journal du rendez-vous");
+const occs = await (await fetch(`${EMU}:runQuery`, { method: "POST", headers: { ...OWNER, "Content-Type": "application/json" }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId: "occupations" }], where: { fieldFilter: { field: { fieldPath: "rendezVous" }, op: "EQUAL", value: { stringValue: amodif.corps.id } } } } }) })).json();
+ok(occs.filter((o) => o.document).map((o) => o.document.fields.ressource.stringValue).sort().join() === "test-estheticienne-1,test-prothesiste-2", "l'agenda des prestataires est refait");
+// Encaissé : plus modifiable
+const rdvEnc = (await appel("/api/gestion/comptoir", accueil, { action: "libre", date: AUJ, lignes: [{ id: VERNIS }], nom: "Déjà encaissée (test)", telephone: "77 000 55 21", dejaFaite: true })).corps;
+await appel("/api/gestion/caisse", accueil, { action: "encaisser", rendezVous: rdvEnc.id, lignes: [{ id: VERNIS }], paiements: [{ mode: "especes", montant: 5000 }] });
+ok(
+  (await fetch(`${SITE}/api/gestion/rendez-vous/${rdvEnc.id}/prestations`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${accueil}` }, body: JSON.stringify({ lignes: [{ id: HYDRA }] }) })).status === 409,
+  "rendez-vous encaissé : plus modifiable (on corrige par un avoir)",
+);
+
 console.log(echecs === 0 ? "\nTout est bon." : `\n${echecs} contrôle(s) en échec.`);
 process.exit(echecs === 0 ? 0 : 1);

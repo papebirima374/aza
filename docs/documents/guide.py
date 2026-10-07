@@ -207,7 +207,9 @@ pages.append(page(f"""
 <li><b>Prestation déjà faite</b> (cochée d'office pour une heure passée) : le passage va directement dans <b>« À encaisser »</b>, et chaque ligne du ticket garde sa prestataire.</li>
 </ol>
 <div class="encadre">Une cliente qui paie tout de suite peut aussi être servie directement au comptoir de la Caisse, sans passer par l'agenda.</div>
-</div>{figure("104-rdv-passage","Deux prestations, deux prestataires")}</div>
+<h3>Modifier un rendez-vous déjà enregistré</h3>
+<p>Touchez le rendez-vous dans l'agenda, puis <span class="touche">✏️ Modifier les prestations</span> : retirez un service (<span class="touche">✕</span>), ajoutez-en un (« + Ajouter : chercher… »), changez « Fait par ». Le total et l'heure de fin se recalculent ; la modification est notée dans le journal du rendez-vous. Possible tant qu'il n'est pas encaissé (après : un avoir à la caisse).</p>
+</div><div style="display:flex;flex-direction:column;gap:4mm">{figure("104-rdv-passage","Deux prestations, deux prestataires","tel-petit")}{figure("105-rdv-modifier","Modifier un rendez-vous","tel-petit")}</div></div>
 """, P))
 
 # 4. Rappels

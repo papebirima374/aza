@@ -12,6 +12,8 @@ import { LIBELLES, ROLES_AGENDA, statutsPermis, type Statut } from "@/lib/agenda
 import { formatPrix, UNIVERS, type UniversId } from "@/lib/catalogue";
 import { firebaseClient } from "@/lib/client/firebase";
 import { peut } from "@/lib/acces";
+import { correspond } from "@/lib/recherche";
+import { telephoneAffiche } from "@/lib/telephone";
 
 // Agenda du jour (cahier des charges M-01) : colonnes par praticienne ou par poste,
 // une couleur par univers, mise à jour en temps réel sur tous les postes.
@@ -280,7 +282,7 @@ export function Agenda() {
         </div>
       )}
 
-      {selection && <Detail rdv={selection} fermer={() => setOuvert(null)} />}
+      {selection && <Detail rdv={selection} equipe={praticiennes} fermer={() => setOuvert(null)} />}
       {nouveau && (
         <NouveauRendezVous
           dateInitiale={date}
@@ -296,7 +298,7 @@ export function Agenda() {
   );
 }
 
-function Detail({ rdv, fermer }: { rdv: RendezVous; fermer: () => void }) {
+function Detail({ rdv, equipe, fermer }: { rdv: RendezVous; equipe: { id: string; nom: string }[]; fermer: () => void }) {
   const compte = useCompte();
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState("");
@@ -337,7 +339,7 @@ function Detail({ rdv, fermer }: { rdv: RendezVous; fermer: () => void }) {
           <div>
             <h2 className="font-serif text-3xl font-semibold text-profond">{rdv.cliente.nom}</h2>
             <a href={`tel:${rdv.cliente.telephone}`} className="font-semibold text-aza">
-              {rdv.cliente.telephone}
+              {telephoneAffiche(rdv.cliente.telephone)}
             </a>
           </div>
           <button onClick={fermer} className="rounded-full px-3 py-1 text-2xl text-doux" aria-label="Fermer">
@@ -349,18 +351,24 @@ function Detail({ rdv, fermer }: { rdv: RendezVous; fermer: () => void }) {
         <p className="mt-4 font-semibold">
           {heure(rdv.debut)} – {heure(rdv.fin)} · <span className="text-profond">{LIBELLES[rdv.statut]}</span>
         </p>
-        <ul className="mt-3 space-y-1 text-sm">
-          {rdv.prestations.map((p) => (
-            <li key={p.id} className="flex justify-between gap-3">
-              <span>{p.nom}</span>
-              <span className="prix font-semibold">{formatPrix(p.prix)}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-2 flex justify-between border-t border-bordure pt-2 font-bold text-profond">
-          <span>Total</span>
-          <span className="prix">{formatPrix(rdv.total)}</span>
-        </p>
+        {ROLES_AGENDA.includes(compte.role) && !["encaisse", "annule", "absente"].includes(rdv.statut) ? (
+          <ModifierPrestations rdv={rdv} equipe={equipe} />
+        ) : (
+          <>
+            <ul className="mt-3 space-y-1 text-sm">
+              {rdv.prestations.map((p) => (
+                <li key={p.id} className="flex justify-between gap-3">
+                  <span>{p.nom}</span>
+                  <span className="prix font-semibold">{formatPrix(p.prix)}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 flex justify-between border-t border-bordure pt-2 font-bold text-profond">
+              <span>Total</span>
+              <span className="prix">{formatPrix(rdv.total)}</span>
+            </p>
+          </>
+        )}
         {rdv.acompteRequis && <p className="mt-3 rounded-lg bg-or/15 px-3 py-2 text-sm font-semibold">Acompte demandé</p>}
         {rdv.remarque && <p className="mt-3 rounded-lg bg-creme px-3 py-2 text-sm">« {rdv.remarque} »</p>}
         <p className="mt-2 text-xs text-doux">Pris {rdv.source === "site" ? "en ligne" : "au comptoir"}</p>
@@ -495,6 +503,149 @@ function QuiFait({ rdv }: { rdv: RendezVous }) {
         </div>
       ))}
       {erreur && <p className="mt-2 text-sm font-semibold text-aza-fonce">{erreur}</p>}
+    </section>
+  );
+}
+
+/**
+ * Les prestations d'un rendez-vous, modifiables tant qu'il n'est pas encaissé : ajouter ou
+ * retirer un service, choisir qui fait chacun. Total et horaires se recalculent.
+ */
+function ModifierPrestations({ rdv, equipe }: { rdv: RendezVous; equipe: { id: string; nom: string }[] }) {
+  const compte = useCompte();
+  const cat = useCatalogue();
+  const depart = () =>
+    rdv.prestations.map((p) => ({ id: p.id, nom: p.nom, prix: p.prix, praticienne: rdv.affectations.find((a) => a.prestation === p.id)?.praticiennes[0] ?? "" }));
+  const [edition, setEdition] = useState<{ id: string; nom: string; prix: number; praticienne: string }[] | null>(null);
+  const [recherche, setRecherche] = useState("");
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState("");
+  const nomDe = Object.fromEntries(equipe.map((e) => [e.id, e.nom]));
+  const resultats = useMemo(
+    () => (recherche.trim().length < 2 ? [] : cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, recherche)).slice(0, 8)),
+    [recherche, cat],
+  );
+
+  if (!edition) {
+    return (
+      <>
+        <ul className="mt-3 space-y-1 text-sm">
+          {rdv.prestations.map((p) => {
+            const qui = rdv.affectations.find((a) => a.prestation === p.id)?.praticiennes[0];
+            return (
+              <li key={p.id} className="flex justify-between gap-3">
+                <span>
+                  {p.nom}
+                  {qui && <span className="text-doux"> · {nomDe[qui] ?? "?"}</span>}
+                </span>
+                <span className="prix font-semibold">{formatPrix(p.prix)}</span>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2 flex justify-between border-t border-bordure pt-2 font-bold text-profond">
+          <span>Total</span>
+          <span className="prix">{formatPrix(rdv.total)}</span>
+        </p>
+        <button onClick={() => setEdition(depart())} className="mt-2 min-h-10 rounded-full border border-bordure px-4 text-sm font-semibold text-profond">
+          ✏️ Modifier les prestations
+        </button>
+      </>
+    );
+  }
+
+  async function enregistrer() {
+    setEnvoi(true);
+    setErreur("");
+    try {
+      const r = await fetch(`/api/gestion/rendez-vous/${rdv.id}/prestations`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await compte.user.getIdToken()}` },
+        body: JSON.stringify({ lignes: edition!.map((l) => ({ id: l.id, praticienne: l.praticienne || undefined })) }),
+      });
+      if (!r.ok) setErreur((await r.json()).erreur ?? "Modification refusée.");
+      else setEdition(null);
+    } catch {
+      setErreur("Connexion impossible.");
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  const total = edition.reduce((s, l) => s + l.prix, 0);
+  return (
+    <section className="mt-3 rounded-xl border-2 border-profond/30 p-3">
+      <h3 className="text-sm font-bold tracking-wide text-doux uppercase">Modifier les prestations</h3>
+      <ul className="mt-2 space-y-2">
+        {edition.map((l) => (
+          <li key={l.id} className="rounded-lg bg-creme px-3 py-2">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="min-w-0 flex-1 font-semibold">{l.nom}</span>
+              <span className="prix">{formatPrix(l.prix)}</span>
+              <button onClick={() => setEdition(edition.filter((x) => x.id !== l.id))} className="h-9 w-9 shrink-0 rounded-full text-lg text-doux hover:bg-white" aria-label={`Retirer ${l.nom}`}>
+                ✕
+              </button>
+            </div>
+            {cat.parId(l.id)?.note !== "Produit" && (
+              <label className="mt-1 flex items-center gap-2 text-xs">
+                <span className="shrink-0 text-doux">Fait par</span>
+                <select
+                  value={l.praticienne}
+                  onChange={(e) => setEdition(edition.map((x) => (x.id === l.id ? { ...x, praticienne: e.target.value } : x)))}
+                  className="min-h-9 min-w-0 flex-1 rounded-lg border border-bordure bg-white px-2 text-sm"
+                  aria-label={`Qui fait ${l.nom}`}
+                >
+                  <option value="">— Qui ? —</option>
+                  {equipe.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nom}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </li>
+        ))}
+      </ul>
+      <input
+        type="search"
+        value={recherche}
+        onChange={(e) => setRecherche(e.target.value)}
+        placeholder="+ Ajouter : chercher un service ou un produit…"
+        className="mt-2 w-full rounded-xl border border-bordure px-3 py-2.5 text-sm"
+      />
+      {resultats.length > 0 && (
+        <ul className="mt-1 rounded-xl border border-bordure">
+          {resultats.map((p) => (
+            <li key={p.id}>
+              <button
+                disabled={edition.some((x) => x.id === p.id)}
+                onClick={() => {
+                  setEdition([...edition, { id: p.id, nom: p.nom, prix: p.prix, praticienne: "" }]);
+                  setRecherche("");
+                }}
+                className="flex w-full justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-creme disabled:opacity-40"
+              >
+                <span>{p.nom}</span>
+                <span className="prix font-semibold">{formatPrix(p.prix)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 flex justify-between border-t border-bordure pt-2 font-bold text-profond">
+        <span>Nouveau total</span>
+        <span className="prix">{formatPrix(total)}</span>
+      </p>
+      {erreur && <p className="mt-2 text-sm font-semibold text-aza-fonce">{erreur}</p>}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button disabled={envoi || edition.length === 0} onClick={enregistrer} className="min-h-11 rounded-full bg-profond px-5 font-bold text-white disabled:opacity-40">
+          {envoi ? "Enregistrement…" : "Enregistrer"}
+        </button>
+        <button onClick={() => setEdition(null)} className="min-h-11 rounded-full border border-bordure px-4 text-sm font-semibold">
+          Annuler
+        </button>
+      </div>
     </section>
   );
 }

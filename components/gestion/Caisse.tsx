@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlerteCliente } from "@/components/gestion/AlerteCliente";
 import { useCompte } from "@/components/gestion/EspaceGestion";
+import { telephoneAffiche } from "@/lib/telephone";
 import { useCatalogue } from "@/lib/client/catalogue";
 import { useAEncaisser, useFileCaisse } from "@/components/gestion/SuiviCaisse";
 import { erreurReseau, nouvelIdLocal } from "@/lib/client/file-caisse";
@@ -45,7 +46,16 @@ type Journal = {
   totaux: Totaux;
 };
 type Prestataire = { id: string; nom: string; competences: string[] };
-type RdvAEncaisser = { id: string; debut: number; cliente: { nom: string; telephone: string }; prestations: { id: string; nom: string; prix: number }[] };
+type RdvAEncaisser = {
+  id: string;
+  debut: number;
+  cliente: { nom: string; telephone: string };
+  prestations: { id: string; nom: string; prix: number }[];
+  affectations?: { prestation: string; praticiennes: string[] }[];
+};
+// Les lignes d'un rendez-vous, avec la prestataire qui a fait chaque soin (modifiable).
+const lignesDuRdv = (r: Pick<RdvAEncaisser, "prestations" | "affectations">): Ligne[] =>
+  r.prestations.map((p) => ({ id: p.id, quantite: 1, praticienne: r.affectations?.find((a) => a.prestation === p.id)?.praticiennes[0] }));
 type Ligne = { id: string; quantite: number; praticienne?: string };
 type FicheResume = { id: string; nom: string; telephone: string; points: number; credit: number };
 type Brouillon = { rendezVous?: string; cliente?: { nom: string; telephone: string }; lignes: Ligne[] };
@@ -132,7 +142,7 @@ export function Caisse() {
       .then((r: RdvAEncaisser & { statut: string }) => {
         if (!actif) return;
         if (r.statut !== "termine") setErreur("Ce rendez-vous n'est pas « Terminé » (ou il est déjà encaissé).");
-        else setBrouillon({ rendezVous: r.id, cliente: r.cliente, lignes: r.prestations.map((p) => ({ id: p.id, quantite: 1 })) });
+        else setBrouillon({ rendezVous: r.id, cliente: r.cliente, lignes: lignesDuRdv(r) });
       })
       .catch((e: Error) => actif && setErreur(e.message));
     return () => {
@@ -153,6 +163,15 @@ export function Caisse() {
   }
 
   const ouverte = journal?.aujourdhui && journal.caisse?.statut === "ouverte";
+  // Téléphone : la barre « Payer » s'efface quand le comptoir est déjà à l'écran.
+  const [comptoirVisible, setComptoirVisible] = useState(false);
+  useEffect(() => {
+    const el = document.getElementById("comptoir");
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const o = new IntersectionObserver(([e]) => setComptoirVisible(e.isIntersecting), { threshold: 0.15 });
+    o.observe(el);
+    return () => o.disconnect();
+  }, [ouverte, numeroVente]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6">
@@ -206,7 +225,7 @@ export function Caisse() {
                   if (brouillon && brouillon.lignes.length > 0 && !window.confirm("Le comptoir n'est pas vide. Le remplacer par ce rendez-vous ?")) return;
                   setFait(null);
                   setNumeroVente((n) => n + 1);
-                  setBrouillon({ rendezVous: r.id, cliente: r.cliente, lignes: r.prestations.map((p) => ({ id: p.id, quantite: 1 })) });
+                  setBrouillon({ rendezVous: r.id, cliente: r.cliente, lignes: lignesDuRdv(r) });
                 }}
               />
               <Editeur
@@ -249,7 +268,7 @@ export function Caisse() {
           )}
 
           {/* Téléphone : le comptoir est sous les services ; cette barre y mène. */}
-          {ouverte && tientLaCaisse && brouillon && brouillon.lignes.length > 0 && (
+          {ouverte && tientLaCaisse && brouillon && brouillon.lignes.length > 0 && !comptoirVisible && (
             <a
               href="#comptoir"
               className="fixed inset-x-3 bottom-3 z-30 flex min-h-14 items-center justify-between rounded-2xl bg-profond px-5 font-bold text-white shadow-xl lg:hidden"
@@ -312,9 +331,16 @@ function Ouvrir({ ouvrir }: { ouvrir: (fond: number) => void }) {
         <span className="text-sm font-semibold">Fond de caisse (F CFA)</span>
         <input inputMode="numeric" value={fond} onChange={(e) => setFond(e.target.value)} placeholder="ex. 20 000" className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 text-lg" />
       </label>
-      <button disabled={fond.trim() === ""} onClick={() => ouvrir(nombre(fond))} className={`${bouton} mt-4 bg-aza text-white`}>
-        Ouvrir ma caisse
-      </button>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button disabled={fond.trim() === ""} onClick={() => ouvrir(nombre(fond))} className={`${bouton} bg-aza text-white`}>
+          Ouvrir ma caisse
+        </button>
+        {fond.trim() === "" && (
+          <button onClick={() => ouvrir(0)} className={`${bouton} border border-bordure text-profond`}>
+            Tiroir vide (0 F)
+          </button>
+        )}
+      </div>
     </section>
   );
 }
@@ -546,7 +572,7 @@ function Editeur(props: {
                     >
                       <span className="font-semibold">{c.nom || "Sans nom"}</span>
                       <span className="text-sm text-doux">
-                        {c.telephone}
+                        {telephoneAffiche(c.telephone)}
                         {c.points > 0 ? ` · 💗 ${c.points} pts` : ""}
                         {c.credit > 0 ? ` · doit ${formatPrix(c.credit)}` : ""}
                       </span>

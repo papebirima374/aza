@@ -17,3 +17,10 @@ export function telephoneValide(t: string): boolean {
   if (c.length === 9) return /^(7[015678]|3[03])/.test(c);
   return c.length >= 10 && c.length <= 15;
 }
+
+/** Pour l'affichage : « 77 000 01 04 » (Sénégal), sinon « +33 6… » avec l'indicatif. */
+export function telephoneAffiche(t?: string | null): string {
+  const c = telephoneCanonique(t);
+  if (c.length === 9) return `${c.slice(0, 2)} ${c.slice(2, 5)} ${c.slice(5, 7)} ${c.slice(7)}`;
+  return c ? `+${c}` : "";
+}

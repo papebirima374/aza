@@ -1,0 +1,25 @@
+// Capture : modifier les prestations d'un rendez-vous déjà enregistré. Base de TEST.
+import pw from "/opt/node22/lib/node_modules/playwright/index.js";
+const S = "http://localhost:3100";
+const D = new URL("./captures/", import.meta.url).pathname;
+const b = await pw.chromium.launch({ executablePath: "/opt/pw-browsers/chromium" });
+const p = await (await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, locale: "fr-FR" })).newPage();
+await p.goto(S + "/gestion");
+await p.fill("input[type=tel]", "77 900 00 03");
+await p.fill("input[type=password]", "AzaTest2026!");
+await p.click("button[type=submit]");
+await p.locator('a[href="/gestion/mon-compte"]').waitFor();
+await p.goto(S + "/gestion");
+await p.getByText(/Awa Diop \(test\)/).first().click();
+await p.getByRole("button", { name: /Modifier les prestations/ }).click();
+await p.getByPlaceholder(/Ajouter : chercher/).fill("vernis perm");
+await p.locator("aside").getByRole("button", { name: /Vernis permanent/ }).first().click();
+const selects = p.locator("aside select");
+await selects.last().selectOption({ index: 7 });
+await p.waitForTimeout(500);
+const bloc = p.getByText("Modifier les prestations", { exact: true });
+await bloc.evaluate((e) => e.closest("aside").scrollTo(0, e.getBoundingClientRect().top - 140));
+await p.waitForTimeout(400);
+await p.locator("aside").screenshot({ path: `${D}105-rdv-modifier.png` });
+console.log("📸 105");
+await b.close();

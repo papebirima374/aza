@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
+import { telephoneAffiche } from "@/lib/telephone";
 import { peut } from "@/lib/acces";
 import { useCatalogue } from "@/lib/client/catalogue";
 import { formatPrix } from "@/lib/catalogue";
@@ -216,7 +217,7 @@ export function NouveauRendezVous({
                       className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm hover:bg-creme"
                     >
                       <span className="font-semibold">{c.nom}</span>
-                      <span className="prix text-doux">{c.telephone}</span>
+                      <span className="prix text-doux">{telephoneAffiche(c.telephone)}</span>
                     </button>
                   </li>
                 ))}

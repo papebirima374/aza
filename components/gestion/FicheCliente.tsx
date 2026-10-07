@@ -8,7 +8,7 @@ import { LIBELLES, type Statut } from "@/lib/agenda/statuts";
 import { MODES, type Mode } from "@/lib/caisse/modes";
 import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
-import { telephoneCanonique } from "@/lib/telephone";
+import { telephoneCanonique, telephoneAffiche } from "@/lib/telephone";
 
 // Fiche d'une cliente (M-02) : coordonnées, fiche technique beauté (allergies en rouge),
 // indicateurs, crédit à régler, historique complet.
@@ -121,7 +121,7 @@ export function FicheCliente({ id }: { id: string }) {
       <h1 className="mt-2 font-serif text-4xl font-semibold text-profond">{fiche.nom}</h1>
       <div className="mt-2 flex flex-wrap gap-2">
         <a href={`tel:${fiche.telephone}`} className="flex min-h-11 items-center rounded-full border border-bordure px-4 font-semibold text-profond">
-          📞 {fiche.telephone}
+          📞 {telephoneAffiche(fiche.telephone)}
         </a>
         <a href={lienWhatsApp(whatsapp)} target="_blank" rel="noopener" className="flex min-h-11 items-center rounded-full bg-[#128C4A] px-4 font-bold text-white">
           💬 WhatsApp
