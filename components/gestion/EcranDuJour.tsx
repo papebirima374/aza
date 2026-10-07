@@ -17,7 +17,7 @@ type Jour = {
   prochains: { id: string; debut: number; cliente: string; prestations: string; statut: Statut; enLigne: boolean }[];
   recette: { total: number; nombre: number; panierMoyen: number; parMode: Record<string, number>; prestations: number; produits: number };
   recetteSemaineDerniere: number;
-  caisse: { statut: string; ecart: number | null } | null;
+  caisse: { statut: string; ecart: number | null; ouvertes?: string[]; nombre?: number } | null;
   equipe: { id: string; nom: string; occupation: number; libreRestant: number }[];
   libreRestant: number;
   alertesStock: { nom: string; quantite: number; unite: string }[];
@@ -156,8 +156,8 @@ export function EcranDuJour() {
               {jour.caisse && (
                 <p className="mt-3 text-sm font-semibold">
                   {jour.caisse.statut === "ouverte"
-                    ? "🟢 Caisse ouverte"
-                    : `🔒 Caisse clôturée${jour.caisse.ecart ? ` — écart ${formatPrix(jour.caisse.ecart)}` : " — compte juste"}`}
+                    ? `🟢 Caisse${(jour.caisse.ouvertes?.length ?? 1) > 1 ? "s" : ""} ouverte${(jour.caisse.ouvertes?.length ?? 1) > 1 ? "s" : ""}${jour.caisse.ouvertes?.length ? ` : ${jour.caisse.ouvertes.join(", ")}` : ""}`
+                    : `🔒 ${(jour.caisse.nombre ?? 1) > 1 ? `${jour.caisse.nombre} caisses clôturées` : "Caisse clôturée"}${jour.caisse.ecart ? ` — écart ${formatPrix(jour.caisse.ecart)}` : " — compte juste"}`}
                 </p>
               )}
             </Bloc>

@@ -51,7 +51,7 @@ export async function vendreCarte(membre: Membre, c: Record<string, unknown>) {
   const ticketRef = base.collection("tickets").doc();
   const compteurRef = base.doc("compteurs/tickets");
   return base.runTransaction(async (tx) => {
-    await caisseOuverte(tx, date);
+    const caisse = await caisseOuverte(tx, membre, date);
     const compteur = await tx.get(compteurRef);
     // Un code libre (la chance de retomber sur un code existant est infime, mais on vérifie).
     let code = nouveauCode();
@@ -65,6 +65,7 @@ export async function vendreCarte(membre: Membre, c: Record<string, unknown>) {
     tx.set(ticketRef, {
       numero,
       reference: reference(numero),
+      caisse: caisse.id,
       type: "vente",
       date,
       heure: minutes,

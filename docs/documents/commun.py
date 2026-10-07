@@ -26,6 +26,7 @@ p { margin: 0 0 2.5mm; }
 .rose { color: #F0349A; }
 .etiquette { display: inline-block; font-size: 8pt; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #C79A5B; }
 .tel { width: 58mm; border-radius: 6mm; border: 0.6mm solid #eadde2; box-shadow: 0 2mm 5mm rgba(61,18,24,.12); display: block; }
+.pc { width: 120mm; border-radius: 3mm; border: 0.5mm solid #eadde2; box-shadow: 0 2mm 5mm rgba(61,18,24,.12); display: block; }
 .tel-petit { width: 44mm; border-radius: 4.5mm; border: 0.5mm solid #eadde2; box-shadow: 0 1.5mm 4mm rgba(61,18,24,.10); display: block; }
 .duo { display: grid; grid-template-columns: 1fr 58mm; gap: 8mm; align-items: start; margin: 4mm 0; break-inside: avoid; }
 .trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5mm; margin: 4mm 0; break-inside: avoid; }

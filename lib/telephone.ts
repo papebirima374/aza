@@ -14,6 +14,6 @@ export function telephoneCanonique(t?: string | null): string {
 /** Un numéro sénégalais mobile ou fixe (9 chiffres), ou un numéro étranger plausible. */
 export function telephoneValide(t: string): boolean {
   const c = telephoneCanonique(t);
-  if (c.length === 9) return /^(7[05678]|3[03])/.test(c);
+  if (c.length === 9) return /^(7[015678]|3[03])/.test(c);
   return c.length >= 10 && c.length <= 15;
 }

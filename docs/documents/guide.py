@@ -195,6 +195,21 @@ pages.append(page(f"""
 <div class="encadre">Au comptoir, pas de délai minimum : on peut prendre un rendez-vous pour tout de suite. Un même numéro de téléphone retrouve toujours la même fiche cliente.</div>''', "15-nouveau-rdv", "Nouveau rendez-vous")}
 """, P))
 
+pages.append(page(f"""
+<span class="etiquette">3 · L'agenda</span>
+<h2>Enregistrer un passage ou un rendez-vous, sans contrainte d'heure</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm;"><div>
+<p>Les clientes n'arrivent pas toujours à l'heure, et certaines viennent sans rendez-vous. <b>Rien n'est bloquant</b> : Agenda → <span class="bouton">+ Nouveau rendez-vous</span>.</p>
+<ol class="etapes">
+<li><b>Cliente</b> : tapez le début de son nom ou de son numéro, touchez-la dans la liste (pas de fiche en double). Nouvelle cliente : nom et téléphone.</li>
+<li><b>Prestations</b> : cherchez et ajoutez-les. Sous chacune, <b>« Fait par »</b> : une prestataire différente par prestation si besoin. La durée est facultative.</li>
+<li><b>Quand</b> : le jour et l'heure sont libres, <b>même une heure passée</b> (elle est remplie avec l'heure actuelle). « Voir les heures libres » n'est qu'une aide.</li>
+<li><b>Prestation déjà faite</b> (cochée d'office pour une heure passée) : le passage va directement dans <b>« À encaisser »</b>, et chaque ligne du ticket garde sa prestataire.</li>
+</ol>
+<div class="encadre">Une cliente qui paie tout de suite peut aussi être servie directement au comptoir de la Caisse, sans passer par l'agenda.</div>
+</div>{figure("104-rdv-passage","Deux prestations, deux prestataires")}</div>
+""", P))
+
 # 4. Rappels
 pages.append(page(f"""
 <span class="etiquette">4 · L'accueil</span>
@@ -212,11 +227,12 @@ pages.append(page(f"""
 # 5. Caisse
 pages.append(page(f"""
 <span class="etiquette">5 · La caisse</span>
-<h2>Ouvrir la caisse le matin</h2>
+<h2>Ouvrir sa caisse le matin</h2>
+<p><b>Chaque personne qui encaisse a sa propre caisse</b> : l'accueil, le manager, la direction. Plusieurs caisses peuvent être ouvertes en même temps ; chacune a son fond, ses tickets, son tiroir et sa clôture.</p>
 <ol class="etapes">
 <li>Onglet <b>Caisse</b>.</li>
-<li>Comptez les espèces du tiroir (le <b>fond de caisse</b>), tapez le montant, puis <span class="bouton">Ouvrir la caisse</span>.</li>
-<li>Laissez la page Caisse ouverte toute la journée sur le poste d'accueil : c'est aussi ce qui permet de continuer en cas de coupure d'internet.</li>
+<li>Comptez les espèces de <b>votre</b> tiroir (le <b>fond de caisse</b>, 0 si vide), tapez le montant, puis <span class="bouton">Ouvrir ma caisse</span>.</li>
+<li>Laissez la page Caisse ouverte toute la journée : c'est aussi ce qui permet de continuer en cas de coupure d'internet.</li>
 </ol>
 <h3>Quand une praticienne a fini</h3>
 {duo('''<p>Un message apparaît en bas de l'écran, avec un petit son, quelle que soit la page ouverte :</p>
@@ -231,7 +247,8 @@ pages.append(page(f"""
 <div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
 <ol class="etapes">
 <li>Touchez <b>Encaisser</b> (ou la cliente dans « À encaisser ») : le ticket s'ouvre <b>déjà rempli</b> avec ses soins.</li>
-<li>Elle a pris un soin ou un produit en plus ? Tapez-le dans « Ajouter : chercher… » et touchez la ligne. <span class="touche">−</span> <span class="touche">+</span> changent la quantité, <span class="touche">✕</span> retire la ligne.</li>
+<li>Elle a pris un soin ou un produit en plus ? Cherchez-le à gauche (« 🔎 Chercher… » ou une famille) et touchez sa tuile. <span class="touche">−</span> <span class="touche">+</span> changent la quantité, <span class="touche">✕</span> retire la ligne.</li>
+<li>Sous chaque ligne, <b>« Fait par »</b> : la prestataire du rendez-vous est reprise d'office ; changez-la si une autre l'a fait.</li>
 <li>Touchez la <b>tuile de paiement</b> : 💵 Espèces, 🌊 Wave, 🟠 Orange Money, 💳 Carte ou 🏦 Virement.</li>
 <li>En espèces, tapez ce que la cliente donne : le site calcule la <b>monnaie à rendre</b>.</li>
 <li>« Le compte est bon » : touchez <span class="bouton">Encaisser …</span>.</li>
@@ -242,17 +259,19 @@ pages.append(page(f"""
 
 pages.append(page(f"""
 <span class="etiquette">5 · La caisse</span>
-<h2>Vente libre : retrouver une cliente, retirer une ligne</h2>
-<div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
+<h2>Cliente de passage, sans rendez-vous</h2>
+{figure("101-caisse-ecran","L'écran de caisse sur ordinateur : les services à gauche, le comptoir à droite","pc")}
+<div class="duo" style="grid-template-columns:1fr 58mm 58mm;margin-top:4mm"><div>
 <ol class="etapes">
-<li>Touchez <span class="bouton">+ Nouvelle vente</span> et ajoutez les prestations ou produits.</li>
+<li>Le <b>comptoir</b> est toujours prêt : touchez les tuiles des prestations ou produits qu'elle choisit (à gauche, avec recherche et familles). Sur téléphone, le comptoir est en dessous : touchez la barre « Voir le comptoir ».</li>
+<li><b>« Fait par »</b> (ou « Vendu par » pour un produit) : choisissez qui a fait chaque soin. C'est ce qui compte dans les Rapports, par prestataire.</li>
 <li>Une ligne ajoutée par erreur ? Touchez la croix <span class="touche">✕</span> au bout de la ligne : elle disparaît de la vente, et le total se corrige.</li>
 <li>Dans « Nom de la cliente », tapez <b>le début de son nom ou de son numéro</b> : les clientes déjà connues s'affichent, avec leurs points de fidélité et ce qu'elles doivent. Le téléphone permet de compter ses passages.</li>
 <li>Touchez la bonne cliente : son nom et son téléphone se remplissent tout seuls. Le ticket va sur <b>sa fiche</b> et ses points sont comptés.</li>
 <li>Nouvelle cliente ? Tapez simplement son nom et son numéro : sa fiche est créée à l'encaissement.</li>
 </ol>
-<div class="encadre">Choisir la cliente dans la liste évite les fautes de frappe dans le numéro, donc les fiches en double.</div>
-</div>{figure("79-caisse-retirer","Retirer une ligne")}{figure("80-caisse-cliente","Choisir une cliente")}</div>
+<div class="encadre">Choisir la cliente dans la liste évite les fautes de frappe dans le numéro, donc les fiches en double. Le ticket imprimé indique « avec … » sous chaque soin.</div>
+</div>{figure("102-caisse-fait-par","Qui a fait le soin")}{figure("80-caisse-cliente","Choisir une cliente")}</div>
 """, P))
 
 pages.append(page(f"""
@@ -265,7 +284,7 @@ pages.append(page(f"""
 <li><span class="bouton" style="background:#128C4A">Envoyer par WhatsApp</span> : le reçu part sur le WhatsApp de la cliente.</li>
 </ol>
 <p>Le ticket et le message WhatsApp portent la <b>carte de fidélité</b> et un <b>QR code « Votre avis compte »</b> : la cliente note sa visite en deux touches (voir la partie 9).</p>
-<div class="encadre"><b>Un ticket ne se supprime jamais.</b> En cas d'erreur, la direction ou le manager touche « Annuler par un avoir » dans la liste des tickets : un avoir est créé avec le motif, les produits reviennent en stock et le rendez-vous redevient « Terminé ».</div>
+<div class="encadre"><b>Un ticket ne se supprime jamais.</b> En cas d'erreur, la direction ou le manager touche « Annuler par un avoir » dans la liste des tickets : un avoir est créé avec le motif, les produits reviennent en stock et le rendez-vous redevient « Terminé ». Le remboursement sort du tiroir qui avait reçu l'argent (si cette caisse est encore ouverte).</div>
 </div>{figure("22-caisse-confirmation","Ticket enregistré")}{figure("87-ticket-80mm","Le ticket 80 mm")}</div>
 """, P))
 
@@ -279,9 +298,9 @@ pages.append(page(f"""
 <li>La feuille qui s'affiche est <b>la vôtre</b> : vos tickets, votre total, et les <b>espèces à remettre</b>.</li>
 <li><span class="bouton">🖨️ Imprimer la feuille de caisse</span> : sur l'imprimante de tickets (même réglage que les reçus), ou cochez <b>Sur une feuille A4</b>.</li>
 </ol>
-<p><b>Direction et manager</b> : en haut, choisissez « Feuille de … » pour chaque personne, ou <b>🧾 Toute la caisse</b> : l'ouverture et le fond, tous les tickets, qui a encaissé quoi, les espèces attendues, le compté, l'<b>écart</b> et la clôture. Une caissière ne voit pas la feuille des autres.</p>
+<p><b>Direction, manager, comptable</b> : en haut, choisissez « Caisse de … » pour chaque personne, ou <b>🧾 Toute la journée</b> : chaque caisse avec son fond, son tiroir, son <b>écart</b> et sa clôture, puis le total. Une caissière ne voit que sa propre feuille.</p>
 <div class="encadre">Avant la clôture, la feuille porte « PROVISOIRE ». Décochez « Détail des tickets » pour une feuille courte. Pour un autre jour : « Journal du » en haut de la Caisse, puis imprimez.</div>
-</div>{figure("97-feuille-personne","Sa feuille (caissière)","tel-petit")}{figure("96-feuille-caisse","Toute la caisse (direction)","tel-petit")}</div>
+</div>{figure("97-feuille-personne","Sa feuille (caissière)","tel-petit")}{figure("96-feuille-caisse","Toute la journée (direction)","tel-petit")}</div>
 """, P))
 
 pages.append(page(f"""
@@ -308,10 +327,10 @@ pages.append(page(f"""
 <li>En bas de la Caisse, le <b>bilan</b> : recette, chaque moyen de paiement, fond de caisse, et les <b>espèces attendues dans le tiroir</b>.</li>
 <li>Comptez les espèces du tiroir et tapez le montant dans « Espèces comptées ».</li>
 <li>« Le compte est juste » ou « Écart : … ». S'il y a un écart, écrivez l'explication (obligatoire).</li>
-<li><span class="bouton" style="background:#7E0A4C">Clôturer la caisse</span>. Plus aucun encaissement n'est possible ce jour-là.</li>
+<li><span class="bouton" style="background:#7E0A4C">Clôturer ma caisse</span>. Vous ne pouvez plus encaisser ce jour-là ; les autres caisses restent ouvertes.</li>
 </ol>
-<div class="encadre or">Le <b>journal</b> de n'importe quel jour se consulte avec « Journal du » en haut de la Caisse (aussi pour le comptable).</div></div>
-{figure("24-caisse-tickets","Tickets du jour")}{figure("24b-caisse-bilan","Bilan et clôture")}</div>
+<div class="encadre or"><b>Toutes les caisses du jour</b> (direction, manager, comptable) : en bas de la Caisse, chaque caisse avec son état, son tiroir attendu et sa recette. Quelqu'un est parti sans clôturer ? La direction ou le manager touche <span class="touche">Clôturer</span> sur sa ligne et tape les espèces comptées dans son tiroir. Le <b>journal</b> d'un autre jour : « Journal du » en haut de la Caisse.</div></div>
+{figure("103-caisses-du-jour","Toutes les caisses du jour")}{figure("24b-caisse-bilan","Bilan et clôture")}</div>
 """, P))
 
 pages.append(page(f"""
@@ -779,5 +798,12 @@ def premiere(n):
     return "?"
 pages[1] = re.sub(r"<li><span>(\d+) · (.*?)</span><span>\d+</span></li>", lambda m: f"<li><span>{m.group(1)} · {m.group(2)}</span><span>{premiere(m.group(1))}</span></li>", pages[1])
 
+# Sommaire : le numéro de page de chaque partie, calculé (première page portant son étiquette).
+def _premiere(n):
+    for i, pg in enumerate(pages):
+        if f'class="etiquette">{n} ·' in pg:
+            return i + 1
+    return None
+pages[1] = re.sub(r'<li><span>(\d+) · (.*?)</span><span>\d+</span></li>', lambda m: f'<li><span>{m.group(1)} · {m.group(2)}</span><span>{_premiere(int(m.group(1)))}</span></li>', pages[1])
 open("guide.html", "w").write(document("Anna Zen Attitude — Guide d'utilisation", pages))
 print("guide.html :", len(pages), "pages")

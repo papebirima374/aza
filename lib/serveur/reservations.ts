@@ -16,6 +16,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import {
   acompteRequis,
+  type Affectation,
   creneauxDisponibles,
   occupationsDuCreneau,
   planifier,
@@ -381,5 +382,115 @@ export async function creerRendezVousComptoir(
     source: "comptoir",
     par,
     delaiMinimumMinutes: 0,
+  });
+}
+
+// ——— Saisie libre au comptoir ———
+// Les clientes ne respectent pas toujours les heures : l'accueil enregistre ce qui s'est
+// passé (ou va se passer) sans aucun blocage. Heure libre, même passée ; une prestataire par
+// prestation ; durée facultative. Si la prestation est déjà faite, le rendez-vous est
+// « Terminé » d'office et part dans « À encaisser ».
+
+export type LigneLibre = { id: string; duree?: number; praticienne?: string };
+const DUREE_PAR_DEFAUT = 30;
+
+function ecartEnJours(de: string, a: string) {
+  return Math.round((Date.parse(`${a}T12:00:00Z`) - Date.parse(`${de}T12:00:00Z`)) / 86_400_000);
+}
+
+export async function creerRendezVousLibre(
+  par: { uid: string; nom: string },
+  r: { date: string; debut?: number; lignes: LigneLibre[]; nom: string; telephone: string; remarque?: string; dejaFaite: boolean },
+) {
+  const { nom, tel } = controlerCliente(r.nom, r.telephone);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(r.date)) throw new ErreurReservation("Date invalide.", 400);
+  const maintenant = maintenantDakar();
+  const ecart = ecartEnJours(maintenant.date, r.date);
+  if (ecart < -62 || ecart > 366) throw new ErreurReservation("Date trop éloignée.", 400);
+  if (r.lignes.length === 0 || r.lignes.length > 8) throw new ErreurReservation("Choisissez entre 1 et 8 prestations.", 400);
+  // Sans heure : maintenant (aujourd'hui), midi un autre jour.
+  const debutBrut = Number.isFinite(r.debut) ? Math.round(r.debut!) : r.date === maintenant.date ? maintenant.minutes : 12 * 60;
+  const debut = Math.min(Math.max(debutBrut, 0), 23 * 60 + 55);
+
+  const [cat, equipe, reglages, durees] = await Promise.all([catalogueServeur(), lireEquipe(), lireReglages(), dureesConnues(r.lignes.map((l) => l.id))]);
+  const base = db();
+  const jourRef = base.doc(`jours/${r.date}`);
+  const clienteRef = base.doc(`clientes/${tel}`);
+  const rdvRef = base.collection("rendezVous").doc();
+
+  return base.runTransaction(async (tx) => {
+    const [jour, occ, cliente] = await Promise.all([
+      tx.get(jourRef),
+      tx.get(base.collection("occupations").where("date", "==", r.date)),
+      tx.get(clienteRef),
+    ]);
+    const occupations = occ.docs.map(versOccupation);
+    const occupee = (id: string, d: number, f: number) => occupations.some((o) => o.ressource === id && o.debut < f && o.fin > d);
+
+    // Les prestations s'enchaînent ; chacune a sa prestataire.
+    let t = debut;
+    const prestations: { id: string; nom: string; prix: number }[] = [];
+    const affectations: Affectation[] = [];
+    for (const l of r.lignes) {
+      const p = cat.parId(l.id);
+      if (!p || p.note === "Produit") throw new ErreurReservation("Prestation inconnue.", 400);
+      const saisie = Math.round(Number(l.duree));
+      const duree = Number.isFinite(saisie) && saisie >= 5 && saisie <= 720 ? saisie : (durees[l.id] ?? DUREE_PAR_DEFAUT);
+      const fin = Math.min(t + duree, 24 * 60);
+      let qui = l.praticienne ? equipe.praticiennes.find((x) => x.id === l.praticienne) : undefined;
+      if (l.praticienne && !qui) throw new ErreurReservation("Prestataire inconnue.", 400);
+      if (!qui) {
+        // « Peu importe » : une prestataire qui sait le faire et qui est libre ; sinon qui sait le faire.
+        const competentes = equipe.praticiennes.filter((x) => x.competences.includes(p.familleId));
+        qui = competentes.find((x) => !occupee(x.id, t, fin)) ?? competentes[0] ?? equipe.praticiennes.find((x) => !occupee(x.id, t, fin)) ?? equipe.praticiennes[0];
+      }
+      if (!qui) throw new ErreurReservation("Aucune prestataire dans l'équipe (écran Équipe).", 400);
+      prestations.push({ id: p.id, nom: p.nom, prix: p.prix });
+      affectations.push({ prestation: p.id, debut: t, fin, praticiennes: [qui.id], poste: "" });
+      occupations.push({ ressource: qui.id, date: r.date, debut: t, fin });
+      t = fin;
+    }
+
+    const total = prestations.reduce((s, p) => s + p.prix, 0);
+    const absences = (cliente.get("absences") as number | undefined) ?? 0;
+    const signe = { le: Timestamp.now(), par: par.uid, ...(par.nom ? { nom: par.nom } : {}) };
+    tx.set(jourRef, { version: ((jour.get("version") as number | undefined) ?? 0) + 1 }, { merge: true });
+    tx.set(rdvRef, {
+      date: r.date,
+      debut,
+      fin: t,
+      statut: r.dejaFaite ? "termine" : "reserve",
+      source: "comptoir",
+      saisieLibre: true,
+      prestations,
+      affectations,
+      praticiennesIds: [...new Set(affectations.flatMap((a) => a.praticiennes))],
+      postesIds: [],
+      historique: r.dejaFaite ? [{ statut: "reserve", ...signe }, { statut: "termine", ...signe }] : [{ statut: "reserve", ...signe }],
+      total,
+      acompteRequis: r.dejaFaite ? false : acompteRequis(
+        prestations.map((p, i) => ({ ...p, phases: [{ minutes: affectations[i].fin - affectations[i].debut, praticienne: true, poste: false }], typePoste: "", competence: "", praticiennes: 1 })),
+        absences,
+        reglages.acompte,
+      ),
+      cliente: { id: tel, nom, telephone: r.telephone.trim() },
+      remarque: (r.remarque ?? "").trim().slice(0, 500),
+      creeLe: FieldValue.serverTimestamp(),
+    });
+    for (const a of affectations) {
+      tx.set(base.collection("occupations").doc(), { ressource: a.praticiennes[0], date: r.date, debut: a.debut, fin: a.fin, rendezVous: rdvRef.id });
+    }
+    tx.set(
+      clienteRef,
+      {
+        telephone: tel,
+        nom: cliente.exists ? cliente.get("nom") : nom,
+        ...(cliente.exists ? {} : { creeLe: FieldValue.serverTimestamp(), origine: "comptoir", absences: 0 }),
+        dernierRendezVous: rdvRef.id,
+        nbRendezVous: FieldValue.increment(1),
+      },
+      { merge: true },
+    );
+    return { id: rdvRef.id, date: r.date, debut, fin: t, total, statut: r.dejaFaite ? "termine" : "reserve" };
   });
 }

@@ -13,7 +13,7 @@ export type Ticket = {
   type: "vente" | "avoir" | "reglement";
   date: string;
   heure: number;
-  lignes: { id: string; nom: string; type?: string; prixUnitaire: number; quantite: number; montant: number; offert?: boolean }[];
+  lignes: { id: string; nom: string; type?: string; prixUnitaire: number; quantite: number; montant: number; offert?: boolean; praticienne?: { id: string; nom: string } }[];
   sousTotal: number;
   remise?: { montant: number; motif: string };
   fidelite?: FideliteTicket;

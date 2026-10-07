@@ -33,7 +33,31 @@ export type LigneTicket = {
   montant: number;
   /** Soin ou produit offert en cadeau de fidélité (0 F ; le stock sort quand même). */
   offert?: true;
+  /** Qui a fait la prestation (ou vendu le produit) : pour le chiffre de chacune et sa paie. */
+  praticienne?: { id: string; nom: string };
 };
+
+/**
+ * Le prestataire de chaque ligne : choisi à la caisse, sinon celui du rendez-vous
+ * (affectations). Seules les fiches de l'équipe sont acceptées.
+ */
+async function avecPrestataires(lignes: LigneTicket[], brutes: unknown, rdv: FirebaseFirestore.DocumentSnapshot | null) {
+  const choisis = Array.isArray(brutes) ? brutes.map((l) => (typeof l?.praticienne === "string" ? l.praticienne : "")) : [];
+  const affectations = (rdv?.get("affectations") as { prestation: string; praticiennes: string[] }[] | undefined) ?? [];
+  if (choisis.some((c) => c && !/^[\w-]{1,80}$/.test(c))) throw new Erreur("Prestataire inconnue sur une ligne du ticket.", 400);
+  const ids = new Set<string>(choisis.filter(Boolean));
+  for (const a of affectations) for (const p of a.praticiennes) ids.add(p);
+  if (ids.size === 0) return lignes;
+  const fiches = await db().getAll(...[...ids].map((id) => db().doc(`praticiennes/${id}`)));
+  const nom = new Map(fiches.filter((f) => f.exists).map((f) => [f.id, f.get("nom") as string]));
+  return lignes.map((l, i) => {
+    const choisi = choisis[i];
+    if (choisi && !nom.has(choisi)) throw new Erreur("Prestataire inconnue sur une ligne du ticket.", 400);
+    const duRdv = affectations.find((a) => a.prestation === l.id)?.praticiennes.find((p) => nom.has(p));
+    const id = choisi || (l.type === "prestation" ? duRdv : undefined);
+    return id ? { ...l, praticienne: { id, nom: nom.get(id)! } } : l;
+  });
+}
 export type Paiement = { mode: Mode; montant: number };
 
 export function exiger(membre: Membre, roles: string[], message = "Réservé à l'accueil et à la direction.") {
@@ -51,12 +75,30 @@ export function trace(membre: Membre) {
   return { uid: membre.uid, nom: membre.nom };
 }
 
-/** La caisse d'aujourd'hui doit être ouverte (et pas encore clôturée) pour encaisser. */
-export async function caisseOuverte(tx: Transaction, date: string, horsLigne = false) {
-  const caisse = await tx.get(db().doc(`caisses/${date}`));
-  if (!caisse.exists) throw new Erreur("Ouvrez d'abord la caisse du jour (fond de caisse).", 409);
+// Une caisse par personne et par jour : caisses/{date}~{uid} (son fond, ses tickets, sa
+// clôture). Avant ce changement, il n'y avait qu'une caisse commune par jour, caisses/{date} :
+// elle reste lisible, et elle compte comme la caisse de la personne qui l'a ouverte (ses
+// tickets n'ont pas de champ « caisse » : ils lui appartiennent).
+export const idCaisse = (date: string, uid: string) => `${date}~${uid}`;
+
+/** La caisse d'un ticket (les anciens tickets, sans champ « caisse », sont dans la caisse commune du jour). */
+export const caisseDuTicket = (t: { caisse?: string | null; date: string }) => t.caisse ?? t.date;
+
+/** Celle de cette personne aujourd'hui (la sienne, ou l'ancienne caisse commune qu'elle a ouverte). */
+async function maCaisse(tx: Transaction, membre: Membre, date: string) {
+  const base = db();
+  const perso = await tx.get(base.doc(`caisses/${idCaisse(date, membre.uid)}`));
+  if (perso.exists) return perso;
+  const commune = await tx.get(base.doc(`caisses/${date}`));
+  return commune.exists && commune.get("ouvertPar.uid") === membre.uid ? commune : null;
+}
+
+/** Sa caisse du jour doit être ouverte (et pas encore clôturée) pour encaisser. */
+export async function caisseOuverte(tx: Transaction, membre: Membre, date: string, horsLigne = false) {
+  const caisse = await maCaisse(tx, membre, date);
+  if (!caisse) throw new Erreur("Ouvrez d'abord votre caisse (fond de caisse).", 409);
   // Une vente faite hors connexion avant la clôture est toujours acceptée : aucune vente perdue.
-  if (caisse.get("statut") !== "ouverte" && !horsLigne) throw new Erreur("La caisse du jour est clôturée.", 409);
+  if (caisse.get("statut") !== "ouverte" && !horsLigne) throw new Erreur("Votre caisse du jour est clôturée.", 409);
   return caisse;
 }
 
@@ -72,12 +114,13 @@ export async function ouvrirCaisse(membre: Membre, fondBrut: unknown) {
   const fond = entier(fondBrut);
   if (!Number.isFinite(fond) || fond < 0 || fond > 10_000_000) throw new Erreur("Fond de caisse invalide.", 400);
   const { date } = maintenantDakar();
-  const ref = db().doc(`caisses/${date}`);
+  const ref = db().doc(`caisses/${idCaisse(date, membre.uid)}`);
   await db().runTransaction(async (tx) => {
-    if ((await tx.get(ref)).exists) throw new Erreur("La caisse du jour est déjà ouverte.", 409);
-    tx.set(ref, { date, statut: "ouverte", fond, ouvertPar: trace(membre), ouvertLe: FieldValue.serverTimestamp() });
+    const deja = await maCaisse(tx, membre, date);
+    if (deja) throw new Erreur(deja.get("statut") === "ouverte" ? "Votre caisse du jour est déjà ouverte." : "Votre caisse du jour est déjà clôturée.", 409);
+    tx.set(ref, { date, uid: membre.uid, statut: "ouverte", fond, ouvertPar: trace(membre), ouvertLe: FieldValue.serverTimestamp() });
   });
-  return { ok: true, date };
+  return { ok: true, date, caisse: ref.id };
 }
 
 function lignesValides(brutes: unknown, catalogue: Catalogue, cadeauPermis = false): LigneTicket[] {
@@ -172,7 +215,8 @@ export type Encaissement = {
  */
 export async function encaisser(membre: Membre, e: Encaissement) {
   exigerAcces(membre, "caisse");
-  const lignes = lignesValides(e.lignes, await catalogueServeur(), e.cadeau === true);
+  const rdvAvant = e.rendezVous ? await db().doc(`rendezVous/${e.rendezVous}`).get() : null;
+  const lignes = await avecPrestataires(lignesValides(e.lignes, await catalogueServeur(), e.cadeau === true), e.lignes, rdvAvant?.exists ? rdvAvant : null);
   const sousTotal = lignes.reduce((s, l) => s + l.montant, 0);
   const ligneCadeau = lignes.find((l) => l.offert);
 
@@ -218,7 +262,7 @@ export async function encaisser(membre: Membre, e: Encaissement) {
     if (deja?.exists) {
       return { id: ticketRef.id, reference: deja.get("reference") as string, total: deja.get("total") as number, rendu: deja.get("rendu") as number, deja: true };
     }
-    const caisse = await caisseOuverte(tx, date, horsLigne);
+    const caisse = await caisseOuverte(tx, membre, date, horsLigne);
     const apresCloture = caisse.get("statut") !== "ouverte";
     const [compteur, rdv] = await Promise.all([tx.get(compteurRef), rdvRef ? tx.get(rdvRef) : Promise.resolve(null)]);
 
@@ -269,6 +313,7 @@ export async function encaisser(membre: Membre, e: Encaissement) {
     const ticket = {
       numero,
       reference: reference(numero),
+      caisse: caisse.id,
       type: "vente",
       date,
       heure: minutes,
@@ -341,10 +386,16 @@ export async function annulerTicket(membre: Membre, id: string, motifBrut: unkno
   const compteurRef = base.doc("compteurs/tickets");
 
   return base.runTransaction(async (tx) => {
-    await caisseOuverte(tx, date);
     const [origine, compteur] = await Promise.all([tx.get(origineRef), tx.get(compteurRef)]);
     if (!origine.exists || origine.get("type") !== "vente") throw new Erreur("Ticket introuvable.", 404);
     if (origine.get("annule")) throw new Erreur("Ce ticket est déjà annulé.", 409);
+    // Le remboursement sort du tiroir qui a reçu l'argent, tant que cette caisse est ouverte ;
+    // sinon, de la caisse de la personne qui annule.
+    const caisseOrigine = await tx.get(base.doc(`caisses/${caisseDuTicket(origine.data() as TicketLu)}`));
+    const caisse =
+      caisseOrigine.exists && caisseOrigine.get("date") === date && caisseOrigine.get("statut") === "ouverte"
+        ? caisseOrigine
+        : await caisseOuverte(tx, membre, date);
     const rdvId = origine.get("rendezVous") as string | null;
     const cliente = origine.get("cliente") as { id: string } | null;
     // Carte utilisée pour payer (elle retrouve son solde) ou carte vendue par ce ticket.
@@ -374,6 +425,7 @@ export async function annulerTicket(membre: Membre, id: string, motifBrut: unkno
     tx.set(avoirRef, {
       numero,
       reference: reference(numero),
+      caisse: caisse.id,
       type: "avoir",
       date,
       heure: minutes,
@@ -433,6 +485,8 @@ type TicketLu = {
   id: string;
   reference: string;
   numero: number;
+  date: string;
+  caisse?: string;
   type: "vente" | "avoir";
   heure: number;
   total: number;
@@ -459,51 +513,88 @@ function totaux(fond: number, tickets: TicketLu[]) {
   return { parMode, recette, especesAttendues: fond + (parMode.especes ?? 0), nombre: tickets.filter((t) => t.type === "vente").length };
 }
 
-/** Journal d'une journée : caisse, tickets, totaux par mode, espèces attendues dans le tiroir. */
+/** Voit toutes les caisses du jour (et pas seulement la sienne). */
+export function voitToutesLesCaisses(membre: Membre) {
+  return ["direction", "manager", "comptable"].includes(membre.role) || peut(membre, "jour") || peut(membre, "rapports");
+}
+
+type CaisseLue = FirebaseFirestore.DocumentSnapshot;
+
+function decrireCaisse(c: CaisseLue, tickets: TicketLu[]) {
+  const siens = tickets.filter((t) => caisseDuTicket(t) === c.id);
+  const fond = (c.get("fond") as number | undefined) ?? 0;
+  return {
+    id: c.id,
+    uid: (c.get("uid") as string | undefined) ?? (c.get("ouvertPar.uid") as string),
+    commune: !c.get("uid"),
+    statut: c.get("statut") as "ouverte" | "cloturee",
+    fond,
+    ouvertPar: c.get("ouvertPar") as { uid: string; nom: string },
+    ouvertLe: (c.get("ouvertLe") as Timestamp | undefined)?.toMillis?.() ?? null,
+    cloture: c.get("cloture") ? { ...c.get("cloture"), le: (c.get("cloture.le") as Timestamp | undefined)?.toMillis?.() ?? null } : null,
+    ticketsApresCloture: (c.get("ticketsApresCloture") as string[] | undefined) ?? [],
+    totaux: totaux(fond, siens),
+  };
+}
+
+/**
+ * Journal d'une journée. Chacun voit SA caisse (fond, tickets, espèces attendues, clôture) ;
+ * la direction, le manager et le comptable voient aussi toutes les caisses du jour.
+ */
 export async function journal(membre: Membre, dateBrute?: string) {
   exigerJournal(membre);
   const date = dateBrute && /^\d{4}-\d{2}-\d{2}$/.test(dateBrute) ? dateBrute : maintenantDakar().date;
   const base = db();
-  const [caisse, snap] = await Promise.all([base.doc(`caisses/${date}`).get(), base.collection("tickets").where("date", "==", date).get()]);
+  const [caissesSnap, snap] = await Promise.all([base.collection("caisses").where("date", "==", date).get(), base.collection("tickets").where("date", "==", date).get()]);
   const tickets = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TicketLu).sort((a, b) => a.numero - b.numero);
-  const fond = (caisse.get("fond") as number | undefined) ?? 0;
+  const caisses = caissesSnap.docs.map((c) => decrireCaisse(c, tickets)).sort((a, b) => (a.ouvertLe ?? 0) - (b.ouvertLe ?? 0));
+  const mienne = caisses.find((c) => c.id === idCaisse(date, membre.uid)) ?? caisses.find((c) => c.commune && c.uid === membre.uid) ?? null;
+  const tout = voitToutesLesCaisses(membre);
+  const visibles = tout ? tickets : tickets.filter((t) => mienne && caisseDuTicket(t) === mienne.id);
   return {
     date,
     aujourdhui: date === maintenantDakar().date,
-    caisse: caisse.exists
-      ? {
-          statut: caisse.get("statut"),
-          fond,
-          ouvertPar: caisse.get("ouvertPar"),
-          ouvertLe: (caisse.get("ouvertLe") as Timestamp | undefined)?.toMillis?.() ?? null,
-          cloture: caisse.get("cloture") ? { ...caisse.get("cloture"), le: (caisse.get("cloture.le") as Timestamp | undefined)?.toMillis?.() ?? null } : null,
-          ticketsApresCloture: (caisse.get("ticketsApresCloture") as string[] | undefined) ?? [],
-        }
-      : null,
-    tickets,
-    totaux: totaux(fond, tickets),
+    // Sa caisse (même forme qu'avant le passage aux caisses par personne).
+    caisse: mienne,
+    caisses: tout ? caisses : mienne ? [mienne] : [],
+    voitTout: tout,
+    tickets: visibles,
+    totaux: totaux(tout ? caisses.reduce((s, c) => s + c.fond, 0) : (mienne?.fond ?? 0), visibles),
   };
 }
 
-/** Clôture du soir : comptage des espèces, écart, justification obligatoire s'il y a un écart. */
-export async function cloturerCaisse(membre: Membre, compteBrut: unknown, justificationBrute: unknown) {
+/**
+ * Clôture du soir d'une caisse : comptage des espèces, écart, justification obligatoire s'il y a
+ * un écart. Chacun clôture la sienne ; la direction ou le manager peut clôturer celle d'une
+ * autre personne (partie sans clôturer).
+ */
+export async function cloturerCaisse(membre: Membre, compteBrut: unknown, justificationBrute: unknown, caisseIdBrut?: unknown) {
   exigerAcces(membre, "caisse");
   const compte = entier(compteBrut);
   if (!Number.isFinite(compte) || compte < 0) throw new Erreur("Indiquez le montant compté dans le tiroir.", 400);
   const justification = String(justificationBrute ?? "").trim().slice(0, 500);
   const base = db();
   const { date } = maintenantDakar();
-  const ref = base.doc(`caisses/${date}`);
+  const autre = caisseIdBrut ? String(caisseIdBrut) : "";
   return base.runTransaction(async (tx) => {
-    const caisse = await caisseOuverte(tx, date);
+    let caisse: CaisseLue;
+    if (autre) {
+      caisse = await tx.get(base.doc(`caisses/${autre}`));
+      if (!caisse.exists || caisse.get("date") !== date) throw new Erreur("Caisse introuvable.", 404);
+      const proprio = (caisse.get("uid") as string | undefined) ?? (caisse.get("ouvertPar.uid") as string);
+      if (proprio !== membre.uid && membre.role !== "direction" && membre.role !== "manager") {
+        throw new Erreur("Seuls la direction et le manager clôturent la caisse d'une autre personne.", 403);
+      }
+      if (caisse.get("statut") !== "ouverte") throw new Erreur("Cette caisse est déjà clôturée.", 409);
+    } else caisse = await caisseOuverte(tx, membre, date);
     const snap = await tx.get(base.collection("tickets").where("date", "==", date));
-    const tickets = snap.docs.map((d) => d.data() as TicketLu);
+    const tickets = snap.docs.map((d) => d.data() as TicketLu).filter((t) => caisseDuTicket(t) === caisse.id);
     const t = totaux(caisse.get("fond") as number, tickets);
     const ecart = compte - t.especesAttendues;
     if (ecart !== 0 && justification.length < 3) {
       throw new Erreur(`Écart de ${new Intl.NumberFormat("fr-FR").format(ecart)} F : indiquez la raison.`, 400);
     }
-    tx.update(ref, {
+    tx.update(caisse.ref, {
       statut: "cloturee",
       cloture: {
         compte,
@@ -517,8 +608,15 @@ export async function cloturerCaisse(membre: Membre, compteBrut: unknown, justif
         le: Timestamp.now(),
       },
     });
-    return { ok: true, ecart };
+    return { ok: true, ecart, caisse: caisse.id, proprietaire: (caisse.get("ouvertPar.nom") as string) ?? "" };
   });
+}
+
+/** Les prestataires de l'équipe (pour noter, à la caisse, qui a fait chaque prestation). */
+export async function equipeCaisse(membre: Membre) {
+  exigerAcces(membre, "caisse");
+  const snap = await db().collection("praticiennes").where("actif", "==", true).get();
+  return snap.docs.map((d) => ({ id: d.id, nom: d.get("nom") as string, competences: (d.get("competences") as string[] | undefined) ?? [] })).sort((a, b) => a.nom.localeCompare(b.nom));
 }
 
 /** Rendez-vous terminés du jour, prêts à passer en caisse. */
@@ -561,7 +659,7 @@ export async function reglerCredit(membre: Membre, clienteId: string, paiementsB
   const ticketRef = base.collection("tickets").doc();
   const compteurRef = base.doc("compteurs/tickets");
   return base.runTransaction(async (tx) => {
-    await caisseOuverte(tx, date);
+    const caisse = await caisseOuverte(tx, membre, date);
     const [fiche, compteur] = await Promise.all([tx.get(clienteRef), tx.get(compteurRef)]);
     if (!fiche.exists) throw new Erreur("Fiche introuvable.", 404);
     const du = (fiche.get("credit") as number | undefined) ?? 0;
@@ -571,6 +669,7 @@ export async function reglerCredit(membre: Membre, clienteId: string, paiementsB
     tx.set(ticketRef, {
       numero,
       reference: reference(numero),
+      caisse: caisse.id,
       type: "reglement",
       date,
       heure: minutes,
@@ -608,7 +707,7 @@ export async function encaisserCommande(membre: Membre, commandeId: string, paie
   const ticketRef = base.collection("tickets").doc();
   const compteurRef = base.doc("compteurs/tickets");
   return base.runTransaction(async (tx) => {
-    await caisseOuverte(tx, date);
+    const caisse = await caisseOuverte(tx, membre, date);
     const [cmd, compteur, mouvements] = await Promise.all([
       tx.get(cmdRef),
       tx.get(compteurRef),
@@ -653,6 +752,7 @@ export async function encaisserCommande(membre: Membre, commandeId: string, paie
     tx.set(ticketRef, {
       numero,
       reference: reference(numero),
+      caisse: caisse.id,
       type: "vente",
       date,
       heure: minutes,

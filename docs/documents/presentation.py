@@ -92,9 +92,10 @@ pages.append(page(f"""
 <p class="chapeau">Dès qu'une praticienne a fini, l'accueil reçoit « 💰 … a fini » avec un petit son. Un toucher : le ticket est prêt. On ajoute un produit ou un soin pris en plus, on retire d'un toucher une ligne en trop, on retrouve une cliente du fichier en tapant son nom ou son numéro, on touche le moyen de paiement.</p>
 <div class="quatre">{figure("19-caisse-alerte","La caisse est prévenue","tel-petit")}{figure("20-caisse-ticket","Le ticket, déjà rempli","tel-petit")}{figure("21-caisse-paiement","Paiement en tuiles","tel-petit")}{figure("87-ticket-80mm","Ticket 80 mm ou WhatsApp","tel-petit")}</div>
 <ul class="puces">
+<li>Écran de <b>comptoir</b> comme en boutique : les services à gauche (recherche, familles), le ticket à droite. Une <b>cliente de passage</b> est servie sans rendez-vous, et chaque ligne dit <b>qui a fait le soin</b>. Dans l'agenda, aucune heure n'est imposée : un passage déjà fait s'enregistre, même à une heure passée, avec une prestataire par prestation.</li>
 <li>Espèces (monnaie calculée), Wave, Orange Money, carte, virement, <b>paiement partagé</b> ou <b>à crédit</b>.</li>
 <li>Tickets numérotés sans trou ; <b>jamais supprimés</b> : une erreur s'annule par un avoir, avec motif et auteur.</li>
-<li>Fond de caisse le matin, <b>comptage et écart justifié</b> le soir, <b>feuille de caisse imprimée</b> (ticket ou A4) : chaque caissière la sienne, la direction celle de toute la caisse, avec les signatures.</li>
+<li><b>Une caisse par personne</b>, direction comprise : fond le matin, <b>comptage et écart justifié</b> le soir, <b>feuille de caisse imprimée</b> (ticket ou A4) : chacun la sienne, la direction celle de toute la journée, avec les signatures.</li>
 <li><b>Ticket de caisse 80 mm</b> sur imprimante thermique, calibré une fois pour toutes, avec un QR code qui invite la cliente à donner son avis.</li>
 <li><b>En cabine</b>, la praticienne ajoute elle-même le soin que la cliente demande en plus : le rendez-vous s'allonge et le ticket est déjà complet.</li>
 <li><b>Coupure d'internet</b> : la vente est gardée sur l'appareil et part toute seule au retour — aucune vente perdue.</li>

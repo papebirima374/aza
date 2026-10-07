@@ -4,31 +4,39 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
-import { peut } from "@/lib/acces";
 import { Rangee, ReglageImprimante, TicketTest, Trait, useImprimante, usePageAuTicket } from "@/components/gestion/Imprimante";
-import { LIBELLE_MODE, MODES, recetteDuTicket, type Mode } from "@/lib/caisse/modes";
+import { LIBELLE_MODE, MODES, type Mode } from "@/lib/caisse/modes";
 import { dateTexte, heureTexte, type Ticket } from "@/lib/caisse/recu";
 import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
 
-// Feuilles de caisse du jour. Chaque personne tire SA feuille : ses tickets, ses totaux, les
-// espèces qu'elle remet. La direction et le manager tirent aussi celle de toute la caisse
-// (le « Z » du soir : fond, qui a encaissé, espèces attendues, compté, écart, clôture).
+// Feuilles de caisse du jour. Une caisse par personne : chacun tire SA feuille (son fond, ses
+// tickets, ses espèces attendues, son comptage et son écart). La direction, le manager et le
+// comptable tirent aussi la feuille de toute la journée (toutes les caisses).
 // Sur l'imprimante de tickets (même réglage que les reçus) ou sur une feuille A4.
 
+type Totaux = { parMode: Record<string, number>; recette: number; especesAttendues: number; nombre: number };
+type CaisseJour = {
+  id: string;
+  uid: string;
+  statut: "ouverte" | "cloturee";
+  fond: number;
+  ouvertPar: { uid: string; nom: string };
+  ouvertLe: number | null;
+  ticketsApresCloture?: string[];
+  cloture: null | { compte: number; attendu: number; ecart: number; justification: string; recette: number; par: { nom: string }; le: number | null };
+  totaux: Totaux;
+};
 type Journal = {
   date: string;
-  caisse: null | {
-    statut: "ouverte" | "cloturee";
-    fond: number;
-    ouvertPar: { nom: string };
-    ouvertLe: number | null;
-    ticketsApresCloture?: string[];
-    cloture: null | { compte: number; attendu: number; ecart: number; justification: string; recette: number; par: { nom: string }; le: number | null };
-  };
+  caisse: CaisseJour | null;
+  caisses: CaisseJour[];
+  voitTout: boolean;
   tickets: Ticket[];
-  totaux: { parMode: Record<string, number>; recette: number; especesAttendues: number; nombre: number };
+  totaux: Totaux;
 };
+/** La caisse d'un ticket (les anciens tickets, sans champ « caisse », sont dans la caisse commune du jour). */
+const caisseDuTicket = (t: Ticket) => (t as Ticket & { caisse?: string }).caisse ?? t.date;
 
 const heureDe = (ms: number | null) => (ms ? new Date(ms).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dakar" }).replace(":", "h") : "");
 
@@ -42,8 +50,6 @@ export function FeuilleCaisse({ date }: { date?: string }) {
   const [a4, setA4] = useState(false);
   const [detail, setDetail] = useState(true);
   const ref = useRef<HTMLElement>(null);
-  // La feuille de toute la caisse : direction et manager (ou qui a le tableau de bord du jour).
-  const peutTout = compte.role === "direction" || compte.role === "manager" || peut(compte, "jour");
   const [choix, setChoix] = useState<string | null>(null);
   const imprimerTicket = usePageAuTicket(ref, r);
 
@@ -76,15 +82,13 @@ export function FeuilleCaisse({ date }: { date?: string }) {
   }
 
   if (!j) return <p className="p-8 text-center text-doux">{erreur || "Préparation de la feuille de caisse…"}</p>;
-  const personnes = new Map<string, string>();
-  for (const x of j.tickets) personnes.set(x.par.uid ?? x.par.nom, x.par.nom);
-  // Par défaut : sa propre feuille. Toute la caisse : seulement pour la direction et le manager.
-  const qui = peutTout ? (choix ?? (personnes.has(compte.uid) ? compte.uid : "")) : compte.uid;
-  const personne = qui ? { uid: qui, nom: personnes.get(qui) ?? compte.nom } : null;
-  if (!j.caisse) {
+  // Par défaut : sa propre caisse. Toute la journée : direction, manager, comptable.
+  const choisie = choix ?? j.caisse?.id ?? (j.voitTout ? "" : null);
+  const caisse = choisie ? (j.caisses.find((c) => c.id === choisie) ?? null) : null;
+  if (choisie === null || (choisie !== "" && !caisse) || j.caisses.length === 0) {
     return (
       <div className="mx-auto max-w-md px-4 py-10 text-center">
-        <p className="text-doux">La caisse n&apos;a pas été ouverte le {dateTexte(j.date)}.</p>
+        <p className="text-doux">Pas de caisse ouverte {j.voitTout ? "" : "à votre nom "}le {dateTexte(j.date)}.</p>
         <Link href="/gestion/caisse" className="mt-4 inline-flex min-h-12 items-center rounded-full border border-bordure px-5 font-semibold text-profond">
           ← Caisse
         </Link>
@@ -107,16 +111,16 @@ export function FeuilleCaisse({ date }: { date?: string }) {
           </button>
         )}
       </div>
-      {peutTout && (
+      {j.voitTout && (
         <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 print:hidden">
-          {[["", "Toute la caisse"] as [string, string], ...[...personnes.entries()]].map(([uid, nom]) => (
+          {[["", "🧾 Toute la journée"] as [string, string], ...j.caisses.map((c) => [c.id, `Caisse de ${c.ouvertPar.nom}`] as [string, string])].map(([id, libelle]) => (
             <button
-              key={uid || "tout"}
-              onClick={() => setChoix(uid)}
-              aria-pressed={qui === uid}
-              className={`min-h-10 shrink-0 whitespace-nowrap rounded-full px-4 text-sm font-semibold ${qui === uid ? "bg-profond text-white" : "border border-bordure text-profond"}`}
+              key={id || "tout"}
+              onClick={() => setChoix(id)}
+              aria-pressed={choisie === id}
+              className={`min-h-10 shrink-0 whitespace-nowrap rounded-full px-4 text-sm font-semibold ${choisie === id ? "bg-profond text-white" : "border border-bordure text-profond"}`}
             >
-              {uid ? `Feuille de ${nom}` : "🧾 Toute la caisse"}
+              {libelle}
             </button>
           ))}
         </div>
@@ -147,7 +151,7 @@ export function FeuilleCaisse({ date }: { date?: string }) {
 
       {a4 ? (
         <article className="mx-auto max-w-[170mm] bg-white p-6 text-black shadow-[0_2px_14px_rgba(0,0,0,.12)] print:max-w-none print:p-0 print:shadow-none" style={{ fontSize: "13px" }}>
-          <Contenu j={j} personne={personne} detail={detail} logo imprimePar={compte.nom} />
+          <Contenu j={j} caisse={caisse} detail={detail} logo imprimePar={compte.nom} />
         </article>
       ) : (
         <div className="mx-auto bg-white py-4 shadow-[0_2px_14px_rgba(0,0,0,.12)] print:m-0 print:py-0 print:shadow-none" style={{ width: `${r.papier}mm` }}>
@@ -156,7 +160,7 @@ export function FeuilleCaisse({ date }: { date?: string }) {
             className="text-black"
             style={{ width: `${r.zone}mm`, marginLeft: `calc((${r.papier}mm - ${r.zone}mm) / 2 + ${r.decalage}mm)`, fontSize: `${r.texte}px` }}
           >
-            {test ? <TicketTest r={r} /> : <Contenu j={j} personne={personne} detail={detail} logo={r.logo} imprimePar={compte.nom} />}
+            {test ? <TicketTest r={r} /> : <Contenu j={j} caisse={caisse} detail={detail} logo={r.logo} imprimePar={compte.nom} />}
           </article>
         </div>
       )}
@@ -164,35 +168,20 @@ export function FeuilleCaisse({ date }: { date?: string }) {
   );
 }
 
-/** Totaux d'une liste de tickets (comme la caisse : la monnaie rendue sort des espèces). */
-function totauxDe(tickets: Ticket[]) {
-  const parMode: Record<string, number> = {};
-  for (const x of tickets) {
-    for (const p of x.paiements) parMode[p.mode] = (parMode[p.mode] ?? 0) + p.montant;
-    if (x.rendu) parMode.especes = (parMode.especes ?? 0) - x.rendu;
-  }
-  return { parMode, recette: tickets.reduce((s, x) => s + recetteDuTicket(x), 0) };
-}
-
-function Contenu(props: { j: Journal; personne: { uid: string; nom: string } | null; detail: boolean; logo: boolean; imprimePar: string }) {
-  const { j, personne, detail, logo, imprimePar } = props;
-  const c = j.caisse!;
-  const siens = personne ? j.tickets.filter((x) => (x.par.uid ?? x.par.nom) === personne.uid) : j.tickets;
-  const t = personne ? { ...totauxDe(siens), especesAttendues: 0 } : j.totaux;
+function Contenu(props: { j: Journal; caisse: CaisseJour | null; detail: boolean; logo: boolean; imprimePar: string }) {
+  const { j, caisse, detail, logo, imprimePar } = props;
+  // Une caisse : la sienne. Sinon : toute la journée (toutes les caisses).
+  const siens = caisse ? j.tickets.filter((x) => caisseDuTicket(x) === caisse.id) : j.tickets;
+  const t = caisse ? caisse.totaux : j.totaux;
+  const fond = caisse ? caisse.fond : j.caisses.reduce((s, c) => s + c.fond, 0);
   const ventes = siens.filter((x) => x.type === "vente");
   const avoirs = siens.filter((x) => x.type === "avoir");
   const reglements = siens.filter((x) => x.type === "reglement");
   const remises = ventes.filter((x) => !x.annule).reduce((s, x) => s + (x.remise?.montant ?? 0) + (x.fidelite?.remise ?? 0), 0);
   const cartesVendues = siens.reduce((s, x) => s + x.lignes.filter((l) => l.type === "carte-cadeau").reduce((a, l) => a + l.montant, 0), 0);
   const especesEncaissees = t.parMode.especes ?? 0;
-  const parPersonne = new Map<string, { tickets: number; montant: number }>();
-  for (const x of j.tickets) {
-    const p = parPersonne.get(x.par.nom) ?? { tickets: 0, montant: 0 };
-    p.montant += recetteDuTicket(x);
-    if (x.type === "vente") p.tickets++;
-    parPersonne.set(x.par.nom, p);
-  }
-  const cloturee = c.statut === "cloturee" && c.cloture;
+  const cloturee = caisse ? Boolean(caisse.cloture) : j.caisses.every((c) => c.cloture);
+  const comptees = j.caisses.filter((c) => c.cloture);
   const maintenant = new Date().toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dakar" });
 
   return (
@@ -207,17 +196,17 @@ function Contenu(props: { j: Journal; personne: { uid: string; nom: string } | n
       </div>
       <Trait />
       <p className="text-center text-[1.25em] font-bold">FEUILLE DE CAISSE</p>
-      {personne && <p className="text-center text-[1.1em] font-bold">de {personne.nom}</p>}
+      <p className="text-center text-[1.1em] font-bold">{caisse ? `Caisse de ${caisse.ouvertPar.nom}` : "Toute la journée (toutes les caisses)"}</p>
       <p className="text-center font-bold first-letter:uppercase">{dateTexte(j.date)}</p>
-      {!cloturee && <p className="mt-[1mm] border-2 border-black p-[1mm] text-center font-bold">PROVISOIRE — caisse encore ouverte</p>}
+      {!cloturee && <p className="mt-[1mm] border-2 border-black p-[1mm] text-center font-bold">PROVISOIRE — {caisse ? "caisse encore ouverte" : "des caisses sont encore ouvertes"}</p>}
       <Trait />
-      {personne ? (
-        <Rangee a="Tickets encaissés par" b={personne.nom} />
-      ) : (
+      {caisse ? (
         <>
-          <Rangee a={`Ouverture${c.ouvertLe ? ` à ${heureDe(c.ouvertLe)}` : ""}`} b={c.ouvertPar.nom} />
-          <Rangee a="Fond de caisse" b={formatPrix(c.fond)} />
+          <Rangee a={`Ouverture${caisse.ouvertLe ? ` à ${heureDe(caisse.ouvertLe)}` : ""}`} b={caisse.ouvertPar.nom} />
+          <Rangee a="Fond de caisse" b={formatPrix(caisse.fond)} />
         </>
+      ) : (
+        <Rangee a={`Caisses ouvertes (${j.caisses.length})`} b={j.caisses.map((c) => c.ouvertPar.nom).join(", ")} />
       )}
 
       {detail && siens.length > 0 && (
@@ -254,7 +243,7 @@ function Contenu(props: { j: Journal; personne: { uid: string; nom: string } | n
       {remises > 0 && <Rangee a="Remises accordées" b={`−${formatPrix(remises)}`} />}
       {cartesVendues > 0 && <Rangee a="dont cartes cadeaux vendues" b={formatPrix(cartesVendues)} />}
       <div className="text-[1.2em]">
-        <Rangee a={personne ? "TOTAL ENCAISSÉ" : "RECETTE DU JOUR"} b={formatPrix(t.recette)} gras />
+        <Rangee a={caisse ? "RECETTE DE LA CAISSE" : "RECETTE DU JOUR"} b={formatPrix(t.recette)} gras />
       </div>
       <Trait />
       <p className="font-bold">PAR MOYEN DE PAIEMENT</p>
@@ -263,57 +252,60 @@ function Contenu(props: { j: Journal; personne: { uid: string; nom: string } | n
       )}
       {t.parMode["carte-cadeau"] ? <p className="text-[0.85em]">Carte cadeau : déjà encaissée le jour de la vente de la carte.</p> : null}
 
-      {!personne && parPersonne.size > 1 && (
+      {!caisse && j.caisses.length > 1 && (
         <>
           <Trait />
-          <p className="font-bold">QUI A ENCAISSÉ</p>
-          {[...parPersonne.entries()].map(([nom, p]) => (
-            <Rangee key={nom} a={`${nom} (${p.tickets} ticket${p.tickets > 1 ? "s" : ""})`} b={formatPrix(p.montant)} />
+          <p className="font-bold">PAR CAISSE</p>
+          {j.caisses.map((c) => (
+            <Rangee key={c.id} a={`${c.ouvertPar.nom} (${c.totaux.nombre} ticket${c.totaux.nombre > 1 ? "s" : ""})`} b={formatPrix(c.totaux.recette)} />
           ))}
         </>
       )}
 
-      {personne ? (
-        <>
-          <Trait />
-          <p className="font-bold">À REMETTRE</p>
-          <Rangee a="Espèces encaissées (monnaie rendue déduite)" b={formatPrix(especesEncaissees)} gras />
-          {(t.parMode.credit ?? 0) > 0 && <Rangee a="Ventes à crédit (non payées)" b={formatPrix(t.parMode.credit)} />}
-          <p className="mt-[1mm] text-[0.85em]">Fond de caisse, comptage du tiroir et écart : sur la feuille de toute la caisse.</p>
-        </>
-      ) : (
-        <>
       <Trait />
-        <p className="font-bold">ESPÈCES DU TIROIR</p>
-        <Rangee a="Fond de caisse" b={formatPrix(c.fond)} />
-        <Rangee a="+ Espèces encaissées" b={formatPrix(especesEncaissees)} />
-        <Rangee a="= Espèces attendues" b={formatPrix(t.especesAttendues)} gras />
-        {cloturee ? (
+      <p className="font-bold">ESPÈCES {caisse ? "DU TIROIR" : "DES TIROIRS"}</p>
+      <Rangee a={caisse ? "Fond de caisse" : "Fonds de caisse"} b={formatPrix(fond)} />
+      <Rangee a="+ Espèces encaissées" b={formatPrix(especesEncaissees)} />
+      <Rangee a="= Espèces attendues" b={formatPrix(t.especesAttendues)} gras />
+      {caisse ? (
+        caisse.cloture ? (
           <>
-            <Rangee a="Espèces comptées" b={formatPrix(c.cloture!.compte)} gras />
+            <Rangee a="Espèces comptées" b={formatPrix(caisse.cloture.compte)} gras />
             <div className="text-[1.15em]">
-              <Rangee a="ÉCART" b={`${c.cloture!.ecart > 0 ? "+" : ""}${formatPrix(c.cloture!.ecart)}`} gras />
+              <Rangee a="ÉCART" b={`${caisse.cloture.ecart > 0 ? "+" : ""}${formatPrix(caisse.cloture.ecart)}`} gras />
             </div>
-            {c.cloture!.justification && <p className="text-[0.9em]">Explication : {c.cloture!.justification}</p>}
+            {caisse.cloture.justification && <p className="text-[0.9em]">Explication : {caisse.cloture.justification}</p>}
             <Trait />
-            <Rangee a={`Clôture${c.cloture!.le ? ` à ${heureDe(c.cloture!.le)}` : ""}`} b={c.cloture!.par.nom} />
+            <Rangee a={`Clôture${caisse.cloture.le ? ` à ${heureDe(caisse.cloture.le)}` : ""}`} b={caisse.cloture.par.nom} />
           </>
         ) : (
           <>
             <Rangee a="Espèces comptées" b="…………………" />
             <Rangee a="Écart" b="…………………" />
           </>
-        )}
-        {c.ticketsApresCloture && c.ticketsApresCloture.length > 0 && (
-          <p className="mt-[1mm] text-[0.85em]">Arrivés après la clôture (ventes hors connexion) : {c.ticketsApresCloture.join(", ")}.</p>
-        )}
-  
+        )
+      ) : (
+        <>
+          {comptees.map((c) => (
+            <Rangee key={c.id} a={`Écart ${c.ouvertPar.nom}${c.cloture!.justification ? ` (${c.cloture!.justification})` : ""}`} b={`${c.cloture!.ecart > 0 ? "+" : ""}${formatPrix(c.cloture!.ecart)}`} />
+          ))}
+          {comptees.length > 0 && (
+            <div className="text-[1.15em]">
+              <Rangee a="ÉCART TOTAL" b={formatPrix(comptees.reduce((s, c) => s + c.cloture!.ecart, 0))} gras />
+            </div>
+          )}
+          {j.caisses.filter((c) => !c.cloture).map((c) => (
+            <Rangee key={c.id} a={`Caisse de ${c.ouvertPar.nom}`} b="pas encore clôturée" />
+          ))}
         </>
+      )}
+      {caisse?.ticketsApresCloture && caisse.ticketsApresCloture.length > 0 && (
+        <p className="mt-[1mm] text-[0.85em]">Arrivés après la clôture (ventes hors connexion) : {caisse.ticketsApresCloture.join(", ")}.</p>
       )}
       <Trait />
       <div className="mt-[3mm] grid grid-cols-2 gap-[3mm] text-[0.9em]">
         <div>
-          {personne ? personne.nom : "Caisse"} :
+          {caisse ? caisse.ouvertPar.nom : "Caisse"} :
           <div className="mt-[9mm] border-t border-black" />
         </div>
         <div>

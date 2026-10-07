@@ -187,6 +187,23 @@ export function ReglageImprimante(props: { r: Imprimante; changer: (x: Partial<I
           Valeurs d&apos;origine
         </button>
       </div>
+      <details className="mt-4 rounded-xl bg-creme/60 p-3 text-sm">
+        <summary className="cursor-pointer font-semibold text-profond">Le papier sort beaucoup trop long ?</summary>
+        <p className="mt-2">
+          Le site envoie un ticket à la bonne longueur ; c&apos;est le <b>pilote de l&apos;imprimante</b> (sur l&apos;ordinateur) qui impose sa propre longueur de papier. À
+          régler une seule fois :
+        </p>
+        <ol className="mt-1 list-decimal space-y-1 pl-5">
+          <li>
+            Dans la fenêtre d&apos;impression : <b>Marges : aucune</b>, <b>Échelle : par défaut</b>.
+          </li>
+          <li>
+            Puis, une fois pour toutes : Windows → <b>Imprimantes et scanners</b> → l&apos;imprimante de tickets → <b>Options d&apos;impression</b> (ou Préférences) → réglage du papier :
+            choisissez la coupe <b>à la fin du document</b> (« Document », « Cut at end of document », « Paper feed: by document ») plutôt qu&apos;une longueur fixe
+            (3276 mm).
+          </li>
+        </ol>
+      </details>
     </section>
   );
 }

@@ -20,21 +20,33 @@ import { peut } from "@/lib/acces";
 // (rendez-vous terminés ou vente libre), paiement réparti sur plusieurs moyens, tickets du
 // jour, annulation par avoir, clôture du soir avec comptage et écart justifié.
 
+type Totaux = { parMode: Record<string, number>; recette: number; especesAttendues: number; nombre: number };
+// Une caisse par personne et par jour : son fond, ses tickets, sa clôture.
+type CaisseJour = {
+  id: string;
+  uid: string;
+  statut: "ouverte" | "cloturee";
+  fond: number;
+  ouvertPar: { uid: string; nom: string };
+  ouvertLe: number | null;
+  ticketsApresCloture?: string[];
+  cloture: null | { compte: number; attendu: number; ecart: number; justification: string; recette: number; par: { nom: string } };
+  totaux: Totaux;
+};
 type Journal = {
   date: string;
   aujourdhui: boolean;
-  caisse: null | {
-    statut: "ouverte" | "cloturee";
-    fond: number;
-    ouvertPar: { nom: string };
-    ticketsApresCloture?: string[];
-    cloture: null | { compte: number; attendu: number; ecart: number; justification: string; recette: number; par: { nom: string } };
-  };
+  /** Ma caisse du jour. */
+  caisse: CaisseJour | null;
+  /** Toutes les caisses du jour (direction, manager, comptable) ; sinon la mienne. */
+  caisses: CaisseJour[];
+  voitTout: boolean;
   tickets: Ticket[];
-  totaux: { parMode: Record<string, number>; recette: number; especesAttendues: number; nombre: number };
+  totaux: Totaux;
 };
+type Prestataire = { id: string; nom: string; competences: string[] };
 type RdvAEncaisser = { id: string; debut: number; cliente: { nom: string; telephone: string }; prestations: { id: string; nom: string; prix: number }[] };
-type Ligne = { id: string; quantite: number };
+type Ligne = { id: string; quantite: number; praticienne?: string };
 type FicheResume = { id: string; nom: string; telephone: string; points: number; credit: number };
 type Brouillon = { rendezVous?: string; cliente?: { nom: string; telephone: string }; lignes: Ligne[] };
 
@@ -71,6 +83,10 @@ export function Caisse() {
   const [erreur, setErreur] = useState("");
   const [version, setVersion] = useState(0);
   const tientLaCaisse = peut(compte, "caisse");
+  const cat = useCatalogue();
+  // Le comptoir est remis à neuf après chaque vente (nouvelle clé).
+  const [numeroVente, setNumeroVente] = useState(0);
+  const [equipe, setEquipe] = useState<Prestataire[]>([]);
 
   const appel = useCallback(
     async (q: string, corps?: object) => {
@@ -95,6 +111,17 @@ export function Caisse() {
       actif = false;
     };
   }, [appel, date, version, tientLaCaisse, nbAttente]);
+
+  useEffect(() => {
+    if (!tientLaCaisse) return;
+    let actif = true;
+    appel("?equipe=1")
+      .then((e: Prestataire[]) => actif && setEquipe(e))
+      .catch(() => {});
+    return () => {
+      actif = false;
+    };
+  }, [appel, tientLaCaisse]);
 
   // Arrivée depuis l'agenda (« Encaisser ») : le ticket du rendez-vous est prêt.
   const rdvDemande = params.get("rdv");
@@ -151,101 +178,124 @@ export function Caisse() {
 
       {!journal ? (
         <p className="mt-8 text-center text-doux">Chargement…</p>
-      ) : !journal.caisse ? (
-        journal.aujourdhui && tientLaCaisse ? (
-          <Ouvrir ouvrir={(fond) => action({ action: "ouvrir", fond })} />
-        ) : (
-          <p className="mt-8 rounded-2xl border border-bordure p-6 text-center text-doux">Pas de caisse ouverte ce jour-là.</p>
-        )
       ) : (
         <>
-          {fait && (
-            <Confirmation
-              fait={fait}
-              ticket={journal.tickets.find((t) => t.id === fait.id)}
-              fermer={() => setFait(null)}
-            />
+          {fait && <Confirmation fait={fait} ticket={journal.tickets.find((t) => t.id === fait.id)} fermer={() => setFait(null)} />}
+
+          {/* Ma caisse : chacun ouvre la sienne (son fond), encaisse dedans, la clôture le soir. */}
+          {journal.aujourdhui && tientLaCaisse && !journal.caisse && <Ouvrir ouvrir={(fond) => action({ action: "ouvrir", fond })} />}
+          {journal.caisse && (
+            <p className="mt-3 text-sm text-doux">
+              {journal.caisse.statut === "ouverte" ? "🟢 Ma caisse est ouverte" : "🔒 Ma caisse est clôturée"}
+              {journal.caisse.ouvertLe ? ` depuis ${new Date(journal.caisse.ouvertLe).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dakar" })}` : ""} · fond{" "}
+              {formatPrix(journal.caisse.fond)}
+            </p>
           )}
 
-          {ouverte && tientLaCaisse && !brouillon && (
-            <section className="mt-6">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="font-serif text-2xl font-semibold text-profond">À encaisser</h2>
-                <button onClick={() => { setFait(null); setBrouillon({ lignes: [] }); }} className={`${bouton} bg-aza text-white`}>
-                  + Nouvelle vente
-                </button>
-              </div>
-              {aEncaisser.length === 0 ? (
-                <p className="mt-2 text-sm text-doux">
-                  Aucun rendez-vous terminé en attente. Dans l&apos;agenda, marquez un rendez-vous « Terminé » : il apparaîtra ici.
-                </p>
-              ) : (
-                <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {aEncaisser.map((r) => (
-                    <li key={r.id}>
-                      <button
-                        onClick={() => {
-                          setFait(null);
-                          setBrouillon({ rendezVous: r.id, cliente: r.cliente, lignes: r.prestations.map((p) => ({ id: p.id, quantite: 1 })) });
-                        }}
-                        className="w-full rounded-2xl border border-bordure p-4 text-left hover:border-profond"
-                      >
-                        <span className="block font-semibold">
-                          {heureTexte(r.debut)} · {r.cliente.nom}
-                        </span>
-                        <span className="block text-sm text-doux">{r.prestations.map((p) => p.nom).join(" + ")}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          )}
-
-          {ouverte && brouillon && (
-            <Editeur
-              brouillon={brouillon}
-              setBrouillon={setBrouillon}
-              remisePermise={peut(compte, "remises")}
-              annuler={() => setBrouillon(null)}
-              encaisser={async (corps, info) => {
-                // Chaque vente a son identifiant, fabriqué ici : si la connexion coupe, elle est
-                // gardée sur l'appareil et renvoyée plus tard, sans jamais faire de doublon.
-                const idLocal = nouvelIdLocal();
-                const faitLe = Date.now();
-                setErreur("");
-                try {
-                  const res = await appel("", { action: "encaisser", ...corps, idLocal, faitLe });
-                  setVersion((v) => v + 1);
+          {ouverte && tientLaCaisse && (
+            <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_27rem]">
+              <Services
+                rendezVous={aEncaisser}
+                ajouter={(id) => {
+                  setFait(null);
+                  const b = brouillon ?? { lignes: [] };
+                  const i = b.lignes.findIndex((l) => l.id === id);
+                  setBrouillon({ ...b, lignes: i >= 0 ? b.lignes.map((x, j) => (j === i ? { ...x, quantite: x.quantite + 1 } : x)) : [...b.lignes, { id, quantite: 1 }] });
+                }}
+                choisirRendezVous={(r) => {
+                  if (brouillon && brouillon.lignes.length > 0 && !window.confirm("Le comptoir n'est pas vide. Le remplacer par ce rendez-vous ?")) return;
+                  setFait(null);
+                  setNumeroVente((n) => n + 1);
+                  setBrouillon({ rendezVous: r.id, cliente: r.cliente, lignes: r.prestations.map((p) => ({ id: p.id, quantite: 1 })) });
+                }}
+              />
+              <Editeur
+                key={numeroVente}
+                brouillon={brouillon ?? { lignes: [] }}
+                setBrouillon={setBrouillon}
+                equipe={equipe}
+                remisePermise={peut(compte, "remises")}
+                annuler={() => {
+                  setNumeroVente((n) => n + 1);
                   setBrouillon(null);
-                  setFait(res);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                } catch (e) {
-                  if (erreurReseau(e) && corps.carteCadeau) {
-                    setErreur("Pas de connexion : une carte cadeau ne peut être vérifiée que connectée. Faites payer autrement, ou réessayez.");
-                  } else if (erreurReseau(e)) {
-                    file.mettreEnAttente({ idLocal, faitLe, corps, ...info });
+                }}
+                encaisser={async (corps, info) => {
+                  // Chaque vente a son identifiant, fabriqué ici : si la connexion coupe, elle est
+                  // gardée sur l'appareil et renvoyée plus tard, sans jamais faire de doublon.
+                  const idLocal = nouvelIdLocal();
+                  const faitLe = Date.now();
+                  setErreur("");
+                  try {
+                    const res = await appel("", { action: "encaisser", ...corps, idLocal, faitLe });
+                    setVersion((v) => v + 1);
+                    setNumeroVente((n) => n + 1);
                     setBrouillon(null);
-                    setFait({ id: "", reference: "", rendu: rendu(corps, info.total), horsLigne: true });
+                    setFait(res);
                     window.scrollTo({ top: 0, behavior: "smooth" });
-                  } else setErreur((e as Error).message);
-                }
-              }}
-            />
+                  } catch (e) {
+                    if (erreurReseau(e) && corps.carteCadeau) {
+                      setErreur("Pas de connexion : une carte cadeau ne peut être vérifiée que connectée. Faites payer autrement, ou réessayez.");
+                    } else if (erreurReseau(e)) {
+                      file.mettreEnAttente({ idLocal, faitLe, corps, ...info });
+                      setNumeroVente((n) => n + 1);
+                      setBrouillon(null);
+                      setFait({ id: "", reference: "", rendu: rendu(corps, info.total), horsLigne: true });
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    } else setErreur((e as Error).message);
+                  }
+                }}
+              />
+            </div>
+          )}
+
+          {/* Téléphone : le comptoir est sous les services ; cette barre y mène. */}
+          {ouverte && tientLaCaisse && brouillon && brouillon.lignes.length > 0 && (
+            <a
+              href="#comptoir"
+              className="fixed inset-x-3 bottom-3 z-30 flex min-h-14 items-center justify-between rounded-2xl bg-profond px-5 font-bold text-white shadow-xl lg:hidden"
+            >
+              <span>
+                🧾 {brouillon.lignes.reduce((n, l) => n + l.quantite, 0)} article{brouillon.lignes.reduce((n, l) => n + l.quantite, 0) > 1 ? "s" : ""}
+              </span>
+              <span className="prix">{formatPrix(brouillon.lignes.reduce((t, l) => t + (cat.parId(l.id)?.prix ?? 0) * l.quantite, 0))} → Payer</span>
+            </a>
           )}
 
           {file.attente.length > 0 && <EnAttente />}
 
-          <Tickets
-            tickets={journal.tickets}
-            annulable={Boolean(ouverte) && peut(compte, "remises")}
-            annuler={(t) => {
-              const motif = window.prompt(`Annuler le ticket ${t.reference} (${formatPrix(t.total)}) ? Un avoir sera créé. Motif :`);
-              if (motif) action({ action: "annuler", id: t.id, motif });
-            }}
-          />
+          {(journal.caisse || journal.voitTout) && (
+            <Tickets
+              titre={journal.voitTout ? "Tickets du jour, toutes caisses" : "Mes tickets du jour"}
+              tickets={journal.tickets}
+              annulable={journal.aujourdhui && peut(compte, "remises")}
+              annuler={(t) => {
+                const motif = window.prompt(`Annuler le ticket ${t.reference} (${formatPrix(t.total)}) ? Un avoir sera créé : le remboursement sort de la caisse qui l'avait encaissé (ou de la vôtre si elle est clôturée). Motif :`);
+                if (motif) action({ action: "annuler", id: t.id, motif });
+              }}
+            />
+          )}
 
-          <Bilan journal={journal} attente={file.attente.length} cloturer={ouverte && tientLaCaisse ? (compte, justification) => action({ action: "cloturer", compte, justification }) : undefined} />
+          {journal.caisse && (
+            <Bilan
+              caisse={journal.caisse}
+              date={journal.date}
+              attente={file.attente.length}
+              cloturer={ouverte && tientLaCaisse ? (compte, justification) => action({ action: "cloturer", compte, justification }) : undefined}
+            />
+          )}
+
+          {journal.voitTout && (
+            <CaissesDuJour
+              journal={journal}
+              moi={compte.uid}
+              peutCloturer={compte.role === "direction" || compte.role === "manager"}
+              cloturer={(id, montant, justification) => action({ action: "cloturer", caisse: id, compte: montant, justification })}
+            />
+          )}
+
+          {!journal.caisse && !journal.voitTout && !(journal.aujourdhui && tientLaCaisse) && (
+            <p className="mt-8 rounded-2xl border border-bordure p-6 text-center text-doux">Pas de caisse ouverte ce jour-là.</p>
+          )}
         </>
       )}
     </div>
@@ -256,14 +306,14 @@ function Ouvrir({ ouvrir }: { ouvrir: (fond: number) => void }) {
   const [fond, setFond] = useState("");
   return (
     <section className="mt-6 rounded-2xl border border-bordure p-5">
-      <h2 className="font-serif text-2xl font-semibold text-profond">Ouvrir la caisse</h2>
-      <p className="mt-1 text-sm text-doux">Comptez les espèces présentes dans le tiroir ce matin (le fond de caisse), puis ouvrez.</p>
+      <h2 className="font-serif text-2xl font-semibold text-profond">Ouvrir ma caisse</h2>
+      <p className="mt-1 text-sm text-doux">Chacun a sa caisse. Comptez les espèces de votre tiroir (le fond de caisse), puis ouvrez.</p>
       <label className="mt-4 block max-w-xs">
         <span className="text-sm font-semibold">Fond de caisse (F CFA)</span>
         <input inputMode="numeric" value={fond} onChange={(e) => setFond(e.target.value)} placeholder="ex. 20 000" className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 text-lg" />
       </label>
       <button disabled={fond.trim() === ""} onClick={() => ouvrir(nombre(fond))} className={`${bouton} mt-4 bg-aza text-white`}>
-        Ouvrir la caisse
+        Ouvrir ma caisse
       </button>
     </section>
   );
@@ -272,13 +322,13 @@ function Ouvrir({ ouvrir }: { ouvrir: (fond: number) => void }) {
 function Editeur(props: {
   brouillon: Brouillon;
   setBrouillon: (b: Brouillon) => void;
+  equipe: Prestataire[];
   remisePermise: boolean;
   annuler: () => void;
   encaisser: (corps: Record<string, unknown>, info: { total: number; resume: string }) => Promise<void>;
 }) {
   const cat = useCatalogue();
   const b = props.brouillon;
-  const [recherche, setRecherche] = useState("");
   const [nom, setNom] = useState(b.cliente?.nom ?? "");
   const [telephone, setTelephone] = useState(b.cliente?.telephone ?? "");
   const [remise, setRemise] = useState("");
@@ -349,10 +399,6 @@ function Editeur(props: {
     () => (rechercheCadeau.trim().length < 2 ? [] : cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, rechercheCadeau)).slice(0, 6)),
     [rechercheCadeau, cat],
   );
-  const resultats = useMemo(
-    () => (recherche.trim().length < 2 ? [] : cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, recherche)).slice(0, 8)),
-    [recherche, cat],
-  );
   const lignes = b.lignes.map((l) => ({ ...l, p: cat.parId(l.id)! })).filter((l) => l.p);
   const sousTotal = lignes.reduce((s, l) => s + l.p.prix * l.quantite, 0);
   const remiseN = Math.min(nombre(remise), sousTotal);
@@ -399,17 +445,19 @@ function Editeur(props: {
 
 
   return (
-    <section className="mt-6 rounded-2xl border-2 border-profond p-4 sm:p-5">
+    <section id="comptoir" className="rounded-2xl border-2 border-profond p-4 sm:p-5 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
       <div className="flex items-start justify-between gap-3">
-        <h2 className="font-serif text-2xl font-semibold text-profond">{b.rendezVous ? `Ticket — ${b.cliente?.nom}` : "Nouvelle vente"}</h2>
-        <button onClick={props.annuler} className="text-sm font-semibold text-doux underline">
-          Abandonner
-        </button>
+        <h2 className="font-serif text-2xl font-semibold text-profond">{b.rendezVous ? `Ticket — ${b.cliente?.nom}` : "🧾 Comptoir"}</h2>
+        {(lignes.length > 0 || b.rendezVous) && (
+          <button onClick={props.annuler} className="min-h-10 text-sm font-semibold text-doux underline">
+            Vider
+          </button>
+        )}
       </div>
 
       {b.rendezVous && <AlerteCliente rdv={b.rendezVous} />}
       <ul className="mt-3 divide-y divide-bordure rounded-xl border border-bordure">
-        {lignes.length === 0 && <li className="p-3 text-sm text-doux">Ajoutez une prestation ou un produit ci-dessous.</li>}
+        {lignes.length === 0 && <li className="p-3 text-sm text-doux">Touchez une prestation ou un produit à gauche (ou cherchez-le) : il s&apos;ajoute ici.</li>}
         {lignes.map((l, i) => (
           <li key={`${l.id}-${i}`} className="flex flex-wrap items-center gap-2 p-3">
             <span className="min-w-0 basis-full sm:basis-0 sm:flex-1">
@@ -445,43 +493,29 @@ function Editeur(props: {
             >
               ✕
             </button>
+            {props.equipe.length > 0 && (
+              <label className="flex basis-full items-center gap-2 text-sm">
+                <span className="shrink-0 text-doux">{l.p.note === "Produit" ? "Vendu par" : "Fait par"}</span>
+                <select
+                  value={l.praticienne ?? ""}
+                  onChange={(e) => changer(b.lignes.map((x) => (x.id === l.id ? { ...x, praticienne: e.target.value || undefined } : x)))}
+                  className={`min-h-10 min-w-0 flex-1 rounded-lg border px-2 ${l.praticienne ? "border-bordure" : "border-dashed border-aza/60"}`}
+                >
+                  <option value="">{b.rendezVous ? "Selon le rendez-vous" : "— Qui ? —"}</option>
+                  {props.equipe.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nom}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </li>
         ))}
       </ul>
 
-      <div className="relative mt-3">
-        <input
-          type="search"
-          value={recherche}
-          onChange={(e) => setRecherche(e.target.value)}
-          placeholder="Ajouter : chercher une prestation ou un produit…"
-          className="w-full rounded-xl border border-bordure px-4 py-3"
-        />
-        {resultats.length > 0 && (
-          <ul className="absolute inset-x-0 z-10 mt-1 max-h-72 overflow-y-auto rounded-xl border border-bordure bg-white shadow-lg">
-            {resultats.map((p) => (
-              <li key={p.id}>
-                <button
-                  onClick={() => {
-                    const i = b.lignes.findIndex((l) => l.id === p.id);
-                    changer(i >= 0 ? b.lignes.map((x, j) => (j === i ? { ...x, quantite: x.quantite + 1 } : x)) : [...b.lignes, { id: p.id, quantite: 1 }]);
-                    setRecherche("");
-                  }}
-                  className="flex w-full justify-between gap-3 px-4 py-3 text-left hover:bg-creme"
-                >
-                  <span>
-                    {p.nom} <span className="text-xs text-doux">· {p.note === "Produit" ? "produit" : p.famille}</span>
-                  </span>
-                  <span className="prix font-semibold">{formatPrix(p.prix)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
       {!b.rendezVous && (
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="mt-4 grid gap-2">
           <div className="relative">
             <label className="text-sm font-semibold">
               Nom de la cliente <span className="font-normal text-doux">(facultatif{fichier.length > 0 ? " — tapez un nom ou un numéro" : ""})</span>
@@ -657,20 +691,20 @@ function Editeur(props: {
 
       <h3 className="mt-5 font-semibold">Paiement</h3>
       <p className="text-xs text-doux">Touchez le moyen de paiement de la cliente.</p>
-      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+      <div className="mt-2 grid grid-cols-3 gap-2">
         {MODES.filter((m) => m.id !== "credit").map((m) => (
           <button
             key={m.id}
             onClick={() => (m.id === "carte-cadeau" ? setPanneauCarte(true) : toutEn(m.id))}
             disabled={total === 0 || (m.id === "carte-cadeau" && Boolean(carte))}
-            className={`flex min-h-20 flex-col items-center justify-center rounded-2xl border-2 px-2 font-bold disabled:opacity-40 ${TUILE[m.id]} ${
+            className={`flex min-h-16 flex-col items-center justify-center rounded-2xl border-2 px-1 font-bold disabled:opacity-40 ${TUILE[m.id]} ${
               nombre(montants[m.id] ?? "") >= total && total > 0 ? "ring-4 ring-profond/40" : ""
             }`}
           >
-            <span className="text-3xl" aria-hidden>
+            <span className="text-2xl" aria-hidden>
               {ICONE[m.id]}
             </span>
-            <span className="text-sm">{m.libelle}</span>
+            <span className="text-xs leading-tight">{m.libelle}</span>
           </button>
         ))}
       </div>
@@ -718,7 +752,7 @@ function Editeur(props: {
       )}
       {carte && total - parCarte > 0 && <p className="mt-2 text-sm font-semibold text-profond">La carte ne couvre pas tout : touchez le moyen de paiement du reste.</p>}
       {partage ? (
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <div className="mt-3 grid grid-cols-2 gap-2">
           {MODES.filter((m) => m.id !== "carte-cadeau").map((m) => (
             <label key={m.id} className="text-sm font-semibold">
               <span aria-hidden>{ICONE[m.id]} </span>
@@ -841,10 +875,12 @@ function Confirmation({ fait, ticket, fermer }: { fait: { id: string; reference:
   );
 }
 
-function Tickets({ tickets, annulable, annuler }: { tickets: Ticket[]; annulable: boolean; annuler: (t: Ticket) => void }) {
+function Tickets({ titre, tickets, annulable, annuler }: { titre: string; tickets: Ticket[]; annulable: boolean; annuler: (t: Ticket) => void }) {
   return (
     <section className="mt-8">
-      <h2 className="font-serif text-2xl font-semibold text-profond">Tickets du jour ({tickets.length})</h2>
+      <h2 className="font-serif text-2xl font-semibold text-profond">
+        {titre} ({tickets.length})
+      </h2>
       {tickets.length === 0 ? (
         <p className="mt-2 text-sm text-doux">Aucun ticket.</p>
       ) : (
@@ -886,23 +922,22 @@ function Tickets({ tickets, annulable, annuler }: { tickets: Ticket[]; annulable
   );
 }
 
-function Bilan({ journal, attente, cloturer }: { journal: Journal; attente: number; cloturer?: (compte: number, justification: string) => Promise<unknown> }) {
+function Bilan({ caisse: c, date, attente, cloturer }: { caisse: CaisseJour; date: string; attente: number; cloturer?: (compte: number, justification: string) => Promise<unknown> }) {
   const [compte, setCompte] = useState("");
   const [justification, setJustification] = useState("");
-  const c = journal.caisse!;
-  const t = journal.totaux;
+  const t = c.totaux;
   const ecart = compte.trim() === "" ? null : nombre(compte) - t.especesAttendues;
   return (
     <section className="mt-8 rounded-2xl border border-bordure p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-serif text-2xl font-semibold text-profond">{c.statut === "cloturee" ? "Caisse clôturée" : "Bilan et clôture"}</h2>
-        <Link href={`/gestion/caisse/feuille?date=${journal.date}`} className="flex min-h-11 items-center rounded-full border border-bordure px-4 text-sm font-semibold text-profond">
+        <h2 className="font-serif text-2xl font-semibold text-profond">{c.statut === "cloturee" ? "Ma caisse clôturée" : "Ma caisse : bilan et clôture"}</h2>
+        <Link href={`/gestion/caisse/feuille?date=${date}`} className="flex min-h-11 items-center rounded-full border border-bordure px-4 text-sm font-semibold text-profond">
           🖨️ Imprimer la feuille de caisse
         </Link>
       </div>
       <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         <div className="flex justify-between">
-          <dt>Recette du jour ({t.nombre} ticket{t.nombre > 1 ? "s" : ""})</dt>
+          <dt>Ma recette ({t.nombre} ticket{t.nombre > 1 ? "s" : ""})</dt>
           <dd className="prix font-bold">{formatPrix(t.recette)}</dd>
         </div>
         {MODES.map((m) =>
@@ -917,11 +952,11 @@ function Bilan({ journal, attente, cloturer }: { journal: Journal; attente: numb
           ) : null,
         )}
         <div className="flex justify-between">
-          <dt>Fond de caisse du matin ({c.ouvertPar.nom})</dt>
+          <dt>Mon fond de caisse</dt>
           <dd className="prix">{formatPrix(c.fond)}</dd>
         </div>
         <div className="flex justify-between font-bold text-profond">
-          <dt>Espèces attendues dans le tiroir</dt>
+          <dt>Espèces attendues dans mon tiroir</dt>
           <dd className="prix">{formatPrix(t.especesAttendues)}</dd>
         </div>
       </dl>
@@ -944,7 +979,7 @@ function Bilan({ journal, attente, cloturer }: { journal: Journal; attente: numb
 
       {cloturer && (
         <div className="mt-5 border-t border-bordure pt-4">
-          <p className="text-sm text-doux">En fin de journée, comptez les espèces du tiroir et indiquez le montant.</p>
+          <p className="text-sm text-doux">En fin de journée, comptez les espèces de votre tiroir et indiquez le montant.</p>
           <label className="mt-2 block max-w-xs text-sm font-semibold">
             Espèces comptées (F CFA)
             <input inputMode="numeric" value={compte} onChange={(e) => setCompte(e.target.value)} className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 text-lg font-normal" />
@@ -963,11 +998,11 @@ function Bilan({ journal, attente, cloturer }: { journal: Journal; attente: numb
           <button
             disabled={attente > 0 || ecart === null || (ecart !== 0 && justification.trim().length < 3)}
             onClick={() => {
-              if (window.confirm("Clôturer la caisse ? Plus aucun encaissement ne sera possible aujourd'hui.")) cloturer(nombre(compte), justification);
+              if (window.confirm("Clôturer ma caisse ? Je ne pourrai plus encaisser aujourd'hui.")) cloturer(nombre(compte), justification);
             }}
             className={`${bouton} mt-3 bg-profond text-white`}
           >
-            Clôturer la caisse
+            Clôturer ma caisse
           </button>
           {attente > 0 && (
             <p className="mt-2 text-sm font-semibold text-[#a34d00]">
@@ -976,6 +1011,136 @@ function Bilan({ journal, attente, cloturer }: { journal: Journal; attente: numb
           )}
         </div>
       )}
+    </section>
+  );
+}
+
+// Les services, à gauche : recherche, familles en un toucher, tuiles (comme une gestion
+// commerciale). Un toucher ajoute au comptoir. En haut, les rendez-vous terminés à encaisser.
+function Services({ rendezVous, ajouter, choisirRendezVous }: { rendezVous: RdvAEncaisser[]; ajouter: (id: string) => void; choisirRendezVous: (r: RdvAEncaisser) => void }) {
+  const cat = useCatalogue();
+  const [recherche, setRecherche] = useState("");
+  const [famille, setFamille] = useState("");
+  const familles = useMemo(() => cat.familles.filter((f) => f.prestations.length > 0), [cat]);
+  // Comme en boutique : des tuiles tout de suite (la première famille), sans rien chercher.
+  const familleActive = famille || familles[0]?.id || "";
+  const liste = useMemo(() => {
+    const q = recherche.trim();
+    if (q.length >= 2) return cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, q)).slice(0, 60);
+    return familleActive ? cat.prestations.filter((p) => p.familleId === familleActive) : [];
+  }, [recherche, familleActive, cat]);
+  const puce = (actif: boolean) => `min-h-10 shrink-0 whitespace-nowrap rounded-full px-3 text-sm font-semibold ${actif ? "bg-profond text-white" : "bg-creme text-profond"}`;
+  return (
+    <section className="min-w-0 rounded-2xl border border-bordure p-3 sm:p-4">
+      {rendezVous.length > 0 && (
+        <div className="mb-3">
+          <h2 className="text-sm font-bold text-doux">💳 Rendez-vous terminés à encaisser ({rendezVous.length})</h2>
+          <div className="-mx-1 mt-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            {rendezVous.map((r) => (
+              <button key={r.id} onClick={() => choisirRendezVous(r)} className="w-56 shrink-0 rounded-xl border-2 border-[#0d6b37]/40 bg-[#e7f5ec] p-2 text-left">
+                <span className="block truncate font-semibold">
+                  {heureTexte(r.debut)} · {r.cliente.nom}
+                </span>
+                <span className="block truncate text-xs text-doux">{r.prestations.map((p) => p.nom).join(" + ")}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <input
+        type="search"
+        value={recherche}
+        onChange={(e) => setRecherche(e.target.value)}
+        placeholder="🔎 Chercher une prestation ou un produit…"
+        className="w-full rounded-xl border border-bordure px-4 py-3 text-lg"
+      />
+      <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1">
+        {familles.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => {
+              setRecherche("");
+              setFamille(f.id);
+            }}
+            aria-pressed={familleActive === f.id}
+            className={puce(familleActive === f.id && recherche.trim().length < 2)}
+          >
+            {f.nom}
+          </button>
+        ))}
+      </div>
+      {liste.length === 0 ? (
+        <p className="mt-4 rounded-xl bg-creme/60 p-4 text-center text-sm text-doux">
+          {recherche.trim().length >= 2 ? "Rien trouvé : essayez un autre mot." : "Choisissez une famille ou tapez un mot (« vernis », « tresses »…)."}
+        </p>
+      ) : (
+        <ul className="mt-3 grid max-h-[60vh] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 lg:max-h-[calc(100vh-20rem)]">
+          {liste.map((p) => (
+            <li key={p.id}>
+              <button
+                onClick={() => ajouter(p.id)}
+                className="flex h-full min-h-20 w-full flex-col justify-between rounded-xl border border-bordure p-2.5 text-left hover:border-profond active:bg-creme"
+              >
+                <span className="line-clamp-2 text-sm font-semibold leading-snug">{p.nom}</span>
+                <span className="mt-1 flex items-end justify-between gap-1">
+                  <span className="truncate text-[11px] text-doux">{p.note === "Produit" ? "produit" : recherche ? p.famille : ""}</span>
+                  <span className="prix shrink-0 text-sm font-bold text-profond">{formatPrix(p.prix)}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// Toutes les caisses du jour (direction, manager, comptable) : qui a ouvert, combien, l'état ;
+// la direction et le manager peuvent clôturer la caisse d'une personne partie sans le faire.
+function CaissesDuJour(props: { journal: Journal; moi: string; peutCloturer: boolean; cloturer: (id: string, compte: number, justification: string) => Promise<unknown> }) {
+  const { journal } = props;
+  if (journal.caisses.length === 0) return null;
+  const total = journal.caisses.reduce((s, c) => s + c.totaux.recette, 0);
+  return (
+    <section className="mt-8 rounded-2xl border border-bordure p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-serif text-2xl font-semibold text-profond">Toutes les caisses du jour ({journal.caisses.length})</h2>
+        <span className="prix font-bold">Recette totale : {formatPrix(total)}</span>
+      </div>
+      <ul className="mt-3 divide-y divide-bordure">
+        {journal.caisses.map((c) => (
+          <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+            <span>
+              <b>{c.ouvertPar.nom}</b>
+              {c.uid === props.moi && <span className="text-doux"> (moi)</span>}
+              <span className="block text-sm text-doux">
+                {c.statut === "ouverte" ? "🟢 ouverte" : `🔒 clôturée${c.cloture ? ` · écart ${formatPrix(c.cloture.ecart)}` : ""}`} · fond {formatPrix(c.fond)} · {c.totaux.nombre} ticket
+                {c.totaux.nombre > 1 ? "s" : ""} · tiroir attendu {formatPrix(c.totaux.especesAttendues)}
+              </span>
+            </span>
+            <span className="flex items-center gap-3">
+              <span className="prix font-bold">{formatPrix(c.totaux.recette)}</span>
+              {props.peutCloturer && journal.aujourdhui && c.statut === "ouverte" && c.uid !== props.moi && (
+                <button
+                  onClick={() => {
+                    const compte = window.prompt(`Clôturer la caisse de ${c.ouvertPar.nom} : espèces comptées dans son tiroir (attendu ${formatPrix(c.totaux.especesAttendues)}) ?`);
+                    if (compte === null || compte.trim() === "") return;
+                    const n = nombre(compte);
+                    const justification = n === c.totaux.especesAttendues ? "" : (window.prompt(`Écart de ${formatPrix(n - c.totaux.especesAttendues)} : explication ?`) ?? "");
+                    props.cloturer(c.id, n, justification);
+                  }}
+                  className="min-h-10 rounded-full border border-bordure px-3 text-sm font-semibold text-profond"
+                >
+                  Clôturer
+                </button>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <Link href={`/gestion/caisse/feuille?date=${journal.date}`} className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-profond underline">
+        🖨️ Feuilles de caisse (de chacun, ou de toute la journée)
+      </Link>
     </section>
   );
 }

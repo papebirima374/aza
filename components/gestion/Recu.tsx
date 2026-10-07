@@ -160,6 +160,7 @@ function TicketCaisse({ t, r, origine }: { t: Ticket; r: Imprimante; origine: st
               {l.quantite} × {formatPrix(l.prixUnitaire)}
             </p>
           )}
+          {l.praticienne && <p className="pl-[2mm] text-[0.9em]">avec {l.praticienne.nom}</p>}
         </div>
       ))}
       {Boolean(t.remise || t.fidelite?.remise) && <Rangee a="Sous-total" b={formatPrix(t.sousTotal)} />}

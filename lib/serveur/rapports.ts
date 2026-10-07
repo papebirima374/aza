@@ -22,7 +22,7 @@ const jour = (d: string) => Date.parse(`${d}T12:00:00Z`);
 const versDate = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 const decaler = (d: string, n: number) => versDate(jour(d) + n * 86400000);
 
-type Ligne = { id: string; nom: string; type: string; quantite: number; montant: number };
+type Ligne = { id: string; nom: string; type: string; quantite: number; montant: number; praticienne?: { id: string; nom: string } };
 type TicketLu = {
   id: string;
   reference: string;
@@ -168,7 +168,8 @@ export async function rapport(membre: Membre, duBrut?: string | null, auBrut?: s
     const toutes = (rdv?.get("praticiennesIds") as string[] | undefined) ?? [];
     for (const l of t.lignes) {
       if (l.type !== "prestation") continue;
-      const faites = [...new Set(affectations.filter((a) => a.prestation === l.id).flatMap((a) => a.praticiennes))];
+      // Le prestataire noté sur la ligne (à la caisse) d'abord, sinon celles du rendez-vous.
+      const faites = l.praticienne?.id ? [l.praticienne.id] : [...new Set(affectations.filter((a) => a.prestation === l.id).flatMap((a) => a.praticiennes))];
       const qui = faites.length > 0 ? faites : toutes;
       if (qui.length === 0) {
         sansPraticienne += l.montant;

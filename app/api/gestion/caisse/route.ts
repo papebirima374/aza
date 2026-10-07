@@ -1,5 +1,5 @@
 import { membreConnecte } from "@/lib/serveur/agenda";
-import { aEncaisser, annulerTicket, fideliteCliente, encaisserCommande, reglerCredit, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
+import { aEncaisser, annulerTicket, equipeCaisse, fideliteCliente, encaisserCommande, reglerCredit, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
 import { noter, nomDe, prix } from "@/lib/serveur/activite";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
@@ -21,6 +21,7 @@ export async function GET(request: Request) {
     if (q.get("ticket")) return Response.json(await lireTicket(membre, q.get("ticket")!), sansCache);
     if (q.get("rdv")) return Response.json(await lireRendezVous(membre, q.get("rdv")!), sansCache);
     if (q.get("a-encaisser")) return Response.json(await aEncaisser(membre), sansCache);
+    if (q.get("equipe")) return Response.json(await equipeCaisse(membre), sansCache);
     if (q.get("fidelite")) return Response.json(await fideliteCliente(membre, q.get("fidelite")!), sansCache);
     return Response.json(await journal(membre, q.get("date") ?? undefined), sansCache);
   } catch (e) {
@@ -79,8 +80,9 @@ export async function POST(request: Request) {
         return Response.json(r, { status: 201 });
       }
       case "cloturer": {
-        const r = await cloturerCaisse(membre, c.compte, c.justification);
-        await noter(membre, "caisse", `Caisse clôturée : ${prix(c.compte)} comptés, écart ${prix(r.ecart)}${c.justification ? ` (${String(c.justification).slice(0, 120)})` : ""}`);
+        const r = await cloturerCaisse(membre, c.compte, c.justification, c.caisse);
+        const de = r.proprietaire && r.proprietaire !== membre.nom ? ` de ${r.proprietaire}` : "";
+        await noter(membre, "caisse", `Caisse${de} clôturée : ${prix(c.compte)} comptés, écart ${prix(r.ecart)}${c.justification ? ` (${String(c.justification).slice(0, 120)})` : ""}`);
         return Response.json(r);
       }
       default:

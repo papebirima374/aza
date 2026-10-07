@@ -55,7 +55,7 @@ export async function ecranDuJour(membre: Membre, dateBrute?: string) {
     base.collection("occupations").where("date", "==", date).get(),
     base.collection("praticiennes").where("actif", "==", true).get(),
     base.doc("reglages/institut").get(),
-    base.doc(`caisses/${date}`).get(),
+    base.collection("caisses").where("date", "==", date).get(),
     base.collection("articles").get(),
   ]);
   const anniversaires = (await base.collection("clientes").where("anniversaire", "==", date.slice(5)).limit(20).get()).docs.map((d) => ({
@@ -132,7 +132,15 @@ export async function ecranDuJour(membre: Membre, dateBrute?: string) {
     prochains,
     recette: recette(tickets.docs.map((d) => d.data() as TicketLu)),
     recetteSemaineDerniere: recette(ticketsAvant.docs.map((d) => d.data() as TicketLu)).total,
-    caisse: caisse.exists ? { statut: caisse.get("statut") as string, ecart: (caisse.get("cloture.ecart") as number | undefined) ?? null } : null,
+    // Une caisse par personne : « ouverte » tant qu'il en reste une ouverte ; l'écart est la somme des clôtures.
+    caisse: caisse.empty
+      ? null
+      : {
+          statut: caisse.docs.some((c) => c.get("statut") === "ouverte") ? "ouverte" : "cloturee",
+          ecart: caisse.docs.some((c) => c.get("cloture")) ? caisse.docs.reduce((s, c) => s + ((c.get("cloture.ecart") as number | undefined) ?? 0), 0) : null,
+          ouvertes: caisse.docs.filter((c) => c.get("statut") === "ouverte").map((c) => c.get("ouvertPar.nom") as string),
+          nombre: caisse.size,
+        },
     equipe,
     libreRestant: equipe.reduce((s, p) => s + p.libreRestant, 0),
     alertesStock,
