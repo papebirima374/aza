@@ -1,5 +1,5 @@
 import { membreConnecte } from "@/lib/serveur/agenda";
-import { alerteCliente, enregistrerCliente, ficheCliente, listerClientes, noterRelance } from "@/lib/serveur/clientes";
+import { alerteCliente, changerNumero, enregistrerCliente, ficheCliente, listerClientes, noterRelance } from "@/lib/serveur/clientes";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
 import { noter } from "@/lib/serveur/activite";
@@ -9,6 +9,7 @@ import { noter } from "@/lib/serveur/activite";
 // GET  /api/gestion/clientes?alerte=RDV    allergies et fiche technique pour un rendez-vous (aussi sa praticienne)
 // POST /api/gestion/clientes { id?, telephone?, nom, … }  créer (sans id) ou modifier une fiche
 // POST /api/gestion/clientes { action: "relance", id, type }  noter une relance WhatsApp
+// POST /api/gestion/clientes { action: "numero", id, telephone }  changer le numéro (la fiche et son historique suivent)
 const sansCache = { headers: { "Cache-Control": "no-store" } };
 
 export async function GET(request: Request) {
@@ -33,6 +34,11 @@ export async function POST(request: Request) {
       const r = await noterRelance(membre, String(c.id ?? "-"), String(c.type ?? ""));
       const quoi: Record<string, string> = { anniversaire: "souhaité l'anniversaire de", revoir: "relancé", credit: "rappelé son crédit à" };
       await noter(membre, "clientes", `A ${quoi[String(c.type)] ?? "relancé"} ${r.nom} par WhatsApp`, `/gestion/clientes/${String(c.id)}`);
+      return Response.json(r);
+    }
+    if (c?.action === "numero") {
+      const r = await changerNumero(membre, String(c.id ?? "-"), c.telephone);
+      await noter(membre, "clientes", `Numéro de ${r.nom} changé : ${String(c.id)} → ${r.id}`, `/gestion/clientes/${r.id}`);
       return Response.json(r);
     }
     const r = await enregistrerCliente(membre, c ?? {});

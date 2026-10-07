@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { LIBELLES, type Statut } from "@/lib/agenda/statuts";
@@ -57,6 +58,9 @@ export function FicheCliente({ id }: { id: string }) {
   const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null);
   const [version, setVersion] = useState(0);
   const [envoi, setEnvoi] = useState(false);
+  // Changer le numéro : la fiche et tout son historique passent sous le nouveau numéro.
+  const [nouveauNumero, setNouveauNumero] = useState<string | null>(null);
+  const router = useRouter();
 
   const jeton = useCallback(() => compte.user.getIdToken(), [compte.user]);
 
@@ -93,6 +97,22 @@ export function FicheCliente({ id }: { id: string }) {
     if (r.ok) setVersion((v) => v + 1);
   }
 
+  async function changerNumero() {
+    if (nouveauNumero === null) return;
+    setEnvoi(true);
+    setMessage(null);
+    const r = await fetch("/api/gestion/clientes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${await jeton()}` },
+      body: JSON.stringify({ action: "numero", id, telephone: nouveauNumero }),
+    });
+    const j = await r.json();
+    setEnvoi(false);
+    if (!r.ok) return setMessage({ ok: false, texte: j.erreur ?? "Erreur" });
+    setNouveauNumero(null);
+    router.replace(`/gestion/clientes/${encodeURIComponent(j.id)}`);
+  }
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
       <Link href="/gestion/clientes" className="inline-block py-2 text-sm font-semibold text-doux underline">
@@ -106,7 +126,46 @@ export function FicheCliente({ id }: { id: string }) {
         <a href={lienWhatsApp(whatsapp)} target="_blank" rel="noopener" className="flex min-h-11 items-center rounded-full bg-[#128C4A] px-4 font-bold text-white">
           💬 WhatsApp
         </a>
+        {nouveauNumero === null && (
+          <button onClick={() => setNouveauNumero("")} className="min-h-11 rounded-full px-3 text-sm font-semibold text-profond underline">
+            ✏️ Modifier le numéro
+          </button>
+        )}
       </div>
+      {nouveauNumero !== null && (
+        <form
+          className="mt-3 rounded-2xl border border-bordure p-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            changerNumero();
+          }}
+        >
+          <label className="block text-sm font-semibold">
+            Nouveau numéro de {fiche.nom}
+            <input
+              autoFocus
+              type="tel"
+              inputMode="tel"
+              value={nouveauNumero}
+              onChange={(e) => setNouveauNumero(e.target.value)}
+              placeholder="ex. 71 111 57 54"
+              className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 text-lg font-normal"
+            />
+          </label>
+          <p className="mt-2 text-xs text-doux">
+            Sa fiche, ses points, son crédit, ses rendez-vous et ses tickets passent sous le nouveau numéro. Rien n&apos;est perdu. Si ce numéro a déjà une fiche, le
+            changement est refusé (une cliente = un numéro).
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button disabled={envoi || nouveauNumero.replace(/\D/g, "").length < 9} className="min-h-11 rounded-full bg-profond px-5 font-bold text-white disabled:opacity-40">
+              {envoi ? "Changement…" : "Changer le numéro"}
+            </button>
+            <button type="button" onClick={() => setNouveauNumero(null)} className="min-h-11 rounded-full border border-bordure px-4 text-sm font-semibold">
+              Annuler
+            </button>
+          </div>
+        </form>
+      )}
 
       {fiche.allergies && (
         <p className="mt-4 rounded-2xl border-2 border-[#b3261e] bg-[#fdecea] p-4 font-bold text-[#b3261e]" role="alert">

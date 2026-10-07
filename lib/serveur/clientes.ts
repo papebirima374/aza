@@ -172,6 +172,58 @@ export async function enregistrerCliente(membre: Membre, c: Record<string, unkno
   return { ok: true, id };
 }
 
+// Tout ce qui désigne une cliente par son numéro (cliente.id).
+const LIEES = ["rendezVous", "tickets", "commandes", "devis", "avis"] as const;
+
+/**
+ * Changer le numéro d'une cliente (numéro mal saisi, nouveau numéro). Le numéro est
+ * l'identité de la fiche : la fiche passe sous le nouveau numéro avec tout son contenu
+ * (points, crédit, notes…), et ses rendez-vous, tickets, commandes, devis et avis la
+ * suivent. Rien n'est perdu. Refusé si le nouveau numéro a déjà une fiche (jamais de
+ * doublon). L'ancien numéro reste noté sur la fiche.
+ */
+export async function changerNumero(membre: Membre, ancienBrut: string, nouveauBrut: unknown) {
+  exiger(membre);
+  const ancien = String(ancienBrut ?? "");
+  const brut = String(nouveauBrut ?? "").trim();
+  if (!telephoneValide(brut)) throw new Erreur("Nouveau numéro invalide.", 400);
+  const nouveau = telephoneCanonique(brut);
+  if (nouveau === ancien) throw new Erreur("C'est déjà son numéro.", 400);
+  const base = db();
+  const ancienRef = base.doc(`clientes/${ancien}`);
+  const nouveauRef = base.doc(`clientes/${nouveau}`);
+
+  const nom = await base.runTransaction(async (tx) => {
+    const [a, n] = await Promise.all([tx.get(ancienRef), tx.get(nouveauRef)]);
+    // Reprise après une coupure : la fiche est déjà passée, il reste à rattacher l'historique.
+    if (!a.exists && n.exists && ((n.get("anciensNumeros") as string[] | undefined) ?? []).includes(ancien)) return n.get("nom") as string;
+    if (!a.exists) throw new Erreur("Fiche introuvable.", 404);
+    if (n.exists) throw new Erreur(`Ce numéro a déjà une fiche (${n.get("nom")}). Un numéro = une cliente.`, 409);
+    const anciens = (a.get("anciensNumeros") as string[] | undefined) ?? [];
+    tx.set(nouveauRef, {
+      ...a.data(),
+      telephone: nouveau,
+      anciensNumeros: [...new Set([...anciens, ancien])],
+      numeroChange: { de: ancien, le: FieldValue.serverTimestamp(), par: { uid: membre.uid, nom: membre.nom } },
+    });
+    tx.delete(ancienRef);
+    return a.get("nom") as string;
+  });
+
+  // L'historique suit la fiche (par lots de 400 écritures).
+  let rattaches = 0;
+  for (const nomCollection of LIEES) {
+    const snap = await base.collection(nomCollection).where("cliente.id", "==", ancien).get();
+    for (let i = 0; i < snap.docs.length; i += 400) {
+      const lot = base.batch();
+      for (const d of snap.docs.slice(i, i + 400)) lot.update(d.ref, { "cliente.id": nouveau, "cliente.telephone": brut });
+      await lot.commit();
+    }
+    rattaches += snap.size;
+  }
+  return { ok: true, id: nouveau, nom, rattaches };
+}
+
 /** L'alerte d'une cliente (allergies) pour un rendez-vous : aussi pour la praticienne de ce rendez-vous. */
 export async function alerteCliente(membre: Membre, rdvId: string) {
   const rdv = await db().doc(`rendezVous/${rdvId}`).get();

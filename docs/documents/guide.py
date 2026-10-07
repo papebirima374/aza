@@ -414,7 +414,7 @@ pages.append(page(f"""
 <h2>La fiche d'une cliente</h2>
 <div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
 <ul class="puces">
-<li>📞 Appeler, 💬 WhatsApp.</li>
+<li>📞 Appeler, 💬 WhatsApp. <b>✏️ Modifier le numéro</b> : numéro mal saisi ou changé ? Tapez le nouveau, puis « Changer le numéro » : sa fiche, ses points, son crédit, ses rendez-vous et ses tickets passent sous le nouveau numéro (refusé si ce numéro a déjà une fiche).</li>
 <li><b>Chiffres</b> : total dépensé, venues, panier moyen, « revient tous les … jours », dernière venue, absences.</li>
 <li><b>Fiche technique beauté</b> : allergies (affichées en rouge partout), peau, cheveux, colorations, marques, mèches, notes.</li>
 <li><b>Coordonnées</b> : date de naissance, quartier, comment elle vous a connus, praticienne préférée.</li>

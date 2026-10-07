@@ -107,5 +107,26 @@ const t = await appel("/api/gestion/caisse", accueil, {
 const lignes = valeurs((await lire(`tickets/${t.corps.id}`)).lignes).map((l) => l.mapValue.fields.praticienne?.mapValue.fields.id.stringValue);
 ok(t.statut === 201 && lignes[0] === "test-estheticienne-1" && lignes[1] === "test-prothesiste-1", "ticket : chaque ligne porte sa prestataire");
 
+// Changer le numéro d'une cliente (saisie en 77 au lieu de 71) : la fiche et l'historique suivent
+const mauvais = await appel("/api/gestion/comptoir", accueil, {
+  action: "libre", date: AUJ, debut: 9 * 60, lignes: [{ id: VERNIS, praticienne: "test-prothesiste-1" }], nom: "Numéro à corriger (test)", telephone: "77 000 55 10", dejaFaite: true,
+});
+const ticketMauvais = await appel("/api/gestion/caisse", accueil, {
+  action: "encaisser", rendezVous: mauvais.corps.id, lignes: [{ id: VERNIS }], paiements: [{ mode: "especes", montant: 5000 }],
+});
+ok(ticketMauvais.statut === 201, "fiche et ticket créés sous 77 000 55 10");
+ok((await appel("/api/gestion/clientes", coiffeuse, { action: "numero", id: "770005510", telephone: "71 000 55 10" })).statut === 403, "une praticienne ne change pas un numéro");
+ok((await appel("/api/gestion/clientes", accueil, { action: "numero", id: "770005510", telephone: "72 000 55 10" })).statut === 400, "numéro invalide : refusé");
+ok((await appel("/api/gestion/clientes", accueil, { action: "numero", id: "770005510", telephone: "77 000 55 01" })).statut === 409, "numéro déjà pris par une autre cliente : refusé (pas de doublon)");
+const change = await appel("/api/gestion/clientes", accueil, { action: "numero", id: "770005510", telephone: "+221 71 000 55 10" });
+ok(change.statut === 200 && change.corps.id === "710005510" && change.corps.rattaches >= 2, `numéro changé : 710005510 (${change.corps.rattaches} rendez-vous/tickets rattachés)`);
+const ficheNouvelle = await lire("clientes/710005510");
+ok(ficheNouvelle.nom?.stringValue === "Numéro à corriger (test)" && valeurs(ficheNouvelle.anciensNumeros)[0]?.stringValue === "770005510", "la fiche garde son nom et note l'ancien numéro");
+ok((await fetch(`${EMU}/clientes/770005510`, { headers: OWNER })).status === 404, "plus de fiche sous l'ancien numéro (pas de doublon)");
+ok((await lire(`rendezVous/${mauvais.corps.id}`)).cliente?.mapValue.fields.id.stringValue === "710005510", "le rendez-vous suit la fiche");
+ok((await lire(`tickets/${ticketMauvais.corps.id}`)).cliente?.mapValue.fields.id.stringValue === "710005510", "le ticket suit la fiche");
+const fiche = await appel("/api/gestion/clientes?id=710005510", accueil);
+ok(fiche.statut === 200 && fiche.corps.historique.length >= 2, "l'historique s'affiche sous le nouveau numéro");
+
 console.log(echecs === 0 ? "\nTout est bon." : `\n${echecs} contrôle(s) en échec.`);
 process.exit(echecs === 0 ? 0 : 1);
