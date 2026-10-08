@@ -301,6 +301,7 @@ pages.append(page(f"""
 <li><span class="bouton">🖨️ Imprimer la feuille de caisse</span> : sur l'imprimante de tickets (même réglage que les reçus), ou cochez <b>Sur une feuille A4</b>.</li>
 </ol>
 <p><b>Direction, manager, comptable</b> : en haut, choisissez « Caisse de … » pour chaque personne, ou <b>🧾 Toute la journée</b> : chaque caisse avec son fond, son tiroir, son <b>écart</b> et sa clôture, puis le total. Une caissière ne voit que sa propre feuille.</p>
+<p>En bas de chaque feuille : les <b>services faits</b> et les <b>produits vendus</b> (nombre et montant de chacun), puis ce que <b>chaque prestataire</b> a fait. Les tickets annulés n'y comptent pas.</p>
 <div class="encadre">Avant la clôture, la feuille porte « PROVISOIRE ». Décochez « Détail des tickets » pour une feuille courte. Pour un autre jour : « Journal du » en haut de la Caisse, puis imprimez.</div>
 </div>{figure("97-feuille-personne","Sa feuille (caissière)","tel-petit")}{figure("96-feuille-caisse","Toute la journée (direction)","tel-petit")}</div>
 """, P))

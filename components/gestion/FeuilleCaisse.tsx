@@ -168,6 +168,55 @@ export function FeuilleCaisse({ date }: { date?: string }) {
   );
 }
 
+type LigneRecap = { nom: string; quantite: number; montant: number; offerts: number };
+
+// Ce qui a été fait et vendu : les tickets de vente non annulés (une vente annulée et son
+// avoir s'effacent l'un l'autre), ligne par ligne, regroupés par nom.
+function recapitulatif(tickets: Journal["tickets"]) {
+  const services = new Map<string, LigneRecap>();
+  const produits = new Map<string, LigneRecap>();
+  const parPrestataire = new Map<string, { nom: string; services: number; produits: number; montant: number }>();
+  for (const x of tickets) {
+    if (x.type !== "vente" || x.annule) continue;
+    for (const l of x.lignes) {
+      if (l.type !== "prestation" && l.type !== "produit") continue;
+      const groupe = l.type === "prestation" ? services : produits;
+      const g = groupe.get(l.nom) ?? { nom: l.nom, quantite: 0, montant: 0, offerts: 0 };
+      g.quantite += l.quantite;
+      g.montant += l.montant;
+      if (l.offert) g.offerts += l.quantite;
+      groupe.set(l.nom, g);
+      const p = l.praticienne;
+      if (p) {
+        const q = parPrestataire.get(p.id) ?? { nom: p.nom, services: 0, produits: 0, montant: 0 };
+        if (l.type === "prestation") q.services += l.quantite;
+        else q.produits += l.quantite;
+        q.montant += l.montant;
+        parPrestataire.set(p.id, q);
+      }
+    }
+  }
+  const trier = (m: Map<string, LigneRecap>) => [...m.values()].sort((a, b) => b.montant - a.montant || a.nom.localeCompare(b.nom));
+  return { services: trier(services), produits: trier(produits), prestataires: [...parPrestataire.values()].sort((a, b) => b.montant - a.montant) };
+}
+
+function BlocRecap({ titre, lignes }: { titre: string; lignes: LigneRecap[] }) {
+  if (lignes.length === 0) return null;
+  const nombre = lignes.reduce((s, l) => s + l.quantite, 0);
+  return (
+    <>
+      <Trait />
+      <p className="font-bold">
+        {titre} ({nombre})
+      </p>
+      {lignes.map((l) => (
+        <Rangee key={l.nom} a={`${l.quantite} × ${l.nom}${l.offerts ? ` (${l.offerts} offert${l.offerts > 1 ? "s" : ""})` : ""}`} b={formatPrix(l.montant)} />
+      ))}
+      <Rangee a="Total" b={formatPrix(lignes.reduce((s, l) => s + l.montant, 0))} gras />
+    </>
+  );
+}
+
 function Contenu(props: { j: Journal; caisse: CaisseJour | null; detail: boolean; logo: boolean; imprimePar: string }) {
   const { j, caisse, detail, logo, imprimePar } = props;
   // Une caisse : la sienne. Sinon : toute la journée (toutes les caisses).
@@ -182,6 +231,7 @@ function Contenu(props: { j: Journal; caisse: CaisseJour | null; detail: boolean
   const especesEncaissees = t.parMode.especes ?? 0;
   const cloturee = caisse ? Boolean(caisse.cloture) : j.caisses.every((c) => c.cloture);
   const comptees = j.caisses.filter((c) => c.cloture);
+  const recap = recapitulatif(siens);
   const maintenant = new Date().toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dakar" });
 
   return (
@@ -301,6 +351,22 @@ function Contenu(props: { j: Journal; caisse: CaisseJour | null; detail: boolean
       )}
       {caisse?.ticketsApresCloture && caisse.ticketsApresCloture.length > 0 && (
         <p className="mt-[1mm] text-[0.85em]">Arrivés après la clôture (ventes hors connexion) : {caisse.ticketsApresCloture.join(", ")}.</p>
+      )}
+      <BlocRecap titre="SERVICES FAITS" lignes={recap.services} />
+      <BlocRecap titre="PRODUITS VENDUS" lignes={recap.produits} />
+      {recap.prestataires.length > 0 && (
+        <>
+          <Trait />
+          <p className="font-bold">PAR PRESTATAIRE</p>
+          {recap.prestataires.map((p) => (
+            <Rangee
+              key={p.nom}
+              a={`${p.nom} : ${[p.services ? `${p.services} service${p.services > 1 ? "s" : ""}` : "", p.produits ? `${p.produits} produit${p.produits > 1 ? "s" : ""}` : ""].filter(Boolean).join(", ")}`}
+              b={formatPrix(p.montant)}
+            />
+          ))}
+          <p className="text-[0.85em]">Avant remises. Les lignes sans « Fait par » ne sont pas comptées ici.</p>
+        </>
       )}
       <Trait />
       <div className="mt-[3mm] grid grid-cols-2 gap-[3mm] text-[0.9em]">
