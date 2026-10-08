@@ -163,6 +163,9 @@ export function Caisse() {
   }
 
   const ouverte = journal?.aujourdhui && journal.caisse?.statut === "ouverte";
+  // Point de vente : caisse ouverte → écran fixe (services | comptoir), le reste dans un panneau.
+  const pointDeVente = Boolean(ouverte && tientLaCaisse);
+  const [panneau, setPanneau] = useState<"tickets" | "cloture" | "caisses" | null>(null);
   // Téléphone : la barre « Payer » s'efface quand le comptoir est déjà à l'écran.
   const [comptoirVisible, setComptoirVisible] = useState(false);
   useEffect(() => {
@@ -173,20 +176,57 @@ export function Caisse() {
     return () => o.disconnect();
   }, [ouverte, numeroVente]);
 
+  const outil = "flex min-h-11 shrink-0 items-center gap-1 rounded-full border border-bordure px-4 text-sm font-semibold text-profond hover:border-profond";
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-serif text-4xl font-semibold text-profond">Caisse</h1>
-          <p className="text-doux">{dateTexte(date)}</p>
+    <div
+      className={
+        pointDeVente ? "mx-auto max-w-[1600px] px-3 py-2 sm:px-4 lg:flex lg:h-[calc(100dvh-3.5rem)] lg:flex-col lg:overflow-hidden" : "mx-auto max-w-5xl px-4 py-6"
+      }
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="mr-auto">
+          <h1 className={`font-serif font-semibold text-profond ${pointDeVente ? "text-2xl" : "text-4xl"}`}>Caisse</h1>
+          {journal?.caisse ? (
+            <p className="text-xs text-doux sm:text-sm">
+              {journal.caisse.statut === "ouverte" ? "🟢 Ma caisse est ouverte" : "🔒 Ma caisse est clôturée"}
+              {journal.caisse.ouvertLe ? ` depuis ${new Date(journal.caisse.ouvertLe).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dakar" })}` : ""} · fond{" "}
+              {formatPrix(journal.caisse.fond)}
+              {!journal.aujourdhui && ` · ${dateTexte(date)}`}
+            </p>
+          ) : (
+            <p className="text-doux">{dateTexte(date)}</p>
+          )}
         </div>
-        <Link href="/gestion/cartes" className="flex min-h-12 items-center rounded-full border border-bordure px-5 font-semibold text-profond hover:border-profond">
-          🎁 Cartes cadeaux
-        </Link>
-        <label className="text-sm font-semibold text-doux">
-          Journal du
-          <input type="date" value={date} max={aujourdhui()} onChange={(e) => e.target.value && setDate(e.target.value)} className="ml-2 rounded-full border border-bordure px-3 py-2" />
-        </label>
+        {/* Barre d'outils, comme dans une gestion commerciale. */}
+        <div className="-mx-1 flex max-w-full gap-2 overflow-x-auto px-1 pb-1">
+          {pointDeVente && (
+            <>
+              <button onClick={() => setPanneau("tickets")} className={outil}>
+                🧾 Tickets <span className="text-doux">({journal?.tickets.length ?? 0})</span>
+              </button>
+              <button onClick={() => setPanneau("cloture")} className={outil}>
+                🔒 Clôture
+              </button>
+              {journal?.voitTout && (
+                <button onClick={() => setPanneau("caisses")} className={outil}>
+                  🗂️ Toutes les caisses
+                </button>
+              )}
+            </>
+          )}
+          {journal?.voitTout && (
+            <Link href="/gestion/caisse/sessions" className={outil}>
+              📅 Sessions
+            </Link>
+          )}
+          <Link href="/gestion/cartes" className={outil}>
+            🎁 Cartes cadeaux
+          </Link>
+          <label className={`${outil} font-normal`}>
+            <span className="font-semibold">Jour</span>
+            <input type="date" value={date} max={aujourdhui()} onChange={(e) => e.target.value && setDate(e.target.value)} className="bg-transparent" aria-label="Journal du" />
+          </label>
+        </div>
       </div>
 
       {erreur && (
@@ -203,16 +243,9 @@ export function Caisse() {
 
           {/* Ma caisse : chacun ouvre la sienne (son fond), encaisse dedans, la clôture le soir. */}
           {journal.aujourdhui && tientLaCaisse && !journal.caisse && <Ouvrir ouvrir={(fond) => action({ action: "ouvrir", fond })} />}
-          {journal.caisse && (
-            <p className="mt-3 text-sm text-doux">
-              {journal.caisse.statut === "ouverte" ? "🟢 Ma caisse est ouverte" : "🔒 Ma caisse est clôturée"}
-              {journal.caisse.ouvertLe ? ` depuis ${new Date(journal.caisse.ouvertLe).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dakar" })}` : ""} · fond{" "}
-              {formatPrix(journal.caisse.fond)}
-            </p>
-          )}
 
-          {ouverte && tientLaCaisse && (
-            <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_27rem]">
+          {pointDeVente && (
+            <div className="mt-2 grid items-start gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_27rem] lg:grid-rows-[minmax(0,1fr)] lg:items-stretch">
               <Services
                 rendezVous={aEncaisser}
                 ajouter={(id) => {
@@ -282,7 +315,64 @@ export function Caisse() {
 
           {file.attente.length > 0 && <EnAttente />}
 
-          {(journal.caisse || journal.voitTout) && (
+          {pointDeVente && panneau && (
+            <div className="fixed inset-0 z-40 flex justify-end bg-encre/30" onClick={() => setPanneau(null)}>
+              <aside className="h-full w-full max-w-2xl overflow-y-auto bg-white p-4 shadow-2xl sm:p-6" onClick={(e) => e.stopPropagation()} aria-label="Panneau de caisse">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex gap-2 overflow-x-auto">
+                    {(
+                      [
+                        ["tickets", "🧾 Tickets"],
+                        ["cloture", "🔒 Clôture"],
+                        ...(journal.voitTout ? [["caisses", "🗂️ Toutes les caisses"] as const] : []),
+                      ] as const
+                    ).map(([id, libelle]) => (
+                      <button
+                        key={id}
+                        onClick={() => setPanneau(id)}
+                        aria-pressed={panneau === id}
+                        className={`min-h-10 shrink-0 rounded-full px-4 text-sm font-semibold ${panneau === id ? "bg-profond text-white" : "bg-creme text-profond"}`}
+                      >
+                        {libelle}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={() => setPanneau(null)} className="rounded-full px-3 py-1 text-2xl text-doux" aria-label="Fermer">
+                    ×
+                  </button>
+                </div>
+                {panneau === "tickets" && (
+                  <Tickets
+                    titre={journal.voitTout ? "Tickets du jour, toutes caisses" : "Mes tickets du jour"}
+                    tickets={journal.tickets}
+                    annulable={peut(compte, "remises")}
+                    annuler={(t) => {
+                      const motif = window.prompt(`Annuler le ticket ${t.reference} (${formatPrix(t.total)}) ? Un avoir sera créé : le remboursement sort de la caisse qui l'avait encaissé (ou de la vôtre si elle est clôturée). Motif :`);
+                      if (motif) action({ action: "annuler", id: t.id, motif });
+                    }}
+                  />
+                )}
+                {panneau === "cloture" && journal.caisse && (
+                  <Bilan
+                    caisse={journal.caisse}
+                    date={journal.date}
+                    attente={file.attente.length}
+                    cloturer={(compte, justification) => action({ action: "cloturer", compte, justification })}
+                  />
+                )}
+                {panneau === "caisses" && journal.voitTout && (
+                  <CaissesDuJour
+                    journal={journal}
+                    moi={compte.uid}
+                    peutCloturer={compte.role === "direction" || compte.role === "manager"}
+                    cloturer={(id, montant, justification) => action({ action: "cloturer", caisse: id, compte: montant, justification })}
+                  />
+                )}
+              </aside>
+            </div>
+          )}
+
+          {!pointDeVente && (journal.caisse || journal.voitTout) && (
             <Tickets
               titre={journal.voitTout ? "Tickets du jour, toutes caisses" : "Mes tickets du jour"}
               tickets={journal.tickets}
@@ -294,7 +384,7 @@ export function Caisse() {
             />
           )}
 
-          {journal.caisse && (
+          {!pointDeVente && journal.caisse && (
             <Bilan
               caisse={journal.caisse}
               date={journal.date}
@@ -303,7 +393,7 @@ export function Caisse() {
             />
           )}
 
-          {journal.voitTout && (
+          {!pointDeVente && journal.voitTout && (
             <CaissesDuJour
               journal={journal}
               moi={compte.uid}
@@ -471,7 +561,7 @@ function Editeur(props: {
 
 
   return (
-    <section id="comptoir" className="rounded-2xl border-2 border-profond p-4 sm:p-5 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+    <section id="comptoir" className="rounded-2xl border-2 border-profond p-4 sm:p-5 lg:min-h-0 lg:overflow-y-auto">
       <div className="flex items-start justify-between gap-3">
         <h2 className="font-serif text-2xl font-semibold text-profond">{b.rendezVous ? `Ticket — ${b.cliente?.nom}` : "🧾 Comptoir"}</h2>
         {(lignes.length > 0 || b.rendezVous) && (
@@ -482,7 +572,7 @@ function Editeur(props: {
       </div>
 
       {b.rendezVous && <AlerteCliente rdv={b.rendezVous} />}
-      <ul className="mt-3 divide-y divide-bordure rounded-xl border border-bordure">
+      <ul className="mt-3 divide-y divide-bordure rounded-xl border border-bordure lg:max-h-[36vh] lg:overflow-y-auto">
         {lignes.length === 0 && <li className="p-3 text-sm text-doux">Touchez une prestation ou un produit à gauche (ou cherchez-le) : il s&apos;ajoute ici.</li>}
         {lignes.map((l, i) => (
           <li key={`${l.id}-${i}`} className="flex flex-wrap items-center gap-2 p-3">
@@ -1057,7 +1147,7 @@ function Services({ rendezVous, ajouter, choisirRendezVous }: { rendezVous: RdvA
   }, [recherche, familleActive, cat]);
   const puce = (actif: boolean) => `min-h-10 shrink-0 whitespace-nowrap rounded-full px-3 text-sm font-semibold ${actif ? "bg-profond text-white" : "bg-creme text-profond"}`;
   return (
-    <section className="min-w-0 rounded-2xl border border-bordure p-3 sm:p-4">
+    <section className="flex min-w-0 flex-col rounded-2xl border border-bordure p-3 sm:p-4 lg:min-h-0">
       {rendezVous.length > 0 && (
         <div className="mb-3">
           <h2 className="text-sm font-bold text-doux">💳 Rendez-vous terminés à encaisser ({rendezVous.length})</h2>
@@ -1100,7 +1190,7 @@ function Services({ rendezVous, ajouter, choisirRendezVous }: { rendezVous: RdvA
           {recherche.trim().length >= 2 ? "Rien trouvé : essayez un autre mot." : "Choisissez une famille ou tapez un mot (« vernis », « tresses »…)."}
         </p>
       ) : (
-        <ul className="mt-3 grid max-h-[60vh] grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 lg:max-h-[calc(100vh-20rem)]">
+        <ul className="mt-3 grid max-h-[60vh] auto-rows-min grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 lg:max-h-none lg:min-h-0 lg:flex-1 xl:grid-cols-4">
           {liste.map((p) => (
             <li key={p.id}>
               <button

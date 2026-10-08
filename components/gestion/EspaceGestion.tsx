@@ -186,6 +186,11 @@ function MenuPlus({ compte, chemin }: { compte: Compte; chemin: string }) {
   const setOuvert = (v: boolean) => setOuvertSur(v ? chemin : null);
   const direction = role === "direction" || role === "manager";
   const liens = [
+    {
+      href: "/gestion/caisse/sessions",
+      libelle: "🧾 Sessions de caisse",
+      visible: ["direction", "manager", "comptable"].includes(role) || peut(compte, "jour") || peut(compte, "rapports"),
+    },
     { href: "/gestion/catalogue", libelle: "📋 Catalogue et prix", visible: peut(compte, "catalogue") },
     { href: "/gestion/collection", libelle: "👗 Collection Couture", visible: direction },
     { href: "/gestion/cartes", libelle: "🎁 Cartes cadeaux", visible: direction || peut(compte, "caisse") },

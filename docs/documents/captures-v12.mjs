@@ -68,10 +68,29 @@ await haut("#comptoir");
 await p.waitForTimeout(500);
 await p.screenshot({ path: `${D}80-caisse-cliente.png` });
 
-// 24b : le bilan de ma caisse
-const bilan = p.getByText(/Ma caisse : bilan et clôture/);
-await bilan.evaluate((e) => window.scrollTo(0, e.getBoundingClientRect().top + window.scrollY - 80));
+// 24b : le bilan de ma caisse (bouton « Clôture » en haut)
+await p.getByRole("button", { name: /Clôture/ }).first().click();
+await p.getByText(/Ma caisse : bilan et clôture/).waitFor();
 await p.waitForTimeout(600);
 await p.screenshot({ path: `${D}24b-caisse-bilan.png` });
-console.log("📸 20, 21, 22, 24b, 80");
+await p.keyboard.press("Escape");
+// 106 : les sessions de caisse (direction, sur ordinateur)
+const r1 = await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key", {
+  method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "manager@test.aza", password: "AzaTest2026!", returnSecureToken: true }),
+});
+const man = (await r1.json()).idToken;
+await fetch(S + "/api/gestion/caisse", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${man}` }, body: JSON.stringify({ action: "ouvrir", fond: 10000 }) });
+await fetch(S + "/api/gestion/caisse", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${man}` }, body: JSON.stringify({ action: "encaisser", lignes: [{ id: "onglerie--vernis-permanent", praticienne: "test-prothesiste-1" }], paiements: [{ mode: "wave", montant: 5000 }] }) });
+await fetch(S + "/api/gestion/caisse", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${man}` }, body: JSON.stringify({ action: "cloturer", compte: 10000 }) });
+const d = await (await b.newContext({ viewport: { width: 1180, height: 760 }, deviceScaleFactor: 2, locale: "fr-FR" })).newPage();
+await d.goto(S + "/gestion");
+await d.fill("input[type=tel]", "77 900 00 01");
+await d.fill("input[type=password]", "AzaTest2026!");
+await d.click("button[type=submit]");
+await d.locator('a[href="/gestion/mon-compte"]').waitFor();
+await d.goto(S + "/gestion/caisse/sessions");
+await d.getByText(/Recette de la journée/).first().waitFor();
+await d.waitForTimeout(800);
+await d.screenshot({ path: `${D}106-sessions-caisse.png` });
+console.log("📸 20, 21, 22, 24b, 80, 106");
 await b.close();

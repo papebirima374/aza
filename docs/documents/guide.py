@@ -236,6 +236,7 @@ pages.append(page(f"""
 <li>Comptez les espèces de <b>votre</b> tiroir (le <b>fond de caisse</b>, 0 si vide), tapez le montant, puis <span class="bouton">Ouvrir ma caisse</span>.</li>
 <li>Laissez la page Caisse ouverte toute la journée : c'est aussi ce qui permet de continuer en cas de coupure d'internet.</li>
 </ol>
+<p>Caisse ouverte, l'écran ne défile plus : les services à gauche, le comptoir à droite. En haut, les boutons <span class="touche">🧾 Tickets</span> (les tickets du jour, le reçu, l'annulation), <span class="touche">🔒 Clôture</span>, et pour la direction <span class="touche">🗂️ Toutes les caisses</span> et <span class="touche">📅 Sessions</span>.</p>
 <h3>Quand une praticienne a fini</h3>
 {duo('''<p>Un message apparaît en bas de l'écran, avec un petit son, quelle que soit la page ouverte :</p>
 <p><b>« 💰 Awa Diop a fini »</b> · <span class="bouton" style="background:#0d6b37">Encaisser</span> · <span class="touche">Plus tard</span></p>
@@ -296,7 +297,7 @@ pages.append(page(f"""
 <div class="duo" style="grid-template-columns:1fr 50mm 50mm;"><div>
 <p><b>Chacun tire sa propre feuille</b> : on ne mélange pas les caissières.</p>
 <ol class="etapes">
-<li>En bas de la Caisse, dans le bilan : <span class="touche">🖨️ Imprimer la feuille de caisse</span>.</li>
+<li><span class="touche">🔒 Clôture</span> en haut de la Caisse, puis <span class="touche">🖨️ Imprimer la feuille de caisse</span>.</li>
 <li>La feuille qui s'affiche est <b>la vôtre</b> : vos tickets, votre total, et les <b>espèces à remettre</b>.</li>
 <li><span class="bouton">🖨️ Imprimer la feuille de caisse</span> : sur l'imprimante de tickets (même réglage que les reçus), ou cochez <b>Sur une feuille A4</b>.</li>
 </ol>
@@ -327,13 +328,25 @@ pages.append(page(f"""
 <h2>Le soir : le bilan et la clôture</h2>
 <div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
 <ol class="etapes">
-<li>En bas de la Caisse, le <b>bilan</b> : recette, chaque moyen de paiement, fond de caisse, et les <b>espèces attendues dans le tiroir</b>.</li>
+<li>En haut de la Caisse, <span class="touche">🔒 Clôture</span> : le <b>bilan</b> s'ouvre — recette, chaque moyen de paiement, fond de caisse, et les <b>espèces attendues dans le tiroir</b>.</li>
 <li>Comptez les espèces du tiroir et tapez le montant dans « Espèces comptées ».</li>
 <li>« Le compte est juste » ou « Écart : … ». S'il y a un écart, écrivez l'explication (obligatoire).</li>
 <li><span class="bouton" style="background:#7E0A4C">Clôturer ma caisse</span>. Vous ne pouvez plus encaisser ce jour-là ; les autres caisses restent ouvertes.</li>
 </ol>
-<div class="encadre or"><b>Toutes les caisses du jour</b> (direction, manager, comptable) : en bas de la Caisse, chaque caisse avec son état, son tiroir attendu et sa recette. Quelqu'un est parti sans clôturer ? La direction ou le manager touche <span class="touche">Clôturer</span> sur sa ligne et tape les espèces comptées dans son tiroir. Le <b>journal</b> d'un autre jour : « Journal du » en haut de la Caisse.</div></div>
+<div class="encadre or"><b>Toutes les caisses du jour</b> (direction, manager, comptable) : bouton <span class="touche">🗂️ Toutes les caisses</span>, chaque caisse avec son état, son tiroir attendu et sa recette. Quelqu'un est parti sans clôturer ? La direction ou le manager touche <span class="touche">Clôturer</span> sur sa ligne et tape les espèces comptées dans son tiroir. Le <b>journal</b> d'un autre jour : « Journal du » en haut de la Caisse.</div></div>
 {figure("103-caisses-du-jour","Toutes les caisses du jour")}{figure("24b-caisse-bilan","Bilan et clôture")}</div>
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">5 · La caisse</span>
+<h2>Les sessions de caisse : retrouver les caisses d'une date</h2>
+<p><b>Direction, manager, comptable</b> : <b>Plus ▾ → 🧾 Sessions de caisse</b> (ou <span class="touche">📅 Sessions</span> en haut de la Caisse).</p>
+<ol class="etapes">
+<li>Choisissez la période (<b>Du</b> … <b>Au</b>), ou touchez <span class="touche">Aujourd'hui</span>, <span class="touche">Hier</span>, <span class="touche">7 jours</span>, <span class="touche">30 jours</span>. Jusqu'à 3 mois d'un coup.</li>
+<li>Chaque jour s'affiche avec sa <b>recette</b> et son <b>écart</b>, puis chaque caisse : qui l'a ouverte, à quelle heure, le fond, le nombre de tickets, la clôture et l'écart.</li>
+<li><span class="bouton">🖨️ Recette de la journée</span> : la feuille de toute la journée, à imprimer. <span class="touche">🖨️ Feuille</span> : la feuille d'une seule caisse.</li>
+</ol>
+{figure("106-sessions-caisse","Les sessions de caisse","pc")}
 """, P))
 
 pages.append(page(f"""

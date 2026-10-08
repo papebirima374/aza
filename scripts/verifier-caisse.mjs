@@ -212,5 +212,14 @@ await fetch(`${EMU}/tickets/ancien-ticket`, { method: "PATCH", headers: { ...OWN
 const ancien = await caisse(accueil, undefined, `?date=${HIER}`);
 ok(ancien.corps.caisse?.id === HIER && ancien.corps.tickets.length === 1 && ancien.corps.totaux.especesAttendues === 7000, "ancienne caisse commune : retrouvée avec son ticket (rien n'est perdu)");
 
+// Sessions de caisse : retrouver les caisses d'une période (direction, manager, comptable)
+ok((await caisse(accueil, undefined, `?sessions=1&du=${AUJOURDHUI}&au=${AUJOURDHUI}`)).statut === 403, "l'accueil ne voit pas les sessions de toutes les caisses");
+const sess = await caisse(comptable, undefined, `?sessions=1&du=2000-01-01&au=2000-01-01`);
+ok(sess.statut === 200 && sess.corps.jours[0]?.caisses[0]?.id === "2000-01-01" && sess.corps.jours[0].recette === 6000, "sessions : l'ancienne caisse commune du 1er janvier 2000 est retrouvée avec sa recette");
+const sessJour = await caisse(direction, undefined, `?sessions=1&du=${AUJOURDHUI}&au=${AUJOURDHUI}`);
+ok(sessJour.statut === 200 && sessJour.corps.jours[0]?.caisses.length === 3, `sessions du jour : ${sessJour.corps.jours[0]?.caisses.length} caisses (accueil, manager, direction)`);
+ok(sessJour.corps.jours[0].caisses.some((c) => c.cloture?.ecart === -500), "l'écart de la caisse de l'accueil est dans la session");
+ok((await caisse(direction, undefined, `?sessions=1&du=2026-01-01&au=2026-12-31`)).statut === 400, "période de plus de 3 mois : refusée");
+
 console.log(echecs === 0 ? "\nTout est bon." : `\n${echecs} contrôle(s) en échec.`);
 process.exit(echecs === 0 ? 0 : 1);

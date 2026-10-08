@@ -1,5 +1,5 @@
 import { membreConnecte } from "@/lib/serveur/agenda";
-import { aEncaisser, annulerTicket, equipeCaisse, fideliteCliente, encaisserCommande, reglerCredit, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
+import { aEncaisser, annulerTicket, equipeCaisse, sessionsCaisse, fideliteCliente, encaisserCommande, reglerCredit, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
 import { noter, nomDe, prix } from "@/lib/serveur/activite";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
@@ -9,6 +9,7 @@ import { reponseErreur } from "@/lib/serveur/reponses";
 // GET  /api/gestion/caisse?ticket=ID         un ticket (reçu)
 // GET  /api/gestion/caisse?rdv=ID            un rendez-vous à encaisser
 // GET  /api/gestion/caisse?fidelite=TEL      points de fidélité de la cliente et règles
+// GET  /api/gestion/caisse?sessions=1&du=…&au=…  sessions de caisse d'une période (direction, manager, comptable)
 // POST /api/gestion/caisse { action: "ouvrir" | "encaisser" | "annuler" | "reglement" | "cloturer", … }
 const indisponible = () => Response.json({ erreur: "Gestion indisponible." }, { status: 503 });
 const sansCache = { headers: { "Cache-Control": "no-store" } };
@@ -22,6 +23,7 @@ export async function GET(request: Request) {
     if (q.get("rdv")) return Response.json(await lireRendezVous(membre, q.get("rdv")!), sansCache);
     if (q.get("a-encaisser")) return Response.json(await aEncaisser(membre), sansCache);
     if (q.get("equipe")) return Response.json(await equipeCaisse(membre), sansCache);
+    if (q.get("sessions")) return Response.json(await sessionsCaisse(membre, q.get("du") ?? undefined, q.get("au") ?? undefined), sansCache);
     if (q.get("fidelite")) return Response.json(await fideliteCliente(membre, q.get("fidelite")!), sansCache);
     return Response.json(await journal(membre, q.get("date") ?? undefined), sansCache);
   } catch (e) {

@@ -538,6 +538,47 @@ function decrireCaisse(c: CaisseLue, tickets: TicketLu[]) {
 }
 
 /**
+ * Sessions de caisse d'une période (direction, manager, comptable) : chaque caisse ouverte,
+ * jour par jour, avec son fond, sa recette, son écart et sa clôture. Au plus 93 jours.
+ */
+export async function sessionsCaisse(membre: Membre, duBrut?: string, auBrut?: string) {
+  exigerJournal(membre);
+  if (!voitToutesLesCaisses(membre)) throw new Erreur("Réservé à la direction, au manager et au comptable.", 403);
+  const jour = /^\d{4}-\d{2}-\d{2}$/;
+  const auj = maintenantDakar().date;
+  const au = auBrut && jour.test(auBrut) ? auBrut : auj;
+  const du = duBrut && jour.test(duBrut) ? duBrut : new Date(Date.parse(`${au}T12:00:00Z`) - 13 * 86_400_000).toISOString().slice(0, 10);
+  if (du > au) throw new Erreur("La date de début est après la date de fin.", 400);
+  if ((Date.parse(`${au}T12:00:00Z`) - Date.parse(`${du}T12:00:00Z`)) / 86_400_000 > 93) throw new Erreur("Choisissez une période de 3 mois au plus.", 400);
+  const base = db();
+  const [caissesSnap, ticketsSnap] = await Promise.all([
+    base.collection("caisses").where("date", ">=", du).where("date", "<=", au).get(),
+    base.collection("tickets").where("date", ">=", du).where("date", "<=", au).get(),
+  ]);
+  const tickets = ticketsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as TicketLu);
+  const parJour = new Map<string, ReturnType<typeof decrireCaisse>[]>();
+  for (const c of caissesSnap.docs) {
+    const date = c.get("date") as string;
+    const liste = parJour.get(date) ?? [];
+    liste.push(decrireCaisse(c, tickets.filter((t) => t.date === date)));
+    parJour.set(date, liste);
+  }
+  const jours = [...parJour.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([date, caisses]) => {
+      caisses.sort((a, b) => (a.ouvertLe ?? 0) - (b.ouvertLe ?? 0));
+      return {
+        date,
+        caisses,
+        recette: caisses.reduce((s, c) => s + c.totaux.recette, 0),
+        ecart: caisses.reduce((s, c) => s + (c.cloture?.ecart ?? 0), 0),
+        ouvertes: caisses.filter((c) => c.statut === "ouverte").length,
+      };
+    });
+  return { du, au, jours, recette: jours.reduce((s, j) => s + j.recette, 0) };
+}
+
+/**
  * Journal d'une journée. Chacun voit SA caisse (fond, tickets, espèces attendues, clôture) ;
  * la direction, le manager et le comptable voient aussi toutes les caisses du jour.
  */

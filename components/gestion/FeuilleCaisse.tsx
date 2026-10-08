@@ -40,7 +40,7 @@ const caisseDuTicket = (t: Ticket) => (t as Ticket & { caisse?: string }).caisse
 
 const heureDe = (ms: number | null) => (ms ? new Date(ms).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dakar" }).replace(":", "h") : "");
 
-export function FeuilleCaisse({ date }: { date?: string }) {
+export function FeuilleCaisse({ date, caisseInitiale }: { date?: string; caisseInitiale?: string }) {
   const compte = useCompte();
   const [j, setJ] = useState<Journal | null>(null);
   const [erreur, setErreur] = useState("");
@@ -50,7 +50,8 @@ export function FeuilleCaisse({ date }: { date?: string }) {
   const [a4, setA4] = useState(false);
   const [detail, setDetail] = useState(true);
   const ref = useRef<HTMLElement>(null);
-  const [choix, setChoix] = useState<string | null>(null);
+  // « tout » : toute la journée ; sinon l'identifiant d'une caisse (lien depuis les sessions de caisse).
+  const [choix, setChoix] = useState<string | null>(caisseInitiale === "tout" ? "" : (caisseInitiale ?? null));
   const imprimerTicket = usePageAuTicket(ref, r);
 
   useEffect(() => {
