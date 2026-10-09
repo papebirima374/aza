@@ -259,7 +259,7 @@ function adresse(chemin: string): string {
 function envoiConnexion(nom: string, jeton: string, telephone: string, titre: string): Envoi {
   return {
     titre,
-    aide: "Envoyez-lui ce message par WhatsApp. Elle touche le lien : son téléphone est connecté, sans mot de passe. Le lien sert une seule fois (valable 7 jours).",
+    aide: "Envoyez-lui ce message par WhatsApp. Elle touche le lien : son téléphone est connecté, sans mot de passe. Le lien n'expire pas : gardez-le, il resservira si son téléphone est déconnecté. Il ne marche plus si vous bloquez son compte, ou si vous lui envoyez un nouveau lien (l'ancien est annulé).",
     texte: `Bonjour ${nom} 👋\nTouchez ce lien pour ouvrir votre planning Anna Zen Attitude :\n${adresse(`/entrer#${jeton}`)}`,
     telephone,
   };

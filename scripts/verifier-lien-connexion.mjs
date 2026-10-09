@@ -60,7 +60,7 @@ const identite = JSON.parse(Buffer.from(session.idToken.split(".")[1], "base64ur
 ok(identite.user_id === cree.corps.uid, "…qui connecte bien CETTE praticienne");
 const compte = await (await fetch(`${EMU}/comptes/${cree.corps.uid}`, { headers: OWNER })).json();
 ok(compte.fields.telephone.stringValue === "77 000 12 34" && compte.fields.role.stringValue === "praticienne", "son compte : rôle praticienne, numéro WhatsApp gardé");
-ok((await entrer(cree.corps.lienConnexion)).statut === 410, "le même lien ne sert pas deux fois");
+ok((await entrer(cree.corps.lienConnexion)).statut === 200, "le même lien resservira (téléphone déconnecté, changé…) : il n'expire pas");
 ok((await entrer("x".repeat(43))).statut === 404, "un lien inventé est refusé");
 ok((await entrer("court")).statut === 400, "un lien mal formé est refusé");
 
@@ -68,6 +68,8 @@ ok((await entrer("court")).statut === 400, "un lien mal formé est refusé");
 ok((await api("/api/gestion/equipe", manager, "PATCH", { uid: cree.corps.uid, lienConnexion: true })).statut === 403, "le manager n'envoie pas de lien");
 const l2 = await api("/api/gestion/equipe", direction, "PATCH", { uid: cree.corps.uid, lienConnexion: true });
 ok(l2.statut === 200 && l2.corps.lienConnexion !== cree.corps.lienConnexion, "la direction envoie un nouveau lien");
+ok((await entrer(cree.corps.lienConnexion)).statut === 410, "nouveau lien envoyé : l'ancien est annulé (lien perdu ou partagé par erreur)");
+ok((await entrer(l2.corps.lienConnexion)).statut === 200, "…et le nouveau marche");
 await api("/api/gestion/equipe", direction, "PATCH", { uid: cree.corps.uid, actif: false });
 ok((await entrer(l2.corps.lienConnexion)).statut === 403, "compte désactivé : le lien ne connecte plus");
 

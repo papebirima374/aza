@@ -683,7 +683,7 @@ pages.append(page(f"""
 <ul class="puces">
 <li>Nom, numéro, rôle, compétences : puis <span class="bouton">Enregistrer les modifications</span>.</li>
 <li><span class="bouton">🔑 Nouveau mot de passe</span> : 6 chiffres tirés au sort, à lui envoyer par WhatsApp. L'ancien ne marche plus.</li>
-<li><span class="bouton" style="background:#128C4A">📲 Lien de connexion WhatsApp</span> : un lien qui connecte son téléphone en un toucher (valable 7 jours, une fois).</li>
+<li><span class="bouton" style="background:#128C4A">📲 Lien de connexion WhatsApp</span> : un lien qui connecte son téléphone en un toucher. Il <b>n'expire pas</b> et resservira si son téléphone est déconnecté. Il ne marche plus si vous <b>désactivez</b> son compte (personne partie) ou si vous lui envoyez un <b>nouveau lien</b> (l'ancien est annulé : utile si le lien a été perdu ou transféré par erreur).</li>
 <li><span class="touche">Désactiver le compte</span> : quand elle quitte l'institut. Elle ne peut plus se connecter ni recevoir de rendez-vous ; son historique reste. On peut la réactiver.</li>
 </ul>
 <div class="encadre or">Vous ne pouvez ni changer votre propre rôle, ni désactiver votre propre compte : c'est une sécurité.</div></div>
