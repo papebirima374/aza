@@ -51,7 +51,7 @@ pages.append(page(f"""
 <li>Touchez <span class="bouton">Se connecter</span>.</li>
 </ol>
 <div class="encadre"><b>Mot de passe oublié ?</b> Demandez à la direction : elle vous en donne un nouveau en un instant (Équipe → Modifier → 🔑 Nouveau mot de passe).</div>
-<div class="encadre or"><b>Sécurité.</b> Après 5 erreurs sur un même numéro, il faut attendre 15 minutes. Le poste d'accueil se déconnecte seul après 20 minutes sans activité. Le téléphone d'une praticienne, lui, reste connecté.</div>
+<div class="encadre or"><b>Sécurité.</b> Après 5 erreurs sur un même numéro, il faut attendre 5 minutes. Le poste d'accueil se déconnecte seul après 20 minutes sans activité. Le téléphone d'une praticienne, lui, reste connecté.</div>
 <p class="doux">La direction peut aussi se connecter avec son email : lien « Se connecter avec un email » en bas.</p>''', "11-connexion", "L'écran de connexion")}
 """, P))
 

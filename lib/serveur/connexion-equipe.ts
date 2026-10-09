@@ -1,7 +1,7 @@
 // Connexion de l'équipe par NUMÉRO DE TÉLÉPHONE et MOT DE PASSE.
 // Le serveur retrouve le compte du numéro, vérifie le mot de passe auprès de Firebase
 // (comme le ferait l'écran avec un email), puis rend un jeton de connexion.
-// Même réponse que le numéro existe ou non ; 5 erreurs sur un numéro = 15 minutes d'attente.
+// Même réponse que le numéro existe ou non ; 5 erreurs sur un numéro = 5 minutes d'attente.
 
 import { Timestamp } from "firebase-admin/firestore";
 import { CONFIG_INSTITUT } from "@/lib/firebase-config";
@@ -33,11 +33,11 @@ export async function connexionTelephone(telephoneBrut: unknown, motDePasseBrut:
   const verrou = base.doc(`securite/connexion-${tel}`);
   const etat = await verrou.get();
   const bloque = etat.get("bloqueJusqua") as Timestamp | undefined;
-  if (bloque && bloque.toMillis() > Date.now()) throw new ErreurReservation("Trop d'essais : réessayez dans 15 minutes.", 429);
+  if (bloque && bloque.toMillis() > Date.now()) throw new ErreurReservation("Trop d'essais : réessayez dans 5 minutes.", 429);
 
   const echec = async () => {
     const n = ((etat.get("echecs") as number | undefined) ?? 0) + 1;
-    await verrou.set(n >= 5 ? { echecs: 0, bloqueJusqua: Timestamp.fromMillis(Date.now() + 15 * 60_000) } : { echecs: n }, { merge: true });
+    await verrou.set(n >= 5 ? { echecs: 0, bloqueJusqua: Timestamp.fromMillis(Date.now() + 5 * 60_000) } : { echecs: n }, { merge: true });
     return new ErreurReservation(REFUS, 401);
   };
 

@@ -60,7 +60,11 @@ ok((await connexion("775551234", "jasmin777")).statut === 401, "compte désactiv
 
 // Trop d'essais
 for (let i = 0; i < 5; i++) await connexion("77 900 00 02", "mauvais");
-ok((await connexion("77 900 00 02", "AzaTest2026!")).statut === 429, "5 erreurs sur un numéro : bloqué 15 minutes");
+const bloque = await connexion("77 900 00 02", "AzaTest2026!");
+ok(bloque.statut === 429 && /5 minutes/.test(bloque.corps.erreur ?? ""), "5 erreurs sur un numéro : bloqué, « réessayez dans 5 minutes »");
+const verrou = await (await fetch("http://127.0.0.1:8080/v1/projects/demo-aza/databases/(default)/documents/securite/connexion-779000002", { headers: { Authorization: "Bearer owner" } })).json();
+const resteMin = (Date.parse(verrou.fields?.bloqueJusqua?.timestampValue ?? 0) - Date.now()) / 60_000;
+ok(resteMin > 4 && resteMin <= 5, `attente réelle : ${resteMin.toFixed(1)} minutes (5 au plus)`);
 
 console.log(echecs === 0 ? "\nTout est bon." : `\n${echecs} contrôle(s) en échec.`);
 process.exit(echecs === 0 ? 0 : 1);

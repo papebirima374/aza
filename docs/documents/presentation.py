@@ -179,7 +179,7 @@ pages.append(page(f"""
 <tr><td><b>Praticienne</b></td><td>« Ma journée » : ses propres rendez-vous seulement, et l'allergie de ses clientes.</td></tr>
 <tr><td><b>Comptable</b></td><td>Journaux de caisse et stock, en lecture.</td></tr></table>
 <ul class="puces">
-<li>Connexion par numéro + mot de passe ; 5 erreurs = 15 minutes d'attente ; déconnexion automatique du poste d'accueil après 20 minutes.</li>
+<li>Connexion par numéro + mot de passe ; 5 erreurs = 5 minutes d'attente ; déconnexion automatique du poste d'accueil après 20 minutes.</li>
 <li>Toute écriture passe par le serveur, qui vérifie les droits ; les règles de la base interdisent le reste.</li>
 <li><b>Sauvegarde</b> téléchargeable et <b>remise à zéro</b> protégées par un code de sécurité, chaque action notée.</li>
 <li>Chaque fonction est vérifiée par des contrôles automatiques avant chaque mise en ligne.</li>
