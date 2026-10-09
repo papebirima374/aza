@@ -5,6 +5,7 @@ import { useCompte } from "@/components/gestion/EspaceGestion";
 import { Repartition } from "@/components/gestion/Rapports";
 import { LIBELLE_NOTE, type Avis } from "@/lib/avis";
 import { telephoneCanonique } from "@/lib/telephone";
+import { texteWhatsApp } from "@/lib/whatsapp";
 
 // Avis des clientes (direction, manager) : la note moyenne, ceux à regarder en premier
 // (3 étoiles ou moins), et le choix de ceux qui vont sur le site.
@@ -16,7 +17,7 @@ function lienWhatsApp(a: Avis) {
   if (!a.cliente?.telephone) return null;
   const c = telephoneCanonique(a.cliente.telephone);
   const texte = `Bonjour ${a.prenom}, ici Anna Zen Attitude. Merci pour votre avis sur votre visite du ${dateCourte(a.ticket.date)}. Nous sommes désolées que tout n'ait pas été parfait : pouvez-vous nous en dire un peu plus ?`;
-  return `https://wa.me/${c.length === 9 ? `221${c}` : c}?text=${encodeURIComponent(texte)}`;
+  return `https://wa.me/${c.length === 9 ? `221${c}` : c}?text=${texteWhatsApp(texte)}`;
 }
 
 export function AvisClientes() {

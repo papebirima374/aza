@@ -212,6 +212,21 @@ pages.append(page(f"""
 </div><div style="display:flex;flex-direction:column;gap:4mm">{figure("104-rdv-passage","Deux prestations, deux prestataires","tel-petit")}{figure("105-rdv-modifier","Modifier un rendez-vous","tel-petit")}</div></div>
 """, P))
 
+pages.append(page(f"""
+<span class="etiquette">3 · L'agenda</span>
+<h2>L'heure du rendez-vous est arrivée</h2>
+<div class="duo" style="grid-template-columns:1fr 50mm 50mm;"><div>
+<p>À l'heure d'un rendez-vous, si la cliente n'est pas encore notée « Arrivée », un message s'affiche avec un petit son, <b>quelle que soit la page ouverte</b> : chez l'accueil, la direction, le manager, et sur le téléphone de la <b>prestataire</b> de ce rendez-vous.</p>
+<ul class="puces">
+<li><span class="bouton" style="background:#0d6b37">Elle est arrivée</span> : le rendez-vous passe à « Arrivée ».</li>
+<li><span class="bouton" style="background:#128C4A">Lui écrire (WhatsApp)</span> : un message poli est déjà écrit (« Votre rendez-vous était prévu à 10h, nous vous attendons… »).</li>
+<li><span class="touche">Retard : décaler</span> : la cliente annonce 30 minutes ou une heure de retard ? Touchez <b>+15 min</b>, <b>+30 min</b>, <b>+1 h</b>, ou tapez la nouvelle heure. Tout le rendez-vous glisse, chaque soin garde sa prestataire, l'agenda suit.</li>
+<li><span class="touche">Plus tard</span> : l'alerte suivante s'affiche s'il y en a.</li>
+</ul>
+<div class="encadre">Décaler se fait aussi depuis l'agenda : touchez le rendez-vous, bloc « Retard ? Décaler l'heure ». L'alerte fonctionne tant que l'espace de gestion est ouvert (onglet ou application installée).</div>
+</div>{figure("107-alerte-heure","L'alerte","tel-petit")}{figure("108-alerte-decaler","Décaler l'heure","tel-petit")}</div>
+""", P))
+
 # 4. Rappels
 pages.append(page(f"""
 <span class="etiquette">4 · L'accueil</span>
@@ -347,6 +362,21 @@ pages.append(page(f"""
 <li><span class="bouton">🖨️ Recette de la journée</span> : la feuille de toute la journée, à imprimer. <span class="touche">🖨️ Feuille</span> : la feuille d'une seule caisse.</li>
 </ol>
 {figure("106-sessions-caisse","Les sessions de caisse","pc")}
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">5 · La caisse</span>
+<h2>Envoyer la recette par WhatsApp (PDF)</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm;"><div>
+<p>Sur la feuille de caisse (d'une caisse ou de toute la journée, aussi depuis les <b>Sessions de caisse</b>) :</p>
+<ol class="etapes">
+<li><span class="bouton" style="background:#128C4A">📲 Envoyer en PDF (WhatsApp)</span>.</li>
+<li><b>Sur téléphone</b> : le menu de partage s'ouvre ; choisissez <b>WhatsApp</b>, puis la personne ou le groupe. Le PDF est joint, avec un résumé.</li>
+<li><b>Sur ordinateur</b> : le PDF est enregistré dans « Téléchargements » et WhatsApp s'ouvre avec le résumé. Choisissez la personne, touchez le trombone 📎 et joignez le fichier « recette-… .pdf ».</li>
+</ol>
+<p><span class="touche">Résumé en texte (WhatsApp)</span> : seulement le message (recette, chaque moyen de paiement, écart), sans pièce jointe.</p>
+<div class="encadre or">Le PDF reprend la feuille : totaux, moyens de paiement, espèces et écart, services faits, produits vendus et ce que chaque prestataire a fait.</div>
+</div>{figure("109-recette-whatsapp","Les boutons d'envoi")}</div>
 """, P))
 
 pages.append(page(f"""

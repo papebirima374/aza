@@ -6,6 +6,7 @@ import { ACCES, accesDuRole, peut, type AccesPerso } from "@/lib/acces";
 import type { Role } from "@/lib/agenda/statuts";
 import { FAMILLES, UNIVERS } from "@/lib/catalogue";
 import { telephoneCanonique } from "@/lib/telephone";
+import { texteWhatsApp } from "@/lib/whatsapp";
 
 // Écran « Équipe » : la direction crée les comptes (un par personne, jamais partagé).
 // La personne reçoit un lien pour choisir elle-même son mot de passe.
@@ -283,7 +284,7 @@ function MessageAEnvoyer({ envoi, fermer }: { envoi: Envoi; fermer: () => void }
       <textarea readOnly value={envoi.texte} rows={4} className="mt-3 w-full rounded-xl border border-bordure bg-white p-3 text-sm" />
       <div className="mt-3 flex flex-wrap gap-2">
         <a
-          href={`https://wa.me/${numero}?text=${encodeURIComponent(envoi.texte)}`}
+          href={`https://wa.me/${numero}?text=${texteWhatsApp(envoi.texte)}`}
           target="_blank"
           rel="noopener"
           className="flex min-h-12 items-center rounded-full bg-[#128C4A] px-5 font-bold text-white"

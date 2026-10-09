@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlerteCliente } from "@/components/gestion/AlerteCliente";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { useCatalogue } from "@/lib/client/catalogue";
+import { DecalerHeure } from "@/components/gestion/DecalerHeure";
 import { NouveauRendezVous } from "@/components/gestion/NouveauRendezVous";
 import { Rappels } from "@/components/gestion/Rappels";
 import { LIBELLES, ROLES_AGENDA, statutsPermis, type Statut } from "@/lib/agenda/statuts";
@@ -372,6 +373,8 @@ function Detail({ rdv, equipe, fermer }: { rdv: RendezVous; equipe: { id: string
         {rdv.acompteRequis && <p className="mt-3 rounded-lg bg-or/15 px-3 py-2 text-sm font-semibold">Acompte demandé</p>}
         {rdv.remarque && <p className="mt-3 rounded-lg bg-creme px-3 py-2 text-sm">« {rdv.remarque} »</p>}
         <p className="mt-2 text-xs text-doux">Pris {rdv.source === "site" ? "en ligne" : "au comptoir"}</p>
+
+        {ROLES_AGENDA.includes(compte.role) && ["reserve", "confirme", "arrivee"].includes(rdv.statut) && <DecalerHeure rdv={rdv} />}
 
         {ROLES_AGENDA.includes(compte.role) && <QuiFait rdv={rdv} />}
 

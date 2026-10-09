@@ -9,6 +9,7 @@ import { MODES, type Mode } from "@/lib/caisse/modes";
 import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
 import { telephoneCanonique, telephoneAffiche } from "@/lib/telephone";
+import { texteWhatsApp } from "@/lib/whatsapp";
 
 // Fiche d'une cliente (M-02) : coordonnées, fiche technique beauté (allergies en rouge),
 // indicateurs, crédit à régler, historique complet.
@@ -48,7 +49,7 @@ const champ = "mt-1 block w-full rounded-xl border border-bordure px-3 py-2.5 fo
 
 function lienWhatsApp(numero: string, texte?: string) {
   const c = telephoneCanonique(numero);
-  return `https://wa.me/${c.length === 9 ? `221${c}` : c}${texte ? `?text=${encodeURIComponent(texte)}` : ""}`;
+  return `https://wa.me/${c.length === 9 ? `221${c}` : c}${texte ? `?text=${texteWhatsApp(texte)}` : ""}`;
 }
 
 export function FicheCliente({ id }: { id: string }) {

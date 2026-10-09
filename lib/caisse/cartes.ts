@@ -3,6 +3,7 @@
 import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
 import { telephoneCanonique } from "@/lib/telephone";
+import { texteWhatsApp } from "@/lib/whatsapp";
 
 // Pas de lettres ni de chiffres qui se confondent (O/0, I/1, L).
 export const ALPHABET_CODE = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
@@ -65,7 +66,7 @@ export function lienCarteWhatsApp(c: Pick<CarteCadeau, "code" | "montant" | "pou
     .join("\n");
   const tel = c.telephone ? telephoneCanonique(c.telephone) : "";
   const numero = tel.length === 9 ? `221${tel}` : tel;
-  return `https://wa.me/${numero}?text=${encodeURIComponent(texte)}`;
+  return `https://wa.me/${numero}?text=${texteWhatsApp(texte)}`;
 }
 
 export function dateLongue(date: string): string {

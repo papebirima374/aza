@@ -155,5 +155,26 @@ ok(
   "rendez-vous encaissé : plus modifiable (on corrige par un avoir)",
 );
 
+// Retard de la cliente : décaler le rendez-vous
+const retard = await appel("/api/gestion/comptoir", accueil, {
+  action: "libre", date: AUJ, debut: 10 * 60, lignes: [{ id: VERNIS, praticienne: "test-prothesiste-1" }, { id: HYDRA, praticienne: "test-estheticienne-1" }],
+  nom: "Cliente en retard (test)", telephone: "77 000 55 30", dejaFaite: false,
+});
+const decaler = (tok, debut) =>
+  fetch(`${SITE}/api/gestion/rendez-vous/${retard.corps.id}/heure`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` }, body: JSON.stringify({ debut }) }).then(async (r) => ({ statut: r.status, corps: await r.json() }));
+ok((await decaler(coiffeuse, 10 * 60 + 30)).statut === 403, "une praticienne ne décale pas un rendez-vous");
+ok((await decaler(accueil, 25 * 60)).statut === 400, "heure impossible : refusée");
+const d30 = await decaler(accueil, 10 * 60 + 30);
+const rdvDecale = await lire(`rendezVous/${retard.corps.id}`);
+const affD = valeurs(rdvDecale.affectations).map((x) => [Number(x.mapValue.fields.debut.integerValue), Number(x.mapValue.fields.fin.integerValue)]);
+ok(d30.statut === 200 && Number(rdvDecale.debut.integerValue) === 630, "retard de 30 minutes : le rendez-vous passe à 10h30");
+ok(affD[0][0] === 630 && affD[1][0] === affD[0][1], "les deux soins glissent ensemble et s'enchaînent toujours");
+const occD = await (await fetch(`${EMU}:runQuery`, { method: "POST", headers: { ...OWNER, "Content-Type": "application/json" }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId: "occupations" }], where: { fieldFilter: { field: { fieldPath: "rendezVous" }, op: "EQUAL", value: { stringValue: retard.corps.id } } } } }) })).json();
+ok(Math.min(...occD.filter((o) => o.document).map((o) => Number(o.document.fields.debut.integerValue))) === 630, "l'agenda des prestataires suit (occupations décalées)");
+ok(valeurs(rdvDecale.historique).some((h) => /10h00 → 10h30/.test(h.mapValue.fields.motif?.stringValue ?? "")), "le changement d'heure est noté dans le journal du rendez-vous");
+const d60 = await decaler(accueil, 11 * 60 + 30);
+ok(d60.statut === 200 && Number((await lire(`rendezVous/${retard.corps.id}`)).debut.integerValue) === 690, "encore une heure de retard : 11h30");
+ok((await decaler(accueil, 9 * 60)).statut === 200, "on peut aussi avancer l'heure");
+
 console.log(echecs === 0 ? "\nTout est bon." : `\n${echecs} contrôle(s) en échec.`);
 process.exit(echecs === 0 ? 0 : 1);

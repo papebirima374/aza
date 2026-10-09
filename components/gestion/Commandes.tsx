@@ -10,6 +10,7 @@ import { MODES, type Mode } from "@/lib/caisse/modes";
 import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
 import { telephoneCanonique } from "@/lib/telephone";
+import { texteWhatsApp } from "@/lib/whatsapp";
 
 // Commandes de la boutique en ligne (M-06) : confirmer, préparer (bon imprimable), livrer
 // ou faire retirer, encaisser à la remise. À chaque étape, un message WhatsApp prêt.
@@ -64,7 +65,7 @@ function messageCliente(c: Commande): string {
 
 function lienWhatsApp(tel: string, texte: string) {
   const c = telephoneCanonique(tel);
-  return `https://wa.me/${c.length === 9 ? `221${c}` : c}?text=${encodeURIComponent(texte)}`;
+  return `https://wa.me/${c.length === 9 ? `221${c}` : c}?text=${texteWhatsApp(texte)}`;
 }
 
 export function Commandes() {

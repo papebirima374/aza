@@ -157,3 +157,41 @@ export async function modifierPrestations(membre: Membre, rdvId: string, lignesB
     return { ok: true, cliente: (rdv.get("cliente") as { nom: string }).nom, motif, total: prestations.reduce((s, p) => s + p.prix, 0) };
   });
 }
+
+// ——— Décaler un rendez-vous ———
+// La cliente prévient qu'elle aura du retard (30 minutes, une heure…) : l'accueil décale
+// l'heure, le même jour. Tout le rendez-vous glisse (chaque soin garde sa prestataire et sa
+// durée) ; l'agenda des prestataires suit. Rien ne bloque, même si cela chevauche un autre
+// rendez-vous : l'agenda le montre, l'accueil arbitre.
+const DECALABLES: Statut[] = ["reserve", "confirme", "arrivee"];
+
+export async function decalerRendezVous(membre: Membre, rdvId: string, debutBrut: unknown) {
+  if (!ROLES_AGENDA.includes(membre.role)) throw new Erreur("Réservé à l'accueil et à la direction.", 403);
+  const debut = Math.round(Number(debutBrut));
+  if (!Number.isFinite(debut) || debut < 0 || debut > 23 * 60 + 55) throw new Erreur("Heure invalide.", 400);
+  const base = db();
+  const rdvRef = base.doc(`rendezVous/${rdvId}`);
+  return base.runTransaction(async (tx) => {
+    const rdv = await tx.get(rdvRef);
+    if (!rdv.exists) throw new Erreur("Rendez-vous introuvable.", 404);
+    const statut = rdv.get("statut") as Statut;
+    if (!DECALABLES.includes(statut)) throw new Erreur("Ce rendez-vous a déjà commencé ou est terminé : il ne se décale plus.", 409);
+    const avant = rdv.get("debut") as number;
+    const delta = debut - avant;
+    if (delta === 0) return { ok: true, cliente: (rdv.get("cliente") as { nom: string }).nom, avant, apres: debut, inchange: true };
+    const date = rdv.get("date") as string;
+    const jourRef = base.doc(`jours/${date}`);
+    const [jour, occ] = await Promise.all([tx.get(jourRef), tx.get(base.collection("occupations").where("rendezVous", "==", rdvId))]);
+    const borne = (m: number) => Math.min(Math.max(m, 0), 24 * 60);
+    const affectations = ((rdv.get("affectations") as { debut: number; fin: number }[]) ?? []).map((a) => ({ ...a, debut: borne(a.debut + delta), fin: borne(a.fin + delta) }));
+    for (const o of occ.docs) tx.update(o.ref, { debut: borne((o.get("debut") as number) + delta), fin: borne((o.get("fin") as number) + delta) });
+    tx.update(rdvRef, {
+      debut,
+      fin: borne((rdv.get("fin") as number) + delta),
+      affectations,
+      historique: FieldValue.arrayUnion({ statut, le: Timestamp.now(), par: membre.uid, nom: membre.nom, motif: `Heure changée : ${heure(avant)} → ${heure(debut)}` }),
+    });
+    tx.set(jourRef, { version: ((jour.get("version") as number | undefined) ?? 0) + 1 }, { merge: true });
+    return { ok: true, cliente: (rdv.get("cliente") as { nom: string }).nom, avant, apres: debut, inchange: false };
+  });
+}

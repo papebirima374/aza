@@ -9,6 +9,8 @@ import { LIBELLE_MODE, MODES, type Mode } from "@/lib/caisse/modes";
 import { dateTexte, heureTexte, type Ticket } from "@/lib/caisse/recu";
 import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
+import { pdfTexte, type LignePdf } from "@/lib/client/pdf-texte";
+import { texteWhatsApp } from "@/lib/whatsapp";
 
 // Feuilles de caisse du jour. Une caisse par personne : chacun tire SA feuille (son fond, ses
 // tickets, ses espèces attendues, son comptage et son écart). La direction, le manager et le
@@ -106,6 +108,17 @@ export function FeuilleCaisse({ date, caisseInitiale }: { date?: string; caisseI
         <button onClick={imprimer} className="min-h-12 rounded-full bg-profond px-5 font-bold text-white">
           🖨️ Imprimer la feuille de caisse
         </button>
+        <button onClick={() => envoyerPdf(j, caisse, compte.nom, detail)} className="min-h-12 rounded-full bg-[#128C4A] px-5 font-bold text-white">
+          📲 Envoyer en PDF (WhatsApp)
+        </button>
+        <a
+          href={`https://wa.me/?text=${texteWhatsApp(resumeTexte(j, caisse))}`}
+          target="_blank"
+          rel="noopener"
+          className="flex min-h-12 items-center rounded-full border border-[#128C4A] px-4 text-sm font-semibold text-[#0d6b37]"
+        >
+          Résumé en texte (WhatsApp)
+        </a>
         {!a4 && (
           <button onClick={() => setReglages(!reglages)} aria-expanded={reglages} className="min-h-12 rounded-full border border-bordure px-4 text-sm font-semibold text-doux">
             ⚙️ Réglage de l&apos;imprimante
@@ -167,6 +180,96 @@ export function FeuilleCaisse({ date, caisseInitiale }: { date?: string; caisseI
       )}
     </div>
   );
+}
+
+// ——— La recette en PDF et en texte, pour WhatsApp ———
+const montantTexte = (n: number) => formatPrix(n).replace(/[\u202f\u00a0]/g, " ");
+
+function lignesRecette(j: Journal, caisse: CaisseJour | null, imprimePar: string, detail: boolean): LignePdf[] {
+  const siens = caisse ? j.tickets.filter((x) => caisseDuTicket(x) === caisse.id) : j.tickets;
+  const t = caisse ? caisse.totaux : j.totaux;
+  const fond = caisse ? caisse.fond : j.caisses.reduce((s, c) => s + c.fond, 0);
+  const ventes = siens.filter((x) => x.type === "vente");
+  const avoirs = siens.filter((x) => x.type === "avoir");
+  const cloturee = caisse ? Boolean(caisse.cloture) : j.caisses.every((c) => c.cloture);
+  const recap = recapitulatif(siens);
+  const L: LignePdf[] = [
+    { texte: INSTITUT.nom, gras: true, grand: true },
+    { texte: `${INSTITUT.adresse.rue}, ${INSTITUT.adresse.ville}` },
+    { trait: true },
+    { texte: "FEUILLE DE CAISSE", gras: true, grand: true },
+    { texte: caisse ? `Caisse de ${caisse.ouvertPar.nom}` : "Toute la journée (toutes les caisses)", gras: true },
+    { texte: dateTexte(j.date).replace(/^./, (c) => c.toUpperCase()), gras: true },
+    ...(cloturee ? [] : [{ texte: `PROVISOIRE : ${caisse ? "caisse encore ouverte" : "des caisses sont encore ouvertes"}`, gras: true }]),
+    { trait: true },
+  ];
+  if (detail && siens.length) {
+    L.push({ texte: `TICKETS (${siens.length})`, gras: true });
+    for (const x of siens) {
+      L.push({ texte: `${x.reference} ${heureTexte(x.heure)}${x.cliente ? ` ${x.cliente.nom}` : ""}${x.annule ? " (ANNULÉ)" : ""}`, montant: montantTexte(x.total) });
+      L.push({ texte: `   ${x.paiements.map((p) => `${LIBELLE_MODE[p.mode]} ${montantTexte(p.montant)}`).join(" + ")} · ${x.par.nom}` });
+    }
+    L.push({ trait: true });
+  }
+  L.push({ texte: "TOTAUX", gras: true }, { texte: `Ventes (${ventes.length})`, montant: montantTexte(ventes.reduce((s, x) => s + x.total, 0)) });
+  if (avoirs.length) L.push({ texte: `Avoirs / annulations (${avoirs.length})`, montant: montantTexte(avoirs.reduce((s, x) => s + x.total, 0)) });
+  L.push({ texte: caisse ? "RECETTE DE LA CAISSE" : "RECETTE DU JOUR", montant: montantTexte(t.recette), gras: true }, { trait: true }, { texte: "PAR MOYEN DE PAIEMENT", gras: true });
+  for (const m of MODES) if (t.parMode[m.id]) L.push({ texte: LIBELLE_MODE[m.id as Mode], montant: montantTexte(t.parMode[m.id]) });
+  if (!caisse && j.caisses.length > 1) {
+    L.push({ trait: true }, { texte: "PAR CAISSE", gras: true });
+    for (const c of j.caisses) L.push({ texte: `${c.ouvertPar.nom} (${c.totaux.nombre} ticket${c.totaux.nombre > 1 ? "s" : ""})`, montant: montantTexte(c.totaux.recette) });
+  }
+  L.push({ trait: true }, { texte: "ESPÈCES", gras: true }, { texte: caisse ? "Fond de caisse" : "Fonds de caisse", montant: montantTexte(fond) });
+  L.push({ texte: "Espèces attendues", montant: montantTexte(t.especesAttendues), gras: true });
+  const clos = caisse ? (caisse.cloture ? [caisse] : []) : j.caisses.filter((c) => c.cloture);
+  for (const c of clos) L.push({ texte: `Écart ${caisse ? "" : c.ouvertPar.nom}${c.cloture!.justification ? ` (${c.cloture!.justification})` : ""}`.trim(), montant: `${c.cloture!.ecart > 0 ? "+" : ""}${montantTexte(c.cloture!.ecart)}` });
+  for (const c of caisse ? [] : j.caisses.filter((c) => !c.cloture)) L.push({ texte: `Caisse de ${c.ouvertPar.nom}`, montant: "pas clôturée" });
+  for (const [titre, liste] of [["SERVICES FAITS", recap.services], ["PRODUITS VENDUS", recap.produits]] as const) {
+    if (!liste.length) continue;
+    L.push({ trait: true }, { texte: `${titre} (${liste.reduce((s, l) => s + l.quantite, 0)})`, gras: true });
+    for (const l of liste) L.push({ texte: `${l.quantite} × ${l.nom}`, montant: montantTexte(l.montant) });
+    L.push({ texte: "Total", montant: montantTexte(liste.reduce((s, l) => s + l.montant, 0)), gras: true });
+  }
+  if (recap.prestataires.length) {
+    L.push({ trait: true }, { texte: "PAR PRESTATAIRE", gras: true });
+    for (const p of recap.prestataires)
+      L.push({ texte: `${p.nom} : ${[p.services ? `${p.services} service${p.services > 1 ? "s" : ""}` : "", p.produits ? `${p.produits} produit${p.produits > 1 ? "s" : ""}` : ""].filter(Boolean).join(", ")}`, montant: montantTexte(p.montant) });
+  }
+  L.push({ trait: true }, { texte: `Établie le ${new Date().toLocaleString("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dakar" })} par ${imprimePar}` });
+  return L;
+}
+
+// Le résumé court, en texte (corps du message WhatsApp).
+function resumeTexte(j: Journal, caisse: CaisseJour | null) {
+  const t = caisse ? caisse.totaux : j.totaux;
+  const titre = `${INSTITUT.nom} — recette ${caisse ? `de la caisse de ${caisse.ouvertPar.nom}` : "du jour"}, ${dateTexte(j.date)}`;
+  const modes = MODES.filter((m) => t.parMode[m.id]).map((m) => `${LIBELLE_MODE[m.id as Mode]} : ${montantTexte(t.parMode[m.id])}`);
+  const clos = caisse ? (caisse.cloture ? [caisse] : []) : j.caisses.filter((c) => c.cloture);
+  const ecart = clos.length ? `Écart : ${montantTexte(clos.reduce((s, c) => s + c.cloture!.ecart, 0))}` : "Caisse pas encore clôturée";
+  return [titre, `Recette : ${montantTexte(t.recette)} (${t.nombre} ticket${t.nombre > 1 ? "s" : ""})`, ...modes, ecart].join("\n");
+}
+
+// Téléphone : le menu de partage (choisir WhatsApp) avec le PDF joint.
+// Ordinateur : le PDF est téléchargé et WhatsApp s'ouvre avec le résumé ; on y joint le fichier.
+async function envoyerPdf(j: Journal, caisse: CaisseJour | null, imprimePar: string, detail: boolean) {
+  const nom = `recette-${j.date}${caisse ? `-${caisse.ouvertPar.nom.toLowerCase().replace(/[^a-z0-9]+/g, "-")}` : ""}.pdf`;
+  const fichier = new File([pdfTexte(lignesRecette(j, caisse, imprimePar, detail))], nom, { type: "application/pdf" });
+  const resume = resumeTexte(j, caisse);
+  if (navigator.canShare?.({ files: [fichier] })) {
+    try {
+      await navigator.share({ files: [fichier], title: nom, text: resume });
+      return;
+    } catch (e) {
+      if ((e as Error).name === "AbortError") return;
+    }
+  }
+  const url = URL.createObjectURL(fichier);
+  const a = Object.assign(document.createElement("a"), { href: url, download: nom });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  window.open(`https://wa.me/?text=${texteWhatsApp(`${resume}\n(PDF joint : ${nom})`)}`, "_blank", "noopener");
 }
 
 type LigneRecap = { nom: string; quantite: number; montant: number; offerts: number };

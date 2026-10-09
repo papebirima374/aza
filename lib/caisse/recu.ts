@@ -6,6 +6,7 @@ import { LIBELLE_MODE, type Mode } from "@/lib/caisse/modes";
 import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
 import { telephoneCanonique } from "@/lib/telephone";
+import { texteWhatsApp } from "@/lib/whatsapp";
 
 export type Ticket = {
   id: string;
@@ -82,5 +83,5 @@ export function lienRecuWhatsApp(t: Ticket): string | null {
   if (!t.cliente?.telephone) return null;
   const c = telephoneCanonique(t.cliente.telephone);
   const numero = c.length === 9 ? `221${c}` : c;
-  return `https://wa.me/${numero}?text=${encodeURIComponent(texteRecu(t))}`;
+  return `https://wa.me/${numero}?text=${texteWhatsApp(texteRecu(t))}`;
 }

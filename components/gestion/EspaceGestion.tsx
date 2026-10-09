@@ -8,6 +8,7 @@ import { onAuthStateChanged, sendPasswordResetEmail, signInWithCustomToken, sign
 import { doc, getDoc } from "firebase/firestore";
 import type { Role } from "@/lib/agenda/statuts";
 import { firebaseClient } from "@/lib/client/firebase";
+import { AlerteHeure } from "@/components/gestion/AlerteHeure";
 import { PastilleCaisse, SuiviCaisse } from "@/components/gestion/SuiviCaisse";
 import { PastilleStock } from "@/components/gestion/PastilleStock";
 import { PastilleCommandes } from "@/components/gestion/PastilleCommandes";
@@ -126,6 +127,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
   return (
     <ContexteCompte.Provider value={compte}>
       <SuiviCaisse compte={compte}>
+      <AlerteHeure compte={compte} />
       {/* Téléphone : logo + Déconnexion en haut, onglets sur une 2e ligne. Écran large : une ligne. */}
       <header className="sticky top-0 z-30 flex print:hidden flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-bordure bg-bordeaux px-4 py-2 text-or-clair sm:h-14 sm:flex-nowrap sm:py-0">
         <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} className="h-8 w-auto" />

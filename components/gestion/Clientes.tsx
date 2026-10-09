@@ -7,6 +7,7 @@ import { useCompte } from "@/components/gestion/EspaceGestion";
 import { telephoneAffiche } from "@/lib/telephone";
 import { formatPrix } from "@/lib/catalogue";
 import { ressemble } from "@/lib/recherche";
+import { texteWhatsApp } from "@/lib/whatsapp";
 
 // Fichier clientes (M-02) : recherche tolérante (« aoua » trouve « Awa »), groupes
 // automatiques, alertes (allergie en rouge, crédit à régler).
@@ -49,7 +50,7 @@ function messageRelance(type: Relance, c: ResumeCliente): string {
 }
 function lienWhatsApp(tel: string, texte: string) {
   const c = tel.replace(/\D/g, "");
-  return `https://wa.me/${c.length === 9 ? `221${c}` : c}?text=${encodeURIComponent(texte)}`;
+  return `https://wa.me/${c.length === 9 ? `221${c}` : c}?text=${texteWhatsApp(texte)}`;
 }
 const RELANCE: Record<Relance, string> = { anniversaire: "🎂 Souhaiter", revoir: "📲 Relancer", credit: "📲 Rappeler" };
 

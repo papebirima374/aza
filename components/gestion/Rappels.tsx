@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { INSTITUT } from "@/lib/institut";
 import { telephoneCanonique } from "@/lib/telephone";
+import { texteWhatsApp } from "@/lib/whatsapp";
 
 // « Rappels de demain » : un bouton par cliente, le message WhatsApp est déjà écrit.
 // Quand la cliente répond OUI, on touche « Confirmé ».
@@ -25,7 +26,7 @@ function message(r: Rdv, date: string) {
   return [
     `Bonjour ${r.cliente.nom} 🌸`,
     `C'est ${INSTITUT.nom}. Nous vous attendons demain, ${jour}, à ${heure(r.debut)} pour : ${r.prestations.join(" + ")}.`,
-    `📍 ${INSTITUT.adresse.rue}, ${INSTITUT.adresse.repere.toLowerCase()}.`,
+    `Adresse : ${INSTITUT.adresse.rue}, ${INSTITUT.adresse.repere.toLowerCase()}.`,
     r.acompteRequis ? "Un acompte est demandé pour cette prestation (Wave ou Orange Money)." : "",
     "Merci de répondre OUI pour confirmer, ou de nous prévenir si vous ne pouvez pas venir.",
   ]
@@ -35,7 +36,7 @@ function message(r: Rdv, date: string) {
 
 function lien(r: Rdv, date: string) {
   const c = telephoneCanonique(r.cliente.telephone);
-  return `https://wa.me/${c.length === 9 ? `221${c}` : c}?text=${encodeURIComponent(message(r, date))}`;
+  return `https://wa.me/${c.length === 9 ? `221${c}` : c}?text=${texteWhatsApp(message(r, date))}`;
 }
 
 export function Rappels() {

@@ -5,6 +5,7 @@ import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
 import { STATUTS_DEVIS, SUIVANTS_DEVIS, type StatutDevis } from "@/lib/perruques";
 import { telephoneCanonique } from "@/lib/telephone";
+import { texteWhatsApp } from "@/lib/whatsapp";
 
 // Perruques sur mesure : les demandes de devis du site. Proposer un prix et un délai
 // (message WhatsApp prêt), puis suivre jusqu'à la remise. Le paiement se fait à la caisse.
@@ -58,7 +59,7 @@ function message(d: Devis): string {
 
 function lienWhatsApp(tel: string, texte: string) {
   const c = telephoneCanonique(tel);
-  return `https://wa.me/${c.length === 9 ? `221${c}` : c}?text=${encodeURIComponent(texte)}`;
+  return `https://wa.me/${c.length === 9 ? `221${c}` : c}?text=${texteWhatsApp(texte)}`;
 }
 
 export function DevisPerruques({ liste, agir }: { liste: Devis[]; agir: (corps: object, ok: string) => Promise<boolean> }) {

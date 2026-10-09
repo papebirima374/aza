@@ -1,3 +1,4 @@
+import { texteWhatsApp } from "@/lib/whatsapp";
 // Informations de l'institut, saisies à un seul endroit et reprises partout sur le site
 // (en-tête, pied de page, contact, données Google).
 // Source : plaquette V2 — la référence la plus récente. Le catalogue 2023 ne compte plus.
@@ -33,7 +34,7 @@ export const TELEPHONE_PRINCIPAL = INSTITUT.telephones[0];
 
 export function lienWhatsApp(message?: string): string {
   const base = `https://wa.me/${INSTITUT.whatsapp}`;
-  return message ? `${base}?text=${encodeURIComponent(message)}` : base;
+  return message ? `${base}?text=${texteWhatsApp(message)}` : base;
 }
 
 export const LIEN_ITINERAIRE = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
