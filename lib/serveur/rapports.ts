@@ -3,7 +3,7 @@
 // qui rapportent, chiffre de chaque praticienne, rendez-vous, clientes, avis — et l'export
 // des tickets pour le comptable.
 
-import { LIBELLE_MODE, MODES, recetteDuTicket } from "@/lib/caisse/modes";
+import { LIBELLE_MODE, MODES, MODES_DEJA_ENCAISSES, recetteDuTicket } from "@/lib/caisse/modes";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation, maintenantDakar } from "@/lib/serveur/reservations";
@@ -26,7 +26,7 @@ type Ligne = { id: string; nom: string; type: string; quantite: number; montant:
 type TicketLu = {
   id: string;
   reference: string;
-  type: "vente" | "avoir" | "reglement";
+  type: "vente" | "avoir" | "reglement" | "acompte";
   date: string;
   heure: number;
   lignes: Ligne[];
@@ -105,7 +105,7 @@ export async function rapport(membre: Membre, duBrut?: string | null, auBrut?: s
     const js = new Date(jour(t.date)).getUTCDay();
     parJourSemaine[js].recette += r;
     parJourSemaine[js].tickets += signe;
-    for (const p of t.paiements) if (p.mode !== "carte-cadeau") parMode[p.mode] = (parMode[p.mode] ?? 0) + p.montant;
+    for (const p of t.paiements) if (!MODES_DEJA_ENCAISSES.includes(p.mode)) parMode[p.mode] = (parMode[p.mode] ?? 0) + p.montant;
     if (t.rendu) parMode.especes = (parMode.especes ?? 0) - t.rendu;
     if (t.type === "reglement") creditRembourse += t.total;
     // Qui a encaissé : utile quand plusieurs personnes tiennent la caisse.
@@ -277,7 +277,7 @@ export async function exportTickets(membre: Membre, duBrut?: string | null, auBr
       t.date,
       `${Math.floor(t.heure / 60)}h${String(t.heure % 60).padStart(2, "0")}`,
       t.reference,
-      t.type === "vente" ? "Vente" : t.type === "avoir" ? "Avoir" : "Règlement de crédit",
+      t.type === "vente" ? "Vente" : t.type === "avoir" ? "Avoir" : t.type === "acompte" ? "Acompte" : "Règlement de crédit",
       t.cliente?.nom ?? "",
       t.cliente?.telephone ?? "",
       t.lignes.map((l) => (l.quantite > 1 ? `${l.quantite} x ${l.nom}` : l.nom)).join(" + "),

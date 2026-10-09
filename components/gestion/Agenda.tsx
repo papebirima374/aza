@@ -34,6 +34,7 @@ type RendezVous = {
   praticiennesIds: string[];
   total: number;
   acompteRequis: boolean;
+  acompte?: { montant: number; mode: string; reference: string; date: string; utilise?: string } | null;
   cliente: { nom: string; telephone: string };
   remarque?: string;
   historique?: Historique[];
@@ -383,7 +384,15 @@ function Detail({ rdv, equipe, fermer }: { rdv: RendezVous; equipe: { id: string
             </p>
           </>
         )}
-        {rdv.acompteRequis && <p className="mt-3 rounded-lg bg-or/15 px-3 py-2 text-sm font-semibold">Acompte demandé</p>}
+        {rdv.acompte ? (
+          <p className="mt-3 rounded-lg bg-[#e7f5ec] px-3 py-2 text-sm font-semibold text-[#0d6b37]">
+            💰 Acompte versé : {formatPrix(rdv.acompte.montant)} ({rdv.acompte.reference}){rdv.acompte.utilise ? " — déduit à l'encaissement" : " — sera déduit à l'encaissement"}
+          </p>
+        ) : (
+          ROLES_AGENDA.includes(compte.role) &&
+          peut(compte, "caisse") &&
+          !["encaisse", "annule", "absente"].includes(rdv.statut) && <AcompteRdv rdv={rdv} demande={rdv.acompteRequis} />
+        )}
         {rdv.remarque && <p className="mt-3 rounded-lg bg-creme px-3 py-2 text-sm">« {rdv.remarque} »</p>}
         <p className="mt-2 text-xs text-doux">Pris {rdv.source === "site" ? "en ligne" : "au comptoir"}</p>
 
@@ -659,6 +668,78 @@ function ModifierPrestations({ rdv, equipe }: { rdv: RendezVous; equipe: { id: s
           {envoi ? "Enregistrement…" : "Enregistrer"}
         </button>
         <button onClick={() => setEdition(null)} className="min-h-11 rounded-full border border-bordure px-4 text-sm font-semibold">
+          Annuler
+        </button>
+      </div>
+    </section>
+  );
+}
+
+/** La cliente verse un acompte pour réserver (par exemple 5 000 F pour les ongles). */
+function AcompteRdv({ rdv, demande }: { rdv: RendezVous; demande: boolean }) {
+  const compte = useCompte();
+  const [ouvert, setOuvert] = useState(false);
+  const [montant, setMontant] = useState("5000");
+  const [mode, setMode] = useState("especes");
+  const [envoi, setEnvoi] = useState(false);
+  const [message, setMessage] = useState("");
+  async function enregistrer() {
+    setEnvoi(true);
+    setMessage("");
+    try {
+      const r = await fetch("/api/gestion/caisse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await compte.user.getIdToken()}` },
+        body: JSON.stringify({ action: "acompte", rendezVous: rdv.id, montant: Number(montant.replace(/\s/g, "")), mode }),
+      });
+      const j = await r.json();
+      if (!r.ok) setMessage(j.erreur ?? "Acompte refusé.");
+      else setOuvert(false);
+    } catch {
+      setMessage("Connexion impossible.");
+    } finally {
+      setEnvoi(false);
+    }
+  }
+  if (!ouvert)
+    return (
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {demande && <span className="rounded-lg bg-or/15 px-3 py-2 text-sm font-semibold">Acompte demandé</span>}
+        <button onClick={() => setOuvert(true)} className="min-h-10 rounded-full border border-bordure px-4 text-sm font-semibold text-profond">
+          💰 Elle verse un acompte
+        </button>
+      </div>
+    );
+  return (
+    <section className="mt-3 rounded-xl border-2 border-[#0d6b37]/40 p-3">
+      <h3 className="text-sm font-bold tracking-wide text-doux uppercase">Acompte reçu</h3>
+      <label className="mt-2 block text-sm font-semibold">
+        Montant (F)
+        <input inputMode="numeric" value={montant} onChange={(e) => setMontant(e.target.value)} className="mt-1 block w-full rounded-xl border border-bordure px-3 py-2 text-lg font-normal" />
+      </label>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {[
+          ["especes", "💵 Espèces"],
+          ["wave", "🌊 Wave"],
+          ["orange-money", "🟠 Orange Money"],
+        ].map(([id, libelle]) => (
+          <button
+            key={id}
+            onClick={() => setMode(id)}
+            aria-pressed={mode === id}
+            className={`min-h-10 rounded-full px-3 text-sm font-semibold ${mode === id ? "bg-profond text-white" : "bg-creme text-profond"}`}
+          >
+            {libelle}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-doux">L&apos;argent entre aujourd&apos;hui dans votre caisse (elle doit être ouverte). Le jour du soin, il est déduit tout seul du ticket.</p>
+      {message && <p className="mt-2 text-sm font-semibold text-aza-fonce">{message}</p>}
+      <div className="mt-2 flex gap-2">
+        <button disabled={envoi} onClick={enregistrer} className="min-h-11 rounded-full bg-[#0d6b37] px-5 font-bold text-white disabled:opacity-50">
+          {envoi ? "Enregistrement…" : "Enregistrer l'acompte"}
+        </button>
+        <button onClick={() => setOuvert(false)} className="min-h-11 rounded-full border border-bordure px-4 text-sm font-semibold">
           Annuler
         </button>
       </div>

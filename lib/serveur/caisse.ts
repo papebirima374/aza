@@ -173,9 +173,14 @@ function calculFidelite(o: { regles: ReglesFidelite; cliente: unknown; pointsAva
   };
 }
 
-export function paiementsValides(bruts: unknown, carteCadeauPermise = false): Paiement[] {
-  if (!Array.isArray(bruts)) throw new Erreur("Indiquez le paiement.", 400);
-  const modes = new Set<string>(MODES.map((m) => m.id).filter((m) => carteCadeauPermise || m !== "carte-cadeau"));
+export function paiementsValides(bruts: unknown, carteCadeauPermise = false, options: { videPermis?: boolean; acomptePermis?: boolean } = {}): Paiement[] {
+  if (!Array.isArray(bruts)) {
+    if (options.videPermis) return [];
+    throw new Erreur("Indiquez le paiement.", 400);
+  }
+  const modes = new Set<string>(
+    MODES.map((m) => m.id).filter((m) => (carteCadeauPermise || m !== "carte-cadeau") && (options.acomptePermis || m !== "acompte")),
+  );
   const res: Paiement[] = [];
   for (const p of bruts) {
     const mode = String(p?.mode ?? "");
@@ -187,7 +192,7 @@ export function paiementsValides(bruts: unknown, carteCadeauPermise = false): Pa
     if (deja) deja.montant += montant;
     else res.push({ mode: mode as Mode, montant });
   }
-  if (res.length === 0) throw new Erreur("Indiquez le paiement.", 400);
+  if (res.length === 0 && !options.videPermis) throw new Erreur("Indiquez le paiement.", 400);
   return res;
 }
 
@@ -236,7 +241,9 @@ export async function encaisser(membre: Membre, e: Encaissement) {
   const remiseFidelite = e.fidelite ? Math.min(regles.valeur, sousTotal - remiseMontant) : 0;
   const total = sousTotal - remiseMontant - remiseFidelite;
 
-  const paiements = paiementsValides(e.paiements, true);
+  // Offert (cadeau : remise de tout le montant) : aucun paiement. Acompte : seulement pour un rendez-vous.
+  const paiements = paiementsValides(e.paiements, true, { videPermis: total === 0, acomptePermis: Boolean(e.rendezVous) });
+  const parAcompte = paiements.find((p) => p.mode === "acompte")?.montant ?? 0;
   const recu = paiements.reduce((s, p) => s + p.montant, 0);
   const especes = paiements.find((p) => p.mode === "especes")?.montant ?? 0;
   const parCarte = paiements.find((p) => p.mode === "carte-cadeau")?.montant ?? 0;
@@ -271,6 +278,8 @@ export async function encaisser(membre: Membre, e: Encaissement) {
       if (!rdv.exists) throw new Erreur("Rendez-vous introuvable.", 404);
       if (rdv.get("statut") !== "termine") throw new Erreur("Ce rendez-vous n'est pas marqué « Terminé » (ou il est déjà encaissé).", 409);
       cliente = rdv.get("cliente");
+      const acompte = rdv.get("acompte") as { montant: number; utilise?: string } | undefined;
+      if (parAcompte > 0 && (!acompte || acompte.utilise || parAcompte > acompte.montant)) throw new Erreur("Acompte inconnu ou déjà utilisé pour ce rendez-vous.", 409);
     } else if (e.cliente?.telephone?.trim()) {
       const nom = String(e.cliente.nom ?? "").trim().slice(0, 80);
       if (nom.length < 2) throw new Erreur("Indiquez le nom de la cliente.", 400);
@@ -346,6 +355,7 @@ export async function encaisser(membre: Membre, e: Encaissement) {
       tx.update(rdvRef, {
         statut: "encaisse",
         ticket: ticketRef.id,
+        ...(parAcompte > 0 ? { "acompte.utilise": ticketRef.id } : {}),
         historique: FieldValue.arrayUnion({ statut: "encaisse", le: Timestamp.now(), par: membre.uid, nom: membre.nom, motif: reference(numero) }),
       });
     }
@@ -448,6 +458,8 @@ export async function annulerTicket(membre: Membre, id: string, motifBrut: unkno
       tx.update(rdv.ref, {
         statut: "termine",
         ticket: FieldValue.delete(),
+        // L'acompte versé redevient disponible pour le nouvel encaissement.
+        ...(rdv.get("acompte.utilise") === id ? { "acompte.utilise": FieldValue.delete() } : {}),
         historique: FieldValue.arrayUnion({ statut: "termine", le: Timestamp.now(), par: membre.uid, nom: membre.nom, motif: `Ticket annulé : ${motif}` }),
       });
     }
@@ -535,6 +547,61 @@ function decrireCaisse(c: CaisseLue, tickets: TicketLu[]) {
     ticketsApresCloture: (c.get("ticketsApresCloture") as string[] | undefined) ?? [],
     totaux: totaux(fond, siens),
   };
+}
+
+/**
+ * Acompte versé pour réserver (par exemple 5 000 F pour les ongles) : l'argent entre aujourd'hui
+ * dans la caisse de la personne qui le reçoit (ticket « Acompte », compté dans la recette du
+ * jour) ; le jour du soin, il est déduit tout seul du ticket (moyen « Acompte déjà versé »,
+ * qui ne compte pas une seconde fois dans la recette).
+ */
+const MODES_ACOMPTE = ["especes", "wave", "orange-money", "carte", "virement"];
+export async function enregistrerAcompte(membre: Membre, rdvId: string, montantBrut: unknown, modeBrut: unknown) {
+  exigerAcces(membre, "caisse");
+  const montant = entier(montantBrut);
+  const mode = String(modeBrut ?? "");
+  if (!Number.isFinite(montant) || montant < 100 || montant > 5_000_000) throw new Erreur("Montant de l'acompte invalide.", 400);
+  if (!MODES_ACOMPTE.includes(mode)) throw new Erreur("Moyen de paiement de l'acompte inconnu.", 400);
+  const base = db();
+  const { date, minutes } = maintenantDakar();
+  const rdvRef = base.doc(`rendezVous/${rdvId}`);
+  const ticketRef = base.collection("tickets").doc();
+  const compteurRef = base.doc("compteurs/tickets");
+  return base.runTransaction(async (tx) => {
+    const caisse = await caisseOuverte(tx, membre, date);
+    const [rdv, compteur] = await Promise.all([tx.get(rdvRef), tx.get(compteurRef)]);
+    if (!rdv.exists) throw new Erreur("Rendez-vous introuvable.", 404);
+    if (!["reserve", "confirme", "arrivee", "en-cours", "termine"].includes(rdv.get("statut"))) throw new Erreur("Ce rendez-vous est déjà encaissé ou annulé.", 409);
+    if (rdv.get("acompte")) throw new Erreur("Un acompte est déjà enregistré pour ce rendez-vous.", 409);
+    const total = (rdv.get("total") as number | undefined) ?? 0;
+    if (total > 0 && montant > total) throw new Erreur("L'acompte dépasse le prix du rendez-vous.", 400);
+    const numero = ((compteur.get("dernier") as number | undefined) ?? 0) + 1;
+    const cliente = rdv.get("cliente") as { id: string; nom: string; telephone: string };
+    tx.set(compteurRef, { dernier: numero }, { merge: true });
+    tx.set(ticketRef, {
+      numero,
+      reference: reference(numero),
+      caisse: caisse.id,
+      type: "acompte",
+      date,
+      heure: minutes,
+      lignes: [{ id: "acompte", nom: `Acompte — rendez-vous du ${rdv.get("date")}`, type: "acompte", prixUnitaire: montant, quantite: 1, montant }],
+      sousTotal: montant,
+      total: montant,
+      paiements: [{ mode, montant }],
+      rendu: 0,
+      credit: 0,
+      cliente,
+      rendezVous: rdvRef.id,
+      par: trace(membre),
+      creeLe: FieldValue.serverTimestamp(),
+    });
+    tx.update(rdvRef, {
+      acompte: { montant, mode, ticket: ticketRef.id, reference: reference(numero), date, par: membre.nom },
+      historique: FieldValue.arrayUnion({ statut: rdv.get("statut"), le: Timestamp.now(), par: membre.uid, nom: membre.nom, motif: `Acompte reçu : ${new Intl.NumberFormat("fr-FR").format(montant)} F (${reference(numero)})` }),
+    });
+    return { id: ticketRef.id, reference: reference(numero), montant, cliente: cliente.nom };
+  });
 }
 
 /**
@@ -669,7 +736,7 @@ export async function aEncaisser(membre: Membre) {
   const { date } = maintenantDakar();
   const snap = await db().collection("rendezVous").where("date", "==", date).where("statut", "==", "termine").get();
   return snap.docs
-    .map((d) => ({ id: d.id, debut: d.get("debut") as number, cliente: d.get("cliente"), prestations: d.get("prestations"), total: d.get("total"), affectations: d.get("affectations") ?? [] }))
+    .map((d) => ({ id: d.id, debut: d.get("debut") as number, cliente: d.get("cliente"), prestations: d.get("prestations"), total: d.get("total"), affectations: d.get("affectations") ?? [], acompte: d.get("acompte") ?? null }))
     .sort((a, b) => a.debut - b.debut);
 }
 
@@ -684,7 +751,7 @@ export async function lireRendezVous(membre: Membre, id: string) {
   exigerAcces(membre, "caisse");
   const r = await db().doc(`rendezVous/${id}`).get();
   if (!r.exists) throw new Erreur("Rendez-vous introuvable.", 404);
-  return { id: r.id, statut: r.get("statut"), cliente: r.get("cliente"), prestations: r.get("prestations"), date: r.get("date"), affectations: r.get("affectations") ?? [] };
+  return { id: r.id, statut: r.get("statut"), cliente: r.get("cliente"), prestations: r.get("prestations"), date: r.get("date"), affectations: r.get("affectations") ?? [], acompte: r.get("acompte") ?? null };
 }
 
 /**

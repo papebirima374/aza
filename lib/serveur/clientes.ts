@@ -224,6 +224,84 @@ export async function changerNumero(membre: Membre, ancienBrut: string, nouveauB
   return { ok: true, id: nouveau, nom, rattaches };
 }
 
+// ——— Doublons ———
+// Une fiche par numéro : « 77 392 75 72 », « +221 77 392 75 72 » et « 773927572 » sont la
+// même cliente (clientes/773927572). D'anciennes fiches ont pu être créées sous une autre
+// écriture : on les repère, et la direction ou le manager les fusionne en une seule.
+
+const COMPTEURS = ["credit", "points", "totalAchats", "nbTickets", "nbRendezVous", "absences", "cadeauxFidelite"] as const;
+
+function cleDe(d: FirebaseFirestore.DocumentSnapshot) {
+  return telephoneCanonique((d.get("telephone") as string | undefined) || d.id) || d.id;
+}
+
+export async function doublonsClientes(membre: Membre) {
+  exiger(membre);
+  const snap = await db().collection("clientes").get();
+  const groupes = new Map<string, FirebaseFirestore.QueryDocumentSnapshot[]>();
+  for (const d of snap.docs) {
+    const cle = cleDe(d);
+    groupes.set(cle, [...(groupes.get(cle) ?? []), d]);
+  }
+  return [...groupes.entries()]
+    .filter(([cle, docs]) => docs.length > 1 || docs[0].id !== cle)
+    .map(([cle, docs]) => ({ cle, fiches: docs.map(resume) }));
+}
+
+export async function fusionnerDoublons(membre: Membre, cleBrute: string) {
+  exiger(membre);
+  if (membre.role !== "direction" && membre.role !== "manager") throw new Erreur("Seuls la direction et le manager fusionnent des fiches.", 403);
+  const base = db();
+  const tous = await base.collection("clientes").get();
+  const cle = telephoneCanonique(cleBrute);
+  const docs = tous.docs.filter((d) => cleDe(d) === cle);
+  const autres = docs.filter((d) => d.id !== cle);
+  if (!cle || autres.length === 0) throw new Erreur("Aucun doublon pour ce numéro.", 404);
+  const cible = base.doc(`clientes/${cle}`);
+
+  const nom = await base.runTransaction(async (tx) => {
+    const fiches = await Promise.all([cible, ...autres.map((d) => d.ref)].map((r) => tx.get(r)));
+    const existantes = fiches.filter((f) => f.exists);
+    // La fiche la plus remplie donne ses textes ; les compteurs s'additionnent.
+    const principale = existantes.find((f) => f.id === cle) ?? existantes[0];
+    const fusion: Record<string, unknown> = { ...principale.data() };
+    for (const f of existantes) {
+      if (f.id === principale.id) continue;
+      for (const [k, v] of Object.entries(f.data() ?? {})) {
+        if ((COMPTEURS as readonly string[]).includes(k)) continue;
+        if (fusion[k] === undefined || fusion[k] === "" || fusion[k] === null) fusion[k] = v;
+      }
+    }
+    for (const k of COMPTEURS) fusion[k] = existantes.reduce((s, f) => s + ((f.get(k) as number | undefined) ?? 0), 0);
+    const premieres = existantes.map((f) => f.get("premiereVisite") as string | undefined).filter(Boolean) as string[];
+    const dernieres = existantes.map((f) => f.get("derniereVisite") as string | undefined).filter(Boolean) as string[];
+    if (premieres.length) fusion.premiereVisite = premieres.sort()[0];
+    if (dernieres.length) fusion.derniereVisite = dernieres.sort().at(-1);
+    fusion.telephone = cle;
+    fusion.fusionneesDe = [...new Set([...((principale.get("fusionneesDe") as string[] | undefined) ?? []), ...autres.map((d) => d.id)])];
+    fusion.fusionneLe = FieldValue.serverTimestamp();
+    fusion.fusionnePar = { uid: membre.uid, nom: membre.nom };
+    tx.set(cible, fusion);
+    for (const d of autres) tx.delete(d.ref);
+    return fusion.nom as string;
+  });
+
+  // L'historique suit la fiche (par lots de 400 écritures).
+  let rattaches = 0;
+  for (const ancien of autres.map((d) => d.id)) {
+    for (const nomCollection of LIEES) {
+      const snap = await base.collection(nomCollection).where("cliente.id", "==", ancien).get();
+      for (let i = 0; i < snap.docs.length; i += 400) {
+        const lot = base.batch();
+        for (const d of snap.docs.slice(i, i + 400)) lot.update(d.ref, { "cliente.id": cle });
+        await lot.commit();
+      }
+      rattaches += snap.size;
+    }
+  }
+  return { ok: true, id: cle, nom, fusionnees: autres.length, rattaches };
+}
+
 /** L'alerte d'une cliente (allergies) pour un rendez-vous : aussi pour la praticienne de ce rendez-vous. */
 export async function alerteCliente(membre: Membre, rdvId: string) {
   const rdv = await db().doc(`rendezVous/${rdvId}`).get();

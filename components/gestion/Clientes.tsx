@@ -131,6 +131,7 @@ export function Clientes() {
         </button>
       </div>
       {creation && <Creation fermer={() => setCreation(false)} />}
+      {(compte.role === "direction" || compte.role === "manager") && <Doublons />}
 
       <input
         type="search"
@@ -249,5 +250,84 @@ function Creation({ fermer }: { fermer: () => void }) {
         </button>
       </div>
     </div>
+  );
+}
+
+type FicheDoublon = { id: string; nom: string; telephone: string; nbTickets: number; credit: number; points: number };
+
+/** Fiches en double (même numéro écrit autrement) : les repérer et les fusionner en une seule. */
+function Doublons() {
+  const compte = useCompte();
+  const [groupes, setGroupes] = useState<{ cle: string; fiches: FicheDoublon[] }[]>([]);
+  const [ouvert, setOuvert] = useState(false);
+  const [envoi, setEnvoi] = useState("");
+  const [message, setMessage] = useState("");
+  const [version, setVersion] = useState(0);
+
+  useEffect(() => {
+    let actif = true;
+    (async () => {
+      const r = await fetch("/api/gestion/clientes?doublons=1", { headers: { Authorization: `Bearer ${await compte.user.getIdToken()}` } });
+      if (r.ok && actif) setGroupes(await r.json());
+    })().catch(() => {});
+    return () => {
+      actif = false;
+    };
+  }, [compte.user, version]);
+
+  async function fusionner(cle: string) {
+    setEnvoi(cle);
+    setMessage("");
+    try {
+      const r = await fetch("/api/gestion/clientes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await compte.user.getIdToken()}` },
+        body: JSON.stringify({ action: "fusionner", cle }),
+      });
+      const j = await r.json();
+      setMessage(r.ok ? `✓ ${j.nom} : une seule fiche maintenant (${telephoneAffiche(j.id)}).` : (j.erreur ?? "Fusion impossible."));
+      if (r.ok) setVersion((v) => v + 1);
+    } finally {
+      setEnvoi("");
+    }
+  }
+
+  if (groupes.length === 0) return message ? <p className="mt-4 rounded-xl bg-[#e7f5ec] p-3 text-sm font-semibold text-[#0d6b37]">{message}</p> : null;
+  return (
+    <section className="mt-4 rounded-2xl border-2 border-[#b7791f] bg-[#fff8e6] p-4">
+      <button onClick={() => setOuvert((v) => !v)} className="flex w-full items-center justify-between gap-2 text-left font-bold text-[#8a5a00]">
+        <span>
+          ⚠️ {groupes.length} numéro{groupes.length > 1 ? "s" : ""} en double (même numéro écrit autrement)
+        </span>
+        <span className="text-sm underline">{ouvert ? "Fermer" : "Voir et fusionner"}</span>
+      </button>
+      {message && <p className="mt-2 text-sm font-semibold">{message}</p>}
+      {ouvert && (
+        <ul className="mt-3 space-y-3">
+          {groupes.map((g) => (
+            <li key={g.cle} className="rounded-xl bg-white p-3">
+              <p className="font-semibold">📞 {telephoneAffiche(g.cle)}</p>
+              <ul className="mt-1 text-sm text-doux">
+                {g.fiches.map((f) => (
+                  <li key={f.id}>
+                    {f.nom} — écrit « {f.telephone} » · {f.nbTickets} passage{f.nbTickets > 1 ? "s" : ""}
+                    {f.credit ? ` · doit ${f.credit} F` : ""}
+                    {f.points ? ` · ${f.points} pts` : ""}
+                  </li>
+                ))}
+              </ul>
+              <button
+                disabled={envoi === g.cle}
+                onClick={() => fusionner(g.cle)}
+                className="mt-2 min-h-10 rounded-full bg-profond px-4 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {envoi === g.cle ? "Fusion…" : g.fiches.length > 1 ? `Fusionner en une seule fiche` : "Corriger l'écriture du numéro"}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-2 text-xs text-doux">Fusionner additionne le crédit, les points et les passages, et rattache tous les rendez-vous et tickets à la fiche unique. Rien n&apos;est perdu.</p>
+    </section>
   );
 }

@@ -213,6 +213,8 @@ function lignesRecette(j: Journal, caisse: CaisseJour | null, imprimePar: string
   }
   L.push({ texte: "TOTAUX", gras: true }, { texte: `Ventes (${ventes.length})`, montant: montantTexte(ventes.reduce((s, x) => s + x.total, 0)) });
   if (avoirs.length) L.push({ texte: `Avoirs / annulations (${avoirs.length})`, montant: montantTexte(avoirs.reduce((s, x) => s + x.total, 0)) });
+  const acomptesRecus = siens.filter((x) => x.type === "acompte");
+  if (acomptesRecus.length) L.push({ texte: `Acomptes reçus (${acomptesRecus.length})`, montant: montantTexte(acomptesRecus.reduce((s, x) => s + x.total, 0)) });
   L.push({ texte: caisse ? "RECETTE DE LA CAISSE" : "RECETTE DU JOUR", montant: montantTexte(t.recette), gras: true }, { trait: true }, { texte: "PAR MOYEN DE PAIEMENT", gras: true });
   for (const m of MODES) if (t.parMode[m.id]) L.push({ texte: LIBELLE_MODE[m.id as Mode], montant: montantTexte(t.parMode[m.id]) });
   if (!caisse && j.caisses.length > 1) {
@@ -330,6 +332,7 @@ function Contenu(props: { j: Journal; caisse: CaisseJour | null; detail: boolean
   const ventes = siens.filter((x) => x.type === "vente");
   const avoirs = siens.filter((x) => x.type === "avoir");
   const reglements = siens.filter((x) => x.type === "reglement");
+  const acomptes = siens.filter((x) => x.type === "acompte");
   const remises = ventes.filter((x) => !x.annule).reduce((s, x) => s + (x.remise?.montant ?? 0) + (x.fidelite?.remise ?? 0), 0);
   const cartesVendues = siens.reduce((s, x) => s + x.lignes.filter((l) => l.type === "carte-cadeau").reduce((a, l) => a + l.montant, 0), 0);
   const especesEncaissees = t.parMode.especes ?? 0;
@@ -379,7 +382,7 @@ function Contenu(props: { j: Journal; caisse: CaisseJour | null; detail: boolean
                 b={x.annule ? `(${formatPrix(x.total)})` : formatPrix(x.total)}
               />
               <p className="pl-[2mm] text-[0.85em]">
-                {x.type === "avoir" ? `Avoir sur ${x.origine?.reference ?? ""} · ` : x.type === "reglement" ? "Règlement de crédit · " : ""}
+                {x.type === "avoir" ? `Avoir sur ${x.origine?.reference ?? ""} · ` : x.type === "reglement" ? "Règlement de crédit · " : x.type === "acompte" ? "Acompte pour un rendez-vous · " : ""}
                 {x.paiements.map((p) => `${LIBELLE_MODE[p.mode]} ${formatPrix(p.montant)}`).join(" + ")}
                 {x.rendu > 0 ? ` · rendu ${formatPrix(x.rendu)}` : ""}
                 {x.annule ? ` · ANNULÉ (${x.annule.reference})` : ""} · {x.par.nom}
@@ -394,6 +397,7 @@ function Contenu(props: { j: Journal; caisse: CaisseJour | null; detail: boolean
       <Rangee a={`Ventes (${ventes.length})`} b={formatPrix(ventes.reduce((s, x) => s + x.total, 0))} />
       {avoirs.length > 0 && <Rangee a={`Avoirs / annulations (${avoirs.length})`} b={formatPrix(avoirs.reduce((s, x) => s + x.total, 0))} />}
       {reglements.length > 0 && <Rangee a={`Crédits réglés (${reglements.length})`} b={formatPrix(reglements.reduce((s, x) => s + x.total, 0))} />}
+      {acomptes.length > 0 && <Rangee a={`Acomptes reçus (${acomptes.length})`} b={formatPrix(acomptes.reduce((s, x) => s + x.total, 0))} />}
       {remises > 0 && <Rangee a="Remises accordées" b={`−${formatPrix(remises)}`} />}
       {cartesVendues > 0 && <Rangee a="dont cartes cadeaux vendues" b={formatPrix(cartesVendues)} />}
       <div className="text-[1.2em]">
@@ -405,6 +409,7 @@ function Contenu(props: { j: Journal; caisse: CaisseJour | null; detail: boolean
         t.parMode[m.id] ? <Rangee key={m.id} a={m.id === "especes" ? "Espèces (monnaie rendue déduite)" : LIBELLE_MODE[m.id as Mode]} b={formatPrix(t.parMode[m.id])} /> : null,
       )}
       {t.parMode["carte-cadeau"] ? <p className="text-[0.85em]">Carte cadeau : déjà encaissée le jour de la vente de la carte.</p> : null}
+      {t.parMode.acompte ? <p className="text-[0.85em]">Acompte déjà versé : déjà encaissé le jour où il a été reçu.</p> : null}
 
       {!caisse && j.caisses.length > 1 && (
         <>

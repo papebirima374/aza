@@ -52,16 +52,19 @@ type RdvAEncaisser = {
   cliente: { nom: string; telephone: string };
   prestations: { id: string; nom: string; prix: number }[];
   affectations?: { prestation: string; praticiennes: string[] }[];
+  acompte?: { montant: number; utilise?: string } | null;
 };
+// Acompte versé à la réservation et pas encore utilisé : déduit tout seul au comptoir.
+const acompteDispo = (r: Pick<RdvAEncaisser, "acompte">) => (r.acompte && !r.acompte.utilise ? r.acompte.montant : 0);
 // Les lignes d'un rendez-vous, avec la prestataire qui a fait chaque soin (modifiable).
 const lignesDuRdv = (r: Pick<RdvAEncaisser, "prestations" | "affectations">): Ligne[] =>
   r.prestations.map((p) => ({ id: p.id, quantite: 1, praticienne: r.affectations?.find((a) => a.prestation === p.id)?.praticiennes[0] }));
 type Ligne = { id: string; quantite: number; praticienne?: string };
 type FicheResume = { id: string; nom: string; telephone: string; points: number; credit: number };
-type Brouillon = { rendezVous?: string; cliente?: { nom: string; telephone: string }; lignes: Ligne[] };
+type Brouillon = { rendezVous?: string; cliente?: { nom: string; telephone: string }; lignes: Ligne[]; acompte?: number };
 
 // Pour une équipe qui lit peu : chaque moyen de paiement a son image et sa couleur.
-const ICONE: Record<Mode, string> = { especes: "💵", wave: "🌊", "orange-money": "🟠", carte: "💳", virement: "🏦", "carte-cadeau": "🎁", credit: "📝" };
+const ICONE: Record<Mode, string> = { especes: "💵", wave: "🌊", "orange-money": "🟠", carte: "💳", virement: "🏦", "carte-cadeau": "🎁", credit: "📝", acompte: "💰" };
 const TUILE: Record<Mode, string> = {
   especes: "border-[#0d6b37]/40 bg-[#e7f5ec] text-[#0d6b37]",
   wave: "border-[#1DC8FF]/60 bg-[#e5f8ff] text-[#0b6f93]",
@@ -70,6 +73,7 @@ const TUILE: Record<Mode, string> = {
   virement: "border-bordure bg-white text-profond",
   "carte-cadeau": "border-aza/50 bg-aza/10 text-profond",
   credit: "border-bordure bg-white text-profond",
+  acompte: "border-bordure bg-white text-profond",
 };
 
 const nombre = (v: string) => Math.max(0, Math.round(Number(v.replace(/\s/g, "")) || 0));
@@ -142,7 +146,7 @@ export function Caisse() {
       .then((r: RdvAEncaisser & { statut: string }) => {
         if (!actif) return;
         if (r.statut !== "termine") setErreur("Ce rendez-vous n'est pas « Terminé » (ou il est déjà encaissé).");
-        else setBrouillon({ rendezVous: r.id, cliente: r.cliente, lignes: lignesDuRdv(r) });
+        else setBrouillon({ rendezVous: r.id, cliente: r.cliente, lignes: lignesDuRdv(r), acompte: acompteDispo(r) });
       })
       .catch((e: Error) => actif && setErreur(e.message));
     return () => {
@@ -258,7 +262,7 @@ export function Caisse() {
                   if (brouillon && brouillon.lignes.length > 0 && !window.confirm("Le comptoir n'est pas vide. Le remplacer par ce rendez-vous ?")) return;
                   setFait(null);
                   setNumeroVente((n) => n + 1);
-                  setBrouillon({ rendezVous: r.id, cliente: r.cliente, lignes: lignesDuRdv(r) });
+                  setBrouillon({ rendezVous: r.id, cliente: r.cliente, lignes: lignesDuRdv(r), acompte: acompteDispo(r) });
                 }}
               />
               <Editeur
@@ -524,7 +528,8 @@ function Editeur(props: {
   const gagnesPrevus = fidConnue ? pointsGagnes(total, fidConnue.regles, sousTotal) : 0;
   const cadeauDu = Boolean(fidConnue && cadeauAtteint(fidConnue.points, gagnesPrevus, fidConnue.regles));
   const donnerCadeau = cadeauDu && !garderCadeau;
-  const recu = MODES.reduce((s, m) => s + nombre(montants[m.id] ?? ""), 0);
+  const parAcompte = Math.min(b.acompte ?? 0, total);
+  const recu = MODES.reduce((s, m) => s + (m.id === "acompte" ? 0 : nombre(montants[m.id] ?? "")), 0) + parAcompte;
   const especes = nombre(montants.especes ?? "");
   const reste = total - recu;
   const rendu = -reste;
@@ -537,7 +542,7 @@ function Editeur(props: {
   const changer = (lignesNouvelles: Ligne[]) => props.setBrouillon({ ...b, lignes: lignesNouvelles });
   const parCarte = carte ? nombre(montants["carte-cadeau"] ?? "") : 0;
   const avecCarte = (m: Partial<Record<Mode, string>>) => (parCarte > 0 ? { ...m, "carte-cadeau": String(parCarte) } : m);
-  const toutEn = (mode: Mode) => setMontants(avecCarte({ [mode]: String(Math.max(0, total - parCarte)) }));
+  const toutEn = (mode: Mode) => setMontants(avecCarte({ [mode]: String(Math.max(0, total - parCarte - Math.min(b.acompte ?? 0, total))) }));
 
   async function verifierCarte() {
     setErreurCarte("");
@@ -680,6 +685,24 @@ function Editeur(props: {
         </div>
       )}
 
+      {props.remisePermise && sousTotal > 0 && (
+        <button
+          onClick={() => {
+            if (remiseN === sousTotal) {
+              setRemise("");
+              setMotif("");
+              return;
+            }
+            setRemise(String(sousTotal));
+            setMotif((m) => m || "Offert (cadeau)");
+            setMontants({});
+          }}
+          aria-pressed={remiseN === sousTotal}
+          className={`mt-4 min-h-11 rounded-full px-4 text-sm font-bold ${remiseN === sousTotal ? "bg-aza text-white" : "border-2 border-aza/50 text-profond"}`}
+        >
+          🎁 {remiseN === sousTotal ? "Offert — toucher pour annuler" : "Offert : la cliente ne paie rien"}
+        </button>
+      )}
       {props.remisePermise && (
         <div className="mt-4 grid gap-2 sm:grid-cols-[10rem_1fr]">
           <label className="text-sm font-semibold">
@@ -804,12 +827,18 @@ function Editeur(props: {
           <span>Total</span>
           <span className="prix">{formatPrix(total)}</span>
         </p>
+        {parAcompte > 0 && (
+          <p className="mt-1 flex justify-between text-sm font-semibold text-[#0d6b37]">
+            <span>💰 Acompte déjà versé</span>
+            <span className="prix">−{formatPrix(parAcompte)}</span>
+          </p>
+        )}
       </div>
 
       <h3 className="mt-5 font-semibold">Paiement</h3>
       <p className="text-xs text-doux">Touchez le moyen de paiement de la cliente.</p>
       <div className="mt-2 grid grid-cols-3 gap-2">
-        {MODES.map((m) => (
+        {MODES.filter((m) => m.id !== "acompte").map((m) => (
           <button
             key={m.id}
             onClick={() => {
@@ -874,7 +903,7 @@ function Editeur(props: {
       {carte && total - parCarte > 0 && <p className="mt-2 text-sm font-semibold text-profond">La carte ne couvre pas tout : touchez le moyen de paiement du reste.</p>}
       {partage ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
-          {MODES.filter((m) => m.id !== "carte-cadeau").map((m) => (
+          {MODES.filter((m) => m.id !== "carte-cadeau" && m.id !== "acompte").map((m) => (
             <label key={m.id} className="text-sm font-semibold">
               <span aria-hidden>{ICONE[m.id]} </span>
               {m.id === "especes" ? "Espèces reçues" : m.libelle}
@@ -951,7 +980,10 @@ function Editeur(props: {
           await props.encaisser({
             rendezVous: b.rendezVous,
             lignes: donnerCadeau && cadeauChoisi ? [...b.lignes, { id: cadeauChoisi.id, quantite: 1, offert: true }] : b.lignes,
-            paiements: MODES.map((m) => ({ mode: m.id, montant: nombre(montants[m.id] ?? "") })).filter((p) => p.montant > 0),
+            paiements: [
+              ...MODES.filter((m) => m.id !== "acompte").map((m) => ({ mode: m.id as Mode, montant: nombre(montants[m.id] ?? "") })),
+              { mode: "acompte" as Mode, montant: parAcompte },
+            ].filter((p) => p.montant > 0),
             ...(remiseN > 0 ? { remise: { montant: remiseN, motif } } : {}),
             ...(carte && parCarte > 0 ? { carteCadeau: carte.code } : {}),
             ...(remisePoints > 0 ? { fidelite: true } : {}),
@@ -965,7 +997,7 @@ function Editeur(props: {
         }}
         className={`${bouton} mt-4 w-full bg-aza text-lg text-white`}
       >
-        {envoi ? "Enregistrement…" : `Encaisser ${formatPrix(total)}${donnerCadeau ? " · 🎁 cadeau remis" : ""}`}
+        {envoi ? "Enregistrement…" : total === 0 && lignes.length > 0 ? "Enregistrer (offert, 0 F)" : `Encaisser ${formatPrix(total - parAcompte)}${donnerCadeau ? " · 🎁 cadeau remis" : ""}`}
       </button>
     </section>
   );

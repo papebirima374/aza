@@ -10,7 +10,12 @@ export const MODES = [
   { id: "virement", libelle: "Virement" },
   { id: "carte-cadeau", libelle: "Carte cadeau" },
   { id: "credit", libelle: "À crédit (payé plus tard)" },
+  // Déduit automatiquement au moment d'encaisser un rendez-vous dont l'acompte a été versé.
+  { id: "acompte", libelle: "Acompte déjà versé" },
 ] as const;
+
+/** Moyens qui ne rapportent pas d'argent ce jour-là : déjà encaissés avant (carte vendue, acompte reçu). */
+export const MODES_DEJA_ENCAISSES = ["carte-cadeau", "acompte"];
 
 export type Mode = (typeof MODES)[number]["id"];
 
@@ -30,9 +35,10 @@ export function reference(numero: number): string {
 }
 
 /**
- * Ce qu'une vente a vraiment rapporté ce jour-là. Payer avec une carte cadeau n'apporte pas
- * d'argent : il est entré le jour où la carte a été vendue (déjà compté dans la recette).
+ * Ce qu'une vente a vraiment rapporté ce jour-là. Payer avec une carte cadeau ou un acompte
+ * n'apporte pas d'argent : il est entré le jour où la carte a été vendue ou l'acompte reçu
+ * (déjà compté dans la recette de ce jour-là).
  */
 export function recetteDuTicket(t: { total: number; paiements: { mode: string; montant: number }[] }): number {
-  return t.total - t.paiements.filter((p) => p.mode === "carte-cadeau").reduce((s, p) => s + p.montant, 0);
+  return t.total - t.paiements.filter((p) => MODES_DEJA_ENCAISSES.includes(p.mode)).reduce((s, p) => s + p.montant, 0);
 }

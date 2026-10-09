@@ -1,5 +1,5 @@
 import { membreConnecte } from "@/lib/serveur/agenda";
-import { aEncaisser, annulerTicket, equipeCaisse, sessionsCaisse, fideliteCliente, encaisserCommande, reglerCredit, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
+import { aEncaisser, annulerTicket, enregistrerAcompte, equipeCaisse, sessionsCaisse, fideliteCliente, encaisserCommande, reglerCredit, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
 import { noter, nomDe, prix } from "@/lib/serveur/activite";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
@@ -10,7 +10,7 @@ import { reponseErreur } from "@/lib/serveur/reponses";
 // GET  /api/gestion/caisse?rdv=ID            un rendez-vous à encaisser
 // GET  /api/gestion/caisse?fidelite=TEL      points de fidélité de la cliente et règles
 // GET  /api/gestion/caisse?sessions=1&du=…&au=…  sessions de caisse d'une période (direction, manager, comptable)
-// POST /api/gestion/caisse { action: "ouvrir" | "encaisser" | "annuler" | "reglement" | "cloturer", … }
+// POST /api/gestion/caisse { action: "ouvrir" | "encaisser" | "annuler" | "reglement" | "acompte" | "cloturer", … }
 const indisponible = () => Response.json({ erreur: "Gestion indisponible." }, { status: 503 });
 const sansCache = { headers: { "Cache-Control": "no-store" } };
 
@@ -79,6 +79,11 @@ export async function POST(request: Request) {
         const r = await reglerCredit(membre, String(c.cliente ?? "-"), c.paiements);
         const nom = await nomDe(`clientes/${String(c.cliente ?? "-")}`, "nom");
         await noter(membre, "caisse", `Crédit réglé par ${nom} (ticket ${r.reference}) — reste dû ${prix(r.reste)}`, `/gestion/caisse/ticket/${r.id}`);
+        return Response.json(r, { status: 201 });
+      }
+      case "acompte": {
+        const r = await enregistrerAcompte(membre, String(c.rendezVous ?? "-"), c.montant, c.mode);
+        await noter(membre, "caisse", `Acompte ${r.reference} reçu de ${r.cliente} : ${prix(r.montant)}`, "/gestion/caisse");
         return Response.json(r, { status: 201 });
       }
       case "cloturer": {

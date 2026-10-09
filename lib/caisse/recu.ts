@@ -11,7 +11,7 @@ import { texteWhatsApp } from "@/lib/whatsapp";
 export type Ticket = {
   id: string;
   reference: string;
-  type: "vente" | "avoir" | "reglement";
+  type: "vente" | "avoir" | "reglement" | "acompte";
   date: string;
   heure: number;
   lignes: { id: string; nom: string; type?: string; prixUnitaire: number; quantite: number; montant: number; offert?: boolean; praticienne?: { id: string; nom: string } }[];
@@ -58,7 +58,7 @@ export function texteRecu(t: Ticket, origine = origineDuSite()): string {
     `*${INSTITUT.nom}*`,
     `${INSTITUT.adresse.rue}, ${INSTITUT.adresse.ville}`,
     "",
-    `${t.type === "avoir" ? "Avoir" : t.type === "reglement" ? "Règlement" : "Reçu"} ${t.reference} — ${dateTexte(t.date)} à ${heureTexte(t.heure)}`,
+    `${t.type === "avoir" ? "Avoir" : t.type === "reglement" ? "Règlement" : t.type === "acompte" ? "Acompte" : "Reçu"} ${t.reference} — ${dateTexte(t.date)} à ${heureTexte(t.heure)}`,
     ...(t.cliente ? [`Cliente : ${t.cliente.nom}`] : []),
     "",
     ...t.lignes.map((x) => `${x.quantite > 1 ? `${x.quantite} × ` : ""}${x.nom} : ${formatPrix(x.montant)}`),

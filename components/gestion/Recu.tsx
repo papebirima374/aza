@@ -119,7 +119,7 @@ export function Recu({ id }: { id: string }) {
 }
 
 function TicketCaisse({ t, r, origine }: { t: Ticket; r: Imprimante; origine: string }) {
-  const titre = t.type === "avoir" ? "AVOIR" : t.type === "reglement" ? "RÈGLEMENT DE CRÉDIT" : "TICKET";
+  const titre = t.type === "avoir" ? "AVOIR" : t.type === "reglement" ? "RÈGLEMENT DE CRÉDIT" : t.type === "acompte" ? "ACOMPTE" : "TICKET";
   return (
     <div className="leading-snug font-medium">
       <div className="text-center">

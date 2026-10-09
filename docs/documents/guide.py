@@ -310,6 +310,21 @@ pages.append(page(f"""
 
 pages.append(page(f"""
 <span class="etiquette">5 · La caisse</span>
+<h2>L'acompte et le soin offert</h2>
+<div class="duo" style="grid-template-columns:1fr 50mm 50mm;"><div>
+<h3>Un acompte pour réserver</h3>
+<ol class="etapes">
+<li>Agenda → touchez le rendez-vous → <span class="touche">💰 Elle verse un acompte</span>.</li>
+<li>Tapez le montant (5 000 F proposés), touchez Espèces, Wave ou Orange Money, puis <span class="bouton" style="background:#0d6b37">Enregistrer l'acompte</span>. Votre caisse doit être ouverte : l'argent y entre aujourd'hui (ticket « Acompte »).</li>
+<li>Le jour du soin, au comptoir, l'acompte est <b>déduit tout seul</b> : « 💰 Acompte déjà versé −5 000 F ». Elle ne paie que le reste.</li>
+</ol>
+<h3>Un soin offert (cadeau)</h3>
+<p>Au comptoir, <span class="touche">🎁 Offert : la cliente ne paie rien</span> : le total passe à 0 F, le motif « Offert (cadeau) » est écrit (modifiable), puis <span class="bouton">Enregistrer (offert, 0 F)</span>. Réservé à qui a l'accès « Remises et annulations » ; le soin compte dans le travail de la prestataire, pas dans la recette.</p>
+</div>{figure("119-acompte","L'acompte","tel-petit")}{figure("121-offert","Offert","tel-petit")}</div>
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">5 · La caisse</span>
 <h2>Le ticket de caisse (80 mm) et le reçu WhatsApp</h2>
 <div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
 <ol class="etapes">
@@ -486,6 +501,19 @@ pages.append(page(f"""
 <h3>Une cliente qui doit de l'argent</h3>
 <ol class="etapes"><li>Sa fiche affiche « Doit … F ».</li><li>Tapez le montant réglé, touchez le moyen de paiement, puis <span class="bouton">Encaisser</span> (la caisse doit être ouverte).</li><li>Ou <span class="bouton" style="background:#128C4A">📲 Rappel WhatsApp</span> : un message poli, déjà écrit.</li></ol>
 </div>{figure("26-fiche-cliente","La fiche")}{figure("27-fiche-credit","Le crédit")}</div>
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">6 · Les clientes</span>
+<h2>Un numéro = une cliente : les doublons</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm;"><div>
+<p>« 77 392 75 72 », « +221 77 392 75 72 » et « 773927572 » sont <b>le même numéro</b> : la plateforme les range toujours sur la même fiche, et refuse d'en créer une seconde.</p>
+<p>Si d'anciennes fiches en double existent (créées avant, ou écrites autrement), un bandeau jaune s'affiche en haut de <b>Clientes</b> (direction et manager) :</p>
+<ol class="etapes">
+<li>Touchez <b>« Voir et fusionner »</b> : chaque numéro en double, avec ses fiches.</li>
+<li><span class="bouton">Fusionner en une seule fiche</span> : le crédit, les points et les passages s'additionnent ; les rendez-vous, tickets, commandes et avis sont rattachés à la fiche unique. Rien n'est perdu.</li>
+</ol>
+</div>{figure("122-doublons","Les doublons")}</div>
 """, P))
 
 # 6bis. Anniversaires et relances
