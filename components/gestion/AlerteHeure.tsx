@@ -1,7 +1,7 @@
 "use client";
 
 import { collection, getDocs, onSnapshot, query, where } from "firebase/firestore";
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { DecalerHeure } from "@/components/gestion/DecalerHeure";
 import type { Compte } from "@/components/gestion/EspaceGestion";
 import { ROLES_AGENDA, type Statut } from "@/lib/agenda/statuts";
@@ -69,16 +69,20 @@ export function lienAttente(r: Pick<Rdv, "debut" | "cliente">) {
   return `https://wa.me/${c.length === 9 ? `221${c}` : c}?text=${texteWhatsApp(messageAttente(r))}`;
 }
 
-export function AlerteHeure({ compte }: { compte: Compte | null }) {
+// Les clientes en retard (heure passée, pas encore arrivées) : aussi pour la cloche.
+export type Retard = Pick<Rdv, "id" | "debut" | "cliente" | "prestations">;
+const ContexteRetards = createContext<Retard[]>([]);
+export const useRetards = () => useContext(ContexteRetards);
+
+export function AlerteHeure({ compte, children }: { compte: Compte | null; children?: React.ReactNode }) {
   const gerante = Boolean(compte && ROLES_AGENDA.includes(compte.role));
   const praticienne = compte?.praticienne ?? null;
   const actif = Boolean(compte && (gerante || praticienne));
   const [rdvs, setRdvs] = useState<Rdv[]>([]);
   const [noms, setNoms] = useState<Record<string, string>>({});
   const [file, setFile] = useState<Rdv[]>([]);
-  const [decaler, setDecaler] = useState(false);
-  const [envoi, setEnvoi] = useState(false);
   const deja = useRef<Set<string>>(new Set());
+  const [minutes, setMinutes] = useState(() => maintenantDakar().minutes);
 
   // Les rendez-vous du jour : tous pour la gérante, les siens pour une prestataire.
   useEffect(() => {
@@ -111,6 +115,7 @@ export function AlerteHeure({ compte }: { compte: Compte | null }) {
     if (!actif) return;
     const verifier = () => {
       const { date, minutes } = maintenantDakar();
+      setMinutes(minutes);
       const echus = rdvs.filter((r) => EN_ATTENTE.includes(r.statut) && r.debut <= minutes && r.debut > minutes - 120 && !deja.current.has(`${r.id}@${r.debut}`));
       if (echus.length === 0) return;
       for (const r of echus) deja.current.add(`${r.id}@${r.debut}`);
@@ -133,11 +138,32 @@ export function AlerteHeure({ compte }: { compte: Compte | null }) {
     return r && EN_ATTENTE.includes(r.statut) && r.debut === f.debut;
   });
   const alerte = visibles[0];
-  if (!actif || !alerte) return null;
+  // Pour la cloche : tous les retards du jour (jusqu'à 3 heures après l'heure prévue).
+  const retards = actif ? rdvs.filter((r) => EN_ATTENTE.includes(r.statut) && r.debut <= minutes && r.debut > minutes - 180).sort((a, b) => a.debut - b.debut) : [];
+  return (
+    <ContexteRetards.Provider value={retards}>
+      {children}
+      {actif && alerte && <Fenetre compte={compte} alerte={alerte} rdvs={rdvs} noms={noms} visibles={visibles} gerante={gerante} retirer={(id) => setFile((f) => f.filter((x) => x.id !== id))} />}
+    </ContexteRetards.Provider>
+  );
+}
+
+function Fenetre(props: {
+  compte: Compte | null;
+  alerte: Rdv;
+  rdvs: Rdv[];
+  noms: Record<string, string>;
+  visibles: Rdv[];
+  gerante: boolean;
+  retirer: (id: string) => void;
+}) {
+  const { compte, alerte, rdvs, noms, visibles, gerante } = props;
+  const [decaler, setDecaler] = useState(false);
+  const [envoi, setEnvoi] = useState(false);
   const courant = rdvs.find((r) => r.id === alerte.id) ?? alerte;
   const fermer = () => {
     setDecaler(false);
-    setFile((f) => f.filter((x) => x.id !== alerte.id));
+    props.retirer(alerte.id);
   };
 
   async function arrivee() {

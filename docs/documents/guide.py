@@ -98,6 +98,22 @@ pages.append(page(f"""
 <div class="encadre">Pour garder la barre courte, les écrans qu'on ouvre moins souvent sont rangés derrière <b>Plus ▾</b>, au bout de la barre. La direction peut aussi <b>donner ou retirer un accès</b> à une personne précise (partie 10).</div>
 """, P))
 
+pages.append(page(f"""
+<span class="etiquette">1 · Avant de commencer</span>
+<h2>La cloche 🔔 : tout ce qui attend une action</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm;"><div>
+<p>En haut à droite, la <b>cloche</b> porte le nombre de choses à traiter. Touchez-la : la liste s'ouvre. Chacun ne voit que ce qui le concerne.</p>
+<ul class="puces">
+<li><b>⏰ Clientes en retard</b> : l'heure est passée et elle n'est pas notée « Arrivée ». Bouton <b>WhatsApp</b> pour lui écrire.</li>
+<li><b>💰 Clientes à encaisser</b> : leur soin est fini ; touchez le nom pour ouvrir la caisse.</li>
+<li><b>📅 Rendez-vous pris en ligne</b> (2 derniers jours) : touchez « Vu » quand vous l'avez noté, ou « Tout vu ».</li>
+<li><b>🛍️ Commandes</b> et demandes de perruques à confirmer, <b>⭐ avis</b> à regarder, <b>📦 stock</b> à commander.</li>
+<li><b>🎂 Anniversaires</b> du jour, <b>🔓 caisses</b> restées ouvertes les jours passés (direction, manager, comptable).</li>
+</ul>
+<div class="encadre">La liste se met à jour toute seule. Une ligne disparaît quand la chose est faite (cliente arrivée, ticket encaissé, commande confirmée…). Touchez ailleurs pour refermer.</div>
+</div>{figure("110-cloche","La cloche ouverte")}</div>
+""", P))
+
 # 2. Praticienne
 pages.append(page(f"""
 <span class="etiquette">2 · La praticienne</span>
@@ -688,6 +704,20 @@ pages.append(page(f"""
 </ul>
 <div class="encadre or">Vous ne pouvez ni changer votre propre rôle, ni désactiver votre propre compte : c'est une sécurité.</div></div>
 {figure("36-equipe","La liste")}{figure("39-equipe-modifier","Modifier")}</div>
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">10 · La direction</span>
+<h2>L'ordre des colonnes de l'agenda</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm;"><div>
+<p>Par défaut, les praticiennes sont rangées par ordre alphabétique. Pour les mettre dans l'ordre de l'institut :</p>
+<ol class="etapes">
+<li><b>Plus ▾ → Équipe</b>, bloc <b>« Ordre dans l'agenda »</b> (direction et manager).</li>
+<li>Touchez <span class="touche">↑</span> ou <span class="touche">↓</span> pour monter ou descendre une personne.</li>
+<li><span class="bouton">Enregistrer l'ordre</span>.</li>
+</ol>
+<p>Les colonnes de l'agenda et les listes « Fait par » de la caisse suivent cet ordre, sur tous les écrans. Une nouvelle praticienne se place à la fin, jusqu'à ce que vous la rangiez.</p>
+</div>{figure("112-ordre-agenda","Ordre dans l'agenda")}</div>
 """, P))
 
 pages.append(page(f"""

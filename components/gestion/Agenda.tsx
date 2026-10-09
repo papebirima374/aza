@@ -2,6 +2,7 @@
 
 import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from "firebase/firestore";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AlerteCliente } from "@/components/gestion/AlerteCliente";
 import { useCompte } from "@/components/gestion/EspaceGestion";
@@ -83,6 +84,13 @@ export function Agenda() {
   const cat = useCatalogue();
   const gere = ROLES_AGENDA.includes(compte.role);
   const [date, setDate] = useState(aujourdhuiDakar);
+  // Lien vers un jour précis (cloche des notifications) : /gestion?date=AAAA-MM-JJ
+  const dateLien = useSearchParams().get("date");
+  const [dateLienVue, setDateLienVue] = useState<string | null>(null);
+  if (dateLien && dateLien !== dateLienVue && /^\d{4}-\d{2}-\d{2}$/.test(dateLien)) {
+    setDateLienVue(dateLien);
+    setDate(dateLien);
+  }
   const [vue, setVue] = useState<"praticiennes" | "postes">("praticiennes");
   const [praticiennes, setPraticiennes] = useState<Colonne[]>([]);
   const [postes, setPostes] = useState<Colonne[]>([]);
@@ -110,7 +118,12 @@ export function Agenda() {
             getDocs(query(collection(db, "praticiennes"), where("actif", "==", true))),
             getDocs(collection(db, "postes")),
           ]);
-          setPraticiennes(pr.docs.map((d) => ({ id: d.id, nom: d.get("nom") })).sort((a, b) => a.nom.localeCompare(b.nom)));
+          setPraticiennes(
+            pr.docs
+              .map((d) => ({ id: d.id, nom: d.get("nom") as string, ordre: (d.get("ordre") as number | undefined) ?? 9999 }))
+              .sort((a, b) => a.ordre - b.ordre || a.nom.localeCompare(b.nom))
+              .map(({ id, nom }) => ({ id, nom })),
+          );
           setPostes(po.docs.map((d) => ({ id: d.id, nom: d.id.replace(/-/g, " ") })));
         } else if (compte.praticienne) {
           const moi = await getDoc(doc(db, "praticiennes", compte.praticienne));

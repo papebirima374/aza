@@ -176,5 +176,17 @@ const d60 = await decaler(accueil, 11 * 60 + 30);
 ok(d60.statut === 200 && Number((await lire(`rendezVous/${retard.corps.id}`)).debut.integerValue) === 690, "encore une heure de retard : 11h30");
 ok((await decaler(accueil, 9 * 60)).statut === 200, "on peut aussi avancer l'heure");
 
+// Ordre des colonnes de l'agenda (et des listes « Fait par »)
+const directionOrdre = await jeton("direction@test.aza");
+const ordreVoulu = ["test-masseuse", "test-coiffeuse-2", "test-maquilleuse", "test-coiffeuse-1", "test-estheticienne-1", "test-prothesiste-2"];
+const ranger = (tok, ordre) => fetch(`${SITE}/api/gestion/equipe`, { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` }, body: JSON.stringify({ ordre }) });
+ok((await ranger(accueil, ordreVoulu)).status === 403, "l'accueil ne change pas l'ordre de l'agenda");
+ok((await ranger(directionOrdre, ["inconnue"])).status === 400, "praticienne inconnue : refusé");
+ok((await ranger(directionOrdre, ordreVoulu)).status === 200, "la direction range les colonnes");
+const equipeRangee = (await appel("/api/gestion/caisse?equipe=1", accueil)).corps.map((p) => p.id);
+ok(equipeRangee.slice(0, 6).join() === ordreVoulu.join(), "« Fait par » suit l'ordre choisi");
+ok(equipeRangee.length === 8 && equipeRangee.slice(6).join() === "test-estheticienne-2,test-prothesiste-1", "celles qui ne sont pas rangées viennent après, par ordre alphabétique");
+ok(Number((await lire("praticiennes/test-coiffeuse-1")).ordre?.integerValue) === 4, "l'ordre est enregistré sur la fiche");
+
 console.log(echecs === 0 ? "\nTout est bon." : `\n${echecs} contrôle(s) en échec.`);
 process.exit(echecs === 0 ? 0 : 1);

@@ -106,6 +106,33 @@ export async function listerEquipe(membre: Membre) {
     .sort((a, b) => Number(b.actif) - Number(a.actif) || ROLES.indexOf(a.role) - ROLES.indexOf(b.role) || a.nom.localeCompare(b.nom));
 }
 
+/** Les praticiennes de l'agenda (fiches actives, avec ou sans compte), dans l'ordre choisi. */
+export async function ordreAgenda(membre: Membre) {
+  if (membre.role !== "direction" && membre.role !== "manager") throw new ErreurReservation("Réservé à la direction et au manager.", 403);
+  const snap = await db().collection("praticiennes").where("actif", "==", true).get();
+  return snap.docs
+    .map((d) => ({ id: d.id, nom: d.get("nom") as string, ordre: (d.get("ordre") as number | undefined) ?? 9999 }))
+    .sort((a, b) => a.ordre - b.ordre || a.nom.localeCompare(b.nom))
+    .map((p) => ({ id: p.id, nom: p.nom }));
+}
+
+/**
+ * Ordre des colonnes de l'agenda (et des listes « Fait par ») : la direction ou le manager
+ * range les praticiennes. Celles qui ne sont pas rangées viennent après, par ordre alphabétique.
+ */
+export async function ordonnerAgenda(membre: Membre, idsBruts: unknown) {
+  if (membre.role !== "direction" && membre.role !== "manager") throw new ErreurReservation("Réservé à la direction et au manager.", 403);
+  const ids = Array.isArray(idsBruts) ? idsBruts.map(String) : [];
+  if (ids.length === 0 || ids.length > 60 || new Set(ids).size !== ids.length) throw new ErreurReservation("Ordre invalide.", 400);
+  const base = db();
+  const fiches = await base.getAll(...ids.map((id) => base.doc(`praticiennes/${id.replace(/\//g, "")}`)));
+  if (fiches.some((f) => !f.exists)) throw new ErreurReservation("Praticienne inconnue.", 400);
+  const lot = base.batch();
+  fiches.forEach((f, i) => lot.set(f.ref, { ordre: i + 1 }, { merge: true }));
+  await lot.commit();
+  return { ok: true, noms: fiches.map((f) => f.get("nom") as string) };
+}
+
 export type Modification = {
   nom?: string;
   role?: Role;

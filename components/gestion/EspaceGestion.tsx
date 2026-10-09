@@ -9,6 +9,7 @@ import { doc, getDoc } from "firebase/firestore";
 import type { Role } from "@/lib/agenda/statuts";
 import { firebaseClient } from "@/lib/client/firebase";
 import { AlerteHeure } from "@/components/gestion/AlerteHeure";
+import { CentreNotifications } from "@/components/gestion/CentreNotifications";
 import { PastilleCaisse, SuiviCaisse } from "@/components/gestion/SuiviCaisse";
 import { PastilleStock } from "@/components/gestion/PastilleStock";
 import { PastilleCommandes } from "@/components/gestion/PastilleCommandes";
@@ -127,7 +128,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
   return (
     <ContexteCompte.Provider value={compte}>
       <SuiviCaisse compte={compte}>
-      <AlerteHeure compte={compte} />
+      <AlerteHeure compte={compte}>
       {/* Téléphone : logo + Déconnexion en haut, onglets sur une 2e ligne. Écran large : une ligne. */}
       <header className="sticky top-0 z-30 flex print:hidden flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-bordure bg-bordeaux px-4 py-2 text-or-clair sm:h-14 sm:flex-nowrap sm:py-0">
         <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} className="h-8 w-auto" />
@@ -156,7 +157,8 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
             })}
           {compte && <MenuPlus compte={compte} chemin={chemin} />}
         </nav>
-        <div className="ml-auto flex items-center gap-3 text-sm">
+        <div className="ml-auto flex items-center gap-2 text-sm sm:gap-3">
+          {compte && <CentreNotifications compte={compte} />}
           <Link href="/gestion/mon-compte" className="flex min-h-10 max-w-[9rem] items-center gap-1 truncate rounded-full px-2 py-1 hover:bg-white/10 md:max-w-none" title="Mon compte">
             <span aria-hidden>👤</span>
             <span className="truncate font-semibold text-white">{compte?.nom?.split(" ")[0]}</span>
@@ -174,6 +176,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       {children}
+      </AlerteHeure>
       </SuiviCaisse>
     </ContexteCompte.Provider>
   );

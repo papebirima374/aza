@@ -66,6 +66,7 @@ pages.append(page(f"""
 <div class="quatre">{figure("13-agenda","L'agenda du jour","tel-petit")}{figure("14-rdv-detail","Le détail : allergie en rouge","tel-petit")}{figure("15-nouveau-rdv","Rendez-vous au comptoir","tel-petit")}{figure("16-rappels","Rappels de la veille","tel-petit")}</div>
 <ul class="puces">
 <li><b>Au comptoir</b> : heure libre, même passée (cliente sans rendez-vous), une prestataire par prestation ; un rendez-vous se modifie ou se décale en cas de retard.</li>
+<li><b>La cloche 🔔</b> : en haut de chaque écran, tout ce qui attend une action (retards, encaissements, rendez-vous en ligne, commandes, avis, stock, anniversaires, caisses oubliées).</li>
 <li><b>À l'heure dite</b> : si la cliente n'est pas arrivée, l'accueil et la prestataire sont prévenues, avec un message WhatsApp prêt pour la cliente.</li>
 <li><b>Sur place</b> : « Changer » confie la cliente à une autre praticienne libre et compétente.</li>
 <li><b>La veille</b> : un message WhatsApp prêt pour chaque cliente, « Confirmé » quand elle répond OUI.</li>

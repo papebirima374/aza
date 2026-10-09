@@ -53,6 +53,10 @@ export function Equipe() {
   );
 
   const [version, setVersion] = useState(0);
+  const lireOrdre = useCallback(async () => {
+    const r = await fetch("/api/gestion/equipe?ordre=1", { headers: { Authorization: `Bearer ${await compte.user.getIdToken()}` } });
+    return r.ok ? r.json() : [];
+  }, [compte.user]);
 
   useEffect(() => {
     let actif = true;
@@ -156,6 +160,23 @@ export function Equipe() {
             ))}
           </ul>
         </section>
+
+        {(compte.role === "direction" || compte.role === "manager") && (
+          <OrdreAgenda
+            version={version}
+            lire={lireOrdre}
+            enregistrer={async (ids) => {
+              await fetch("/api/gestion/equipe", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${await compte.user.getIdToken()}` },
+                body: JSON.stringify({ ordre: ids }),
+              }).then(async (r) => {
+                if (!r.ok) throw new Error((await r.json()).erreur ?? "Erreur");
+              });
+              setVersion((v) => v + 1);
+            }}
+          />
+        )}
 
         {compte.role === "direction" && (
           <form onSubmit={creer} className="rounded-2xl border border-bordure p-5">
@@ -431,5 +452,72 @@ function ChoixAcces({ role, acces, setAcces }: { role: Role; acces: AccesPerso; 
         </ul>
       </div>
     </details>
+  );
+}
+
+/** L'ordre des colonnes de l'agenda : ↑ ↓ pour ranger, puis Enregistrer. */
+function OrdreAgenda(props: { version: number; lire: () => Promise<{ id: string; nom: string }[]>; enregistrer: (ids: string[]) => Promise<void> }) {
+  const { lire, enregistrer, version } = props;
+  const [depart, setDepart] = useState<{ id: string; nom: string }[]>([]);
+  useEffect(() => {
+    let actif = true;
+    lire()
+      .then((l) => actif && setDepart(l))
+      .catch(() => {});
+    return () => {
+      actif = false;
+    };
+  }, [lire, version]);
+  const [ordre, setOrdre] = useState<{ id: string; nom: string }[] | null>(null);
+  const [message, setMessage] = useState("");
+  const [envoi, setEnvoi] = useState(false);
+  const affiche = ordre ?? depart;
+  if (depart.length < 2) return null;
+  const bouger = (i: number, sens: -1 | 1) => {
+    const n = [...affiche];
+    [n[i], n[i + sens]] = [n[i + sens], n[i]];
+    setOrdre(n);
+    setMessage("");
+  };
+  return (
+    <section className="rounded-2xl border border-bordure p-5">
+      <h2 className="font-serif text-2xl font-semibold text-profond">Ordre dans l&apos;agenda</h2>
+      <p className="mt-1 text-sm text-doux">Les colonnes de l&apos;agenda (et les listes « Fait par » de la caisse) suivent cet ordre.</p>
+      <ol className="mt-3 space-y-1.5">
+        {affiche.map((p, i) => (
+          <li key={p.id} className="flex items-center gap-2 rounded-xl bg-creme px-3 py-1.5">
+            <span className="w-6 text-right font-bold text-doux">{i + 1}.</span>
+            <span className="min-w-0 flex-1 truncate font-semibold">{p.nom}</span>
+            <button disabled={i === 0} onClick={() => bouger(i, -1)} className="h-10 w-10 rounded-full border border-bordure bg-white text-lg disabled:opacity-30" aria-label={`Monter ${p.nom}`}>
+              ↑
+            </button>
+            <button disabled={i === affiche.length - 1} onClick={() => bouger(i, 1)} className="h-10 w-10 rounded-full border border-bordure bg-white text-lg disabled:opacity-30" aria-label={`Descendre ${p.nom}`}>
+              ↓
+            </button>
+          </li>
+        ))}
+      </ol>
+      {ordre && (
+        <button
+          disabled={envoi}
+          onClick={async () => {
+            setEnvoi(true);
+            try {
+              await enregistrer(ordre.map((p) => p.id));
+              setOrdre(null);
+              setMessage("✓ Ordre enregistré : l'agenda suit cet ordre.");
+            } catch (e) {
+              setMessage((e as Error).message);
+            } finally {
+              setEnvoi(false);
+            }
+          }}
+          className="mt-3 min-h-11 rounded-full bg-profond px-5 font-bold text-white disabled:opacity-50"
+        >
+          {envoi ? "Enregistrement…" : "Enregistrer l'ordre"}
+        </button>
+      )}
+      {message && <p className={`mt-2 text-sm font-semibold ${message.startsWith("✓") ? "text-[#0d6b37]" : "text-aza-fonce"}`}>{message}</p>}
+    </section>
   );
 }

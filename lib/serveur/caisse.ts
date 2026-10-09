@@ -657,7 +657,10 @@ export async function cloturerCaisse(membre: Membre, compteBrut: unknown, justif
 export async function equipeCaisse(membre: Membre) {
   exigerAcces(membre, "caisse");
   const snap = await db().collection("praticiennes").where("actif", "==", true).get();
-  return snap.docs.map((d) => ({ id: d.id, nom: d.get("nom") as string, competences: (d.get("competences") as string[] | undefined) ?? [] })).sort((a, b) => a.nom.localeCompare(b.nom));
+  return snap.docs
+    .map((d) => ({ id: d.id, nom: d.get("nom") as string, competences: (d.get("competences") as string[] | undefined) ?? [], ordre: (d.get("ordre") as number | undefined) ?? 9999 }))
+    .sort((a, b) => a.ordre - b.ordre || a.nom.localeCompare(b.nom))
+    .map((p) => ({ id: p.id, nom: p.nom, competences: p.competences }));
 }
 
 /** Rendez-vous terminés du jour, prêts à passer en caisse. */

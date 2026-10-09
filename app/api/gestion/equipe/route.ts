@@ -1,6 +1,6 @@
 import type { Role } from "@/lib/agenda/statuts";
 import { membreConnecte } from "@/lib/serveur/agenda";
-import { creerMembre, listerEquipe, modifierMembre } from "@/lib/serveur/equipe";
+import { creerMembre, listerEquipe, modifierMembre, ordonnerAgenda, ordreAgenda } from "@/lib/serveur/equipe";
 import { ACCES } from "@/lib/acces";
 import { noter, nomDe } from "@/lib/serveur/activite";
 
@@ -17,13 +17,17 @@ import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
 
 // GET  /api/gestion/equipe — liste (direction, manager)
+// GET  /api/gestion/equipe?ordre=1 — praticiennes de l'agenda, dans l'ordre des colonnes
 // POST /api/gestion/equipe { nom, email, role, competences? } — création (direction)
 // PATCH /api/gestion/equipe { uid, nom?, role?, competences?, actif?, lien?, telephone? } — modification (direction)
 // PATCH /api/gestion/equipe { uid, lienConnexion: true } — lien de connexion à envoyer par WhatsApp
+// PUT  /api/gestion/equipe { ordre: [idPraticienne, …] } — ordre des colonnes de l'agenda (direction, manager)
 export async function GET(request: Request) {
   if (!firebaseConfigure()) return Response.json({ erreur: "Gestion indisponible." }, { status: 503 });
   try {
-    return Response.json(await listerEquipe(await membreConnecte(request)));
+    const membre = await membreConnecte(request);
+    if (new URL(request.url).searchParams.get("ordre")) return Response.json(await ordreAgenda(membre));
+    return Response.json(await listerEquipe(membre));
   } catch (e) {
     return reponseErreur(e);
   }
@@ -80,6 +84,19 @@ export async function PATCH(request: Request) {
     ].filter(Boolean);
     await noter(membre, "equipe", `Compte de ${qui} modifié${changes.length ? ` — ${changes.join(" · ")}` : ""}`, "/gestion/equipe");
     return Response.json(res);
+  } catch (e) {
+    return reponseErreur(e);
+  }
+}
+
+export async function PUT(request: Request) {
+  if (!firebaseConfigure()) return Response.json({ erreur: "Gestion indisponible." }, { status: 503 });
+  try {
+    const membre = await membreConnecte(request);
+    const c = await request.json().catch(() => ({}));
+    const r = await ordonnerAgenda(membre, c.ordre);
+    await noter(membre, "equipe", `Ordre de l'agenda : ${r.noms.join(", ")}`, "/gestion/equipe");
+    return Response.json(r);
   } catch (e) {
     return reponseErreur(e);
   }
