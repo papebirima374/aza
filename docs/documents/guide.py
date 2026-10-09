@@ -287,7 +287,7 @@ pages.append(page(f"""
 <li>En espèces, tapez ce que la cliente donne : le site calcule la <b>monnaie à rendre</b>.</li>
 <li>« Le compte est bon » : touchez <span class="bouton">Encaisser …</span>.</li>
 </ol></div>{figure("20-caisse-ticket","Le ticket")}{figure("21-caisse-paiement","Le paiement")}</div>
-<div class="encadre"><b>Paiement partagé ou à crédit</b> : touchez « Paiement partagé ou à crédit », puis tapez chaque montant (par exemple une partie en Wave, le reste en espèces). Une vente à crédit demande le téléphone de la cliente : sa fiche indiquera ce qu'elle doit.</div>
+<div class="encadre"><b>À crédit</b> : touchez la tuile <b>📝 À crédit</b>, puis choisissez la cliente (son nom ou son numéro dans « Nom de la cliente »). Elle paie une partie maintenant ? Touchez Espèces (ou Wave…), tapez ce qu'elle donne, puis <b>📝 Le reste à crédit</b>. La caisse affiche « Fatou devra 10 000 F » ; sa fiche aussi. <b>Paiement partagé</b> : une partie en Wave, le reste en espèces…</div>
 <div class="encadre or"><b>Remise</b> : réservée à la direction et au manager, avec un motif obligatoire.</div>
 """, P))
 
@@ -804,9 +804,10 @@ pages.append(page(f"""
 pages.append(page(f"""
 <span class="etiquette">14 · Ce que voient les clientes</span>
 <h2>Réserver en ligne</h2>
-<div class="quatre">{figure("04-resa-choix","1 · La prestation","tel-petit")}{figure("05-resa-heure","2 · Le jour et l'heure","tel-petit")}{figure("06-resa-coordonnees","3 · Ses coordonnées","tel-petit")}{figure("07-resa-confirmee","4 · C'est réservé","tel-petit")}</div>
+<div class="quatre">{figure("113-resa-familles","1 · Une famille de soins","tel-petit")}{figure("114-resa-prestations","2 · Toucher ses soins","tel-petit")}{figure("115-resa-jours","3 · Le jour et l'heure","tel-petit")}{figure("07-resa-confirmee","4 · C'est réservé","tel-petit")}</div>
 <ul class="puces">
 <li>Sans compte, depuis le bouton <b>Réserver</b> présent sur toutes les pages.</li>
+<li><b>Simple</b> : elle touche un univers, puis une famille (« Pose de cils », « Tresses »…) ; seuls ses soins s'affichent, en grandes lignes à toucher. « Continuer » reste sous son pouce. Les jours sont des boutons (« Demain », « sam. 11 oct. »…).</li>
 <li>Elle ne voit que les heures réellement libres, et ne choisit pas la praticienne.</li>
 <li>Si la réservation en ligne est fermée, ou si le soin n'a pas encore de durée, sa demande part sur WhatsApp.</li>
 </ul>""", P))

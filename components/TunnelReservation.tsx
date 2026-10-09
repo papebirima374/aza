@@ -31,6 +31,18 @@ function heure(minutes: number): string {
   return `${Math.floor(minutes / 60)}h${m === 0 ? "" : String(m).padStart(2, "0")}`;
 }
 
+// Les prochains jours en boutons : « Aujourd'hui », « Demain », « sam. 11 oct. »…
+function prochainsJours(n: number) {
+  const depart = new Date(`${aujourdhui()}T12:00:00`);
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(depart);
+    d.setDate(d.getDate() + i);
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const libelle = i === 0 ? "Aujourd'hui" : i === 1 ? "Demain" : d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" });
+    return { date, libelle };
+  });
+}
+
 function jourLisible(date: string): string {
   return new Date(date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
 }
@@ -49,6 +61,8 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
     () => construireCatalogue().parId(params.get("p") ?? "")?.univers ?? "institut",
   );
   const [requete, setRequete] = useState("");
+  // Une famille à la fois (pose de cils, tresses…) : une liste courte, facile à parcourir.
+  const [famille, setFamille] = useState<string | null>(() => construireCatalogue().parId(params.get("p") ?? "")?.familleId ?? null);
   const [date, setDate] = useState("");
   const [moment, setMoment] = useState(MOMENTS[0]);
   const [nom, setNom] = useState("");
@@ -117,13 +131,13 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
   const selection = choix.map((id) => cat.parId(id)).filter((p) => p !== undefined);
   const total = selection.reduce((s, p) => s + p.prix, 0);
 
-  const liste = useMemo(
-    () =>
-      requete.trim().length >= 2
-        ? [{ id: "resultats", nom: "Résultats", prestations: cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, requete)) }]
-        : cat.famillesDe(univers),
-    [requete, univers, cat],
+  const familles = useMemo(() => cat.famillesDe(univers).map((f) => ({ ...f, prestations: f.prestations.filter((p) => p.note !== "Produit") })).filter((f) => f.prestations.length > 0), [univers, cat]);
+  const recherche = requete.trim().length >= 2;
+  const resultats = useMemo(
+    () => (recherche ? cat.prestations.filter((p) => p.note !== "Produit" && correspond(`${p.nom} ${p.famille}`, requete)).slice(0, 30) : []),
+    [recherche, requete, cat],
   );
+  const familleOuverte = familles.find((f) => f.id === famille) ?? null;
 
   function basculer(id: string) {
     setChoix((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
@@ -179,7 +193,7 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
   }
 
   return (
-    <div className="mt-8">
+    <div className={`mt-8 ${etape === 0 && selection.length > 0 ? "pb-24 sm:pb-0" : ""}`}>
       <ol className="mb-6 grid grid-cols-3 gap-2 text-sm font-semibold">
         {ETAPES.map((e, i) => (
           <li
@@ -200,62 +214,114 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
               type="search"
               value={requete}
               onChange={(e) => setRequete(e.target.value)}
-              placeholder="Rechercher une prestation…"
+              placeholder="Rechercher : tresses, vernis, cils…"
               className="w-full rounded-full border border-bordure py-3 pr-4 pl-12 outline-none focus:border-profond"
             />
           </label>
-          {requete.trim().length < 2 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {UNIVERS.map((u) => (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => setUnivers(u.id)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold ${u.id === univers ? "bg-profond text-white" : "bg-creme text-profond"}`}
-                >
-                  {u.nom}
-                </button>
-              ))}
+
+          {recherche ? (
+            <div className="mt-4">
+              {resultats.length === 0 ? (
+                <p className="rounded-2xl bg-creme p-4 text-doux">Aucune prestation ne correspond. Essayez un autre mot.</p>
+              ) : (
+                <ListePrestations prestations={resultats} choix={choix} basculer={basculer} />
+              )}
             </div>
+          ) : (
+            <>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {UNIVERS.map((u) => (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => {
+                      setUnivers(u.id);
+                      setFamille(null);
+                    }}
+                    className={`min-h-11 rounded-full px-4 text-sm font-semibold ${u.id === univers ? "bg-profond text-white" : "bg-creme text-profond"}`}
+                  >
+                    {u.nom}
+                  </button>
+                ))}
+              </div>
+              {familleOuverte ? (
+                <div className="mt-4">
+                  <button type="button" onClick={() => setFamille(null)} className="mb-2 min-h-11 font-semibold text-profond">
+                    ← Toutes les prestations {UNIVERS.find((u) => u.id === univers)?.nom ? `de ${UNIVERS.find((u) => u.id === univers)!.nom}` : ""}
+                  </button>
+                  <h2 className="mb-2 font-serif text-2xl font-semibold text-profond">{familleOuverte.nom}</h2>
+                  <ListePrestations prestations={familleOuverte.prestations} choix={choix} basculer={basculer} />
+                </div>
+              ) : (
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {familles.map((f) => {
+                    const choisies = f.prestations.filter((p) => choix.includes(p.id)).length;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        onClick={() => setFamille(f.id)}
+                        className={`flex min-h-24 flex-col justify-between rounded-2xl border p-3 text-left hover:border-profond ${choisies ? "border-2 border-aza bg-aza/5" : "border-bordure"}`}
+                      >
+                        <span className="font-semibold leading-snug text-profond">{f.nom}</span>
+                        <span className="mt-1 text-xs text-doux">
+                          {choisies ? `✓ ${choisies} choisie${choisies > 1 ? "s" : ""}` : `${f.prestations.length} prestation${f.prestations.length > 1 ? "s" : ""} · dès ${formatPrix(Math.min(...f.prestations.map((p) => p.prix)))}`}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
-          <div className="mt-4 max-h-[26rem] overflow-y-auto rounded-2xl border border-bordure">
-            {liste.map((f) => (
-              <fieldset key={f.id} className="border-b border-bordure last:border-0">
-                <legend className="sr-only">{f.nom}</legend>
-                <p className="sticky top-0 bg-creme px-4 py-2 text-sm font-bold text-profond">{f.nom}</p>
-                {f.prestations.length === 0 && <p className="px-4 py-3 text-doux">Aucune prestation ne correspond.</p>}
-                {f.prestations
-                  .filter((p) => p.note !== "Produit")
-                  .map((p) => (
-                    <label key={p.id} className="flex min-h-12 cursor-pointer items-center gap-3 px-4 py-2 hover:bg-creme/60">
-                      <input
-                        type="checkbox"
-                        checked={choix.includes(p.id)}
-                        onChange={() => basculer(p.id)}
-                        className="h-5 w-5 accent-[#F0349A]"
-                      />
-                      <span className="flex-1">{p.nom}</span>
-                      <span className="prix font-semibold text-profond">{formatPrix(p.prix)}</span>
-                    </label>
-                  ))}
-              </fieldset>
-            ))}
-          </div>
+
+          {/* Téléphone : « Continuer » toujours sous le pouce dès qu'une prestation est choisie. */}
+          {selection.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setEtape(1);
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="fixed inset-x-3 bottom-[4.75rem] z-40 flex min-h-14 items-center justify-between rounded-2xl bg-aza px-5 font-bold text-white shadow-xl sm:hidden"
+            >
+              <span>
+                {selection.length} choisie{selection.length > 1 ? "s" : ""} · <span className="prix">{formatPrix(total)}</span>
+              </span>
+              <span>Continuer →</span>
+            </button>
+          )}
         </div>
       )}
 
       {etape === 1 && (
         <div className="space-y-6">
-          <label className="block">
-            <span className="font-semibold">Quel jour ?</span>
-            <input
-              type="date"
-              min={aujourdhui()}
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="mt-2 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond"
-            />
-          </label>
+          <fieldset>
+            <legend className="font-semibold">Quel jour ?</legend>
+            <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {prochainsJours(8).map((j) => (
+                <button
+                  key={j.date}
+                  type="button"
+                  onClick={() => setDate(j.date)}
+                  aria-pressed={date === j.date}
+                  className={`min-h-14 rounded-xl border px-2 text-sm font-semibold leading-tight ${date === j.date ? "border-profond bg-profond text-white" : "border-bordure hover:border-profond"}`}
+                >
+                  {j.libelle}
+                </button>
+              ))}
+            </div>
+            <label className="mt-3 block text-sm text-doux">
+              Autre date :
+              <input
+                type="date"
+                min={aujourdhui()}
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className="ml-2 rounded-xl border border-bordure px-3 py-2 outline-none focus:border-profond"
+              />
+            </label>
+          </fieldset>
           {enLigne ? (
             <ChoixCreneau
               date={date}
@@ -436,5 +502,34 @@ function ChoixCreneau(props: {
         </p>
       )}
     </div>
+  );
+}
+
+function ListePrestations(props: { prestations: { id: string; nom: string; prix: number }[]; choix: string[]; basculer: (id: string) => void }) {
+  return (
+    <ul className="divide-y divide-bordure overflow-hidden rounded-2xl border border-bordure">
+      {props.prestations.map((p) => {
+        const pris = props.choix.includes(p.id);
+        return (
+          <li key={p.id}>
+            <button
+              type="button"
+              onClick={() => props.basculer(p.id)}
+              aria-pressed={pris}
+              className={`flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left ${pris ? "bg-aza/10" : "hover:bg-creme/60"}`}
+            >
+              <span
+                className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold ${pris ? "border-aza bg-aza text-white" : "border-bordure text-transparent"}`}
+                aria-hidden
+              >
+                ✓
+              </span>
+              <span className="flex-1">{p.nom}</span>
+              <span className="prix font-semibold text-profond">{formatPrix(p.prix)}</span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

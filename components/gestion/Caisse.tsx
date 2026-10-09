@@ -643,7 +643,8 @@ function Editeur(props: {
                 }}
                 onBlur={() => setTimeout(() => setChoixOuvert(false), 150)}
                 autoComplete="off"
-                className="mt-1 block w-full rounded-xl border border-bordure px-4 py-2.5 font-normal"
+                id="cliente-nom"
+                className={`mt-1 block w-full rounded-xl border px-4 py-2.5 font-normal ${credit > 0 && !clienteConnue ? "border-2 border-aza" : "border-bordure"}`}
               />
             </label>
             {choixOuvert && suggestions.length > 0 && (
@@ -808,10 +809,14 @@ function Editeur(props: {
       <h3 className="mt-5 font-semibold">Paiement</h3>
       <p className="text-xs text-doux">Touchez le moyen de paiement de la cliente.</p>
       <div className="mt-2 grid grid-cols-3 gap-2">
-        {MODES.filter((m) => m.id !== "credit").map((m) => (
+        {MODES.map((m) => (
           <button
             key={m.id}
-            onClick={() => (m.id === "carte-cadeau" ? setPanneauCarte(true) : toutEn(m.id))}
+            onClick={() => {
+              if (m.id === "carte-cadeau") return setPanneauCarte(true);
+              toutEn(m.id);
+              if (m.id === "credit" && !clienteConnue) setTimeout(() => document.getElementById("cliente-nom")?.focus(), 50);
+            }}
             disabled={total === 0 || (m.id === "carte-cadeau" && Boolean(carte))}
             className={`flex min-h-16 flex-col items-center justify-center rounded-2xl border-2 px-1 font-bold disabled:opacity-40 ${TUILE[m.id]} ${
               nombre(montants[m.id] ?? "") >= total && total > 0 ? "ring-4 ring-profond/40" : ""
@@ -820,7 +825,7 @@ function Editeur(props: {
             <span className="text-2xl" aria-hidden>
               {ICONE[m.id]}
             </span>
-            <span className="text-xs leading-tight">{m.libelle}</span>
+            <span className="text-xs leading-tight">{m.id === "credit" ? "À crédit" : m.libelle}</span>
           </button>
         ))}
       </div>
@@ -897,7 +902,7 @@ function Editeur(props: {
             </label>
           )}
           <button onClick={() => setPartage(true)} className="mt-3 text-sm font-semibold text-profond underline">
-            Paiement partagé ou à crédit
+            Paiement partagé (plusieurs moyens)
           </button>
         </>
       )}
@@ -912,7 +917,32 @@ function Editeur(props: {
                 ? "Le compte est bon."
                 : ""}
       </p>
-      {credit > 0 && !clienteConnue && <p className="text-sm font-semibold text-aza-fonce">Une vente à crédit demande le téléphone de la cliente.</p>}
+      {/* Elle paie une partie maintenant, le reste plus tard : un toucher. */}
+      {reste > 0 && lignes.length > 0 && !renduImpossible && (recu > 0 || credit > 0) && (
+        <button
+          onClick={() => {
+            setMontants({ ...montants, credit: String(credit + reste) });
+            if (!clienteConnue) setTimeout(() => document.getElementById("cliente-nom")?.focus(), 50);
+          }}
+          className="mt-1 min-h-11 rounded-full border-2 border-profond px-4 text-sm font-bold text-profond"
+        >
+          📝 Le reste à crédit ({formatPrix(reste)})
+        </button>
+      )}
+      {credit > 0 && !clienteConnue && (
+        <div className="mt-2 rounded-2xl border-2 border-aza bg-aza/5 p-3 text-sm">
+          <p className="font-bold text-aza-fonce">📝 Vente à crédit : choisissez la cliente.</p>
+          <p className="mt-0.5 text-doux">Tapez son nom ou son numéro dans « Nom de la cliente » (plus haut) et touchez-la dans la liste. Nouvelle cliente : son nom et son téléphone.</p>
+          <button onClick={() => document.getElementById("cliente-nom")?.focus()} className="mt-2 min-h-10 rounded-full bg-profond px-4 font-bold text-white">
+            Choisir la cliente
+          </button>
+        </div>
+      )}
+      {credit > 0 && clienteConnue && (
+        <p className="mt-2 rounded-xl bg-creme px-3 py-2 text-sm font-semibold">
+          📝 {b.cliente?.nom ?? nom} devra <span className="prix">{formatPrix(credit)}</span> (visible sur sa fiche ; elle réglera plus tard à la caisse).
+        </p>
+      )}
 
       <button
         disabled={!pret}
