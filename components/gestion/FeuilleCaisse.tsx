@@ -17,7 +17,7 @@ import { texteWhatsApp } from "@/lib/whatsapp";
 // comptable tirent aussi la feuille de toute la journée (toutes les caisses).
 // Sur l'imprimante de tickets (même réglage que les reçus) ou sur une feuille A4.
 
-type Totaux = { parMode: Record<string, number>; recette: number; especesAttendues: number; nombre: number };
+type Totaux = { parMode: Record<string, number>; recette: number; depenses?: number; especesAttendues: number; nombre: number };
 type CaisseJour = {
   id: string;
   uid: string;
@@ -222,6 +222,7 @@ function lignesRecette(j: Journal, caisse: CaisseJour | null, imprimePar: string
     for (const c of j.caisses) L.push({ texte: `${c.ouvertPar.nom} (${c.totaux.nombre} ticket${c.totaux.nombre > 1 ? "s" : ""})`, montant: montantTexte(c.totaux.recette) });
   }
   L.push({ trait: true }, { texte: "ESPÈCES", gras: true }, { texte: caisse ? "Fond de caisse" : "Fonds de caisse", montant: montantTexte(fond) });
+  if (t.depenses) L.push({ texte: "- Dépenses payées par la caisse", montant: montantTexte(t.depenses) });
   L.push({ texte: "Espèces attendues", montant: montantTexte(t.especesAttendues), gras: true });
   const clos = caisse ? (caisse.cloture ? [caisse] : []) : j.caisses.filter((c) => c.cloture);
   for (const c of clos) L.push({ texte: `Écart ${caisse ? "" : c.ouvertPar.nom}${c.cloture!.justification ? ` (${c.cloture!.justification})` : ""}`.trim(), montant: `${c.cloture!.ecart > 0 ? "+" : ""}${montantTexte(c.cloture!.ecart)}` });
@@ -425,6 +426,7 @@ function Contenu(props: { j: Journal; caisse: CaisseJour | null; detail: boolean
       <p className="font-bold">ESPÈCES {caisse ? "DU TIROIR" : "DES TIROIRS"}</p>
       <Rangee a={caisse ? "Fond de caisse" : "Fonds de caisse"} b={formatPrix(fond)} />
       <Rangee a="+ Espèces encaissées" b={formatPrix(especesEncaissees)} />
+      {t.depenses ? <Rangee a="− Dépenses payées par la caisse" b={formatPrix(t.depenses)} /> : null}
       <Rangee a="= Espèces attendues" b={formatPrix(t.especesAttendues)} gras />
       {caisse ? (
         caisse.cloture ? (

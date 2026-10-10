@@ -154,6 +154,7 @@ pages.append(page(f"""
 <li><b>Catalogue</b> : changer un prix, ajouter ou masquer une prestation — appliqué partout en moins d'une minute, avec trace.</li>
 <li><b>Réglages</b> : horaires, fermetures, postes, durées, règles d'acompte, ouverture de la réservation en ligne.</li>
 <li><b>Équipe</b> : un compte par personne, un rôle, des compétences ; des <b>accès sur mesure</b> (ex. les Rapports au caissier) ; nouveau mot de passe en un toucher.</li>
+<li><b>💸 Dépenses du jour</b> : eau, taxi, produits, avances… notées en trois gestes ; l'argent pris dans le tiroir est déduit à la clôture ; chaque jour la recette, les dépenses et ce qui reste, et le bilan du mois.</li>
 <li><b>Qui a fait quoi</b> : chaque encaissement, annulation, remise, changement de prix ou d'accès est noté avec le nom de la personne et l'heure — impossible à effacer.</li>
 </ul>""", P))
 

@@ -473,6 +473,33 @@ pages.append(page(f"""
 <div class="encadre or"><b>La direction</b> règle tout dans Plus ▾ → Réglages → 💗 Carte de fidélité : 1 point par passage (ou selon le montant), le nombre de passages, le cadeau écrit en clair (ou une remise en francs). Puis « Programme actif ».</div>
 """, P))
 
+# 5 bis. Dépenses
+pages.append(page(f"""
+<span class="etiquette">5 · La caisse</span>
+<h2>Les dépenses du jour : onglet « Dépenses »</h2>
+<p class="chapeau">Tout ce que l'institut paie dans la journée (eau, taxi, produits, avance sur salaire…) se note en trois gestes. Le soir, la caisse en tient compte toute seule.</p>
+{duo('''<ol class="etapes">
+<li>Touchez <span class="touche">Dépenses</span> dans la barre du haut (ou <span class="touche">💸 Dépense</span> sur l'écran de caisse).</li>
+<li>Tapez le <b>montant</b>, touchez le <b>type</b> (🛒 Produits, 🚕 Transport, 🍽️ Repas, 👩 Salaires et avances, 💡 Électricité…) et, si besoin, un <b>détail</b> : « 2 bidons d'eau ».</li>
+<li>Touchez <b>comment</b> elle a été payée : Espèces, Wave, Orange Money…</li>
+<li>Payée avec l'argent du tiroir ? Laissez cochée <b>« Pris dans mon tiroir de caisse »</b> : ces espèces sont <b>déduites</b> des espèces attendues à votre clôture. Plus d'écart inexpliqué.</li>
+<li>Touchez <span class="bouton">Enregistrer la dépense</span>.</li>
+</ol>''', "123-depenses", "Noter une dépense")}
+<ul class="puces">
+<li>Une erreur ? <b>Annuler</b>, avec le motif : la dépense reste visible, barrée. Une dépense ne s'efface jamais ; celle d'une caisse déjà clôturée ne s'annule plus.</li>
+<li>Chacun note ses dépenses ; seuls son auteur, la direction et le manager peuvent en annuler une.</li>
+<li>La feuille de caisse montre la ligne « − Dépenses payées par la caisse ».</li>
+</ul>
+""", P))
+pages.append(page(f"""
+<span class="etiquette">5 · La caisse</span>
+<h2>Ce qui reste : recette moins dépenses</h2>
+{duo('''<p>La direction, le manager et le comptable voient en haut de l'onglet, pour chaque jour, trois chiffres : <b>Recette du jour</b>, <b>Dépenses du jour</b> et <b>Il reste</b>.</p>
+<p>Plus bas, le <b>bilan du mois</b> : la recette, les dépenses et ce qui reste ; les dépenses <b>par type</b> (combien en transport, en produits…) ; et le tableau <b>jour par jour</b>. Touchez un jour pour voir le détail de ses dépenses.</p>
+<p>Changez de mois avec le sélecteur en haut du bilan.</p>
+<div class="encadre or"><b>Qui voit quoi.</b> L'accueil note les dépenses et voit la liste du jour. Le comptable lit tout, sans rien noter. Les praticiennes ne voient pas cet onglet. La direction peut donner ou retirer l'accès « Dépenses » à une personne (Équipe → Accès).</div>''', "124-depenses-mois", "Le bilan du mois")}
+""", P))
+
 # 6. Clientes
 pages.append(page(f"""
 <span class="etiquette">6 · Les clientes</span>

@@ -514,7 +514,20 @@ type TicketLu = {
   par: { nom: string };
 };
 
-function totaux(fond: number, tickets: TicketLu[]) {
+/** Espèces sorties du tiroir de chaque caisse ce jour-là (dépenses non annulées). */
+async function sortiesDesCaisses(du: string, au = du): Promise<Map<string, number>> {
+  const snap = await db().collection("depenses").where("date", ">=", du).where("date", "<=", au).get();
+  const res = new Map<string, number>();
+  for (const d of snap.docs) {
+    const caisse = d.get("caisse") as string | undefined;
+    if (!caisse || d.get("annulee")) continue;
+    res.set(caisse, (res.get(caisse) ?? 0) + ((d.get("montant") as number) ?? 0));
+  }
+  return res;
+}
+
+/** `depenses` : les espèces sorties du tiroir pour payer une dépense. */
+function totaux(fond: number, tickets: TicketLu[], depenses = 0) {
   const parMode: Record<string, number> = {};
   for (const t of tickets) {
     for (const p of t.paiements) parMode[p.mode] = (parMode[p.mode] ?? 0) + p.montant;
@@ -522,7 +535,7 @@ function totaux(fond: number, tickets: TicketLu[]) {
     if (t.rendu) parMode.especes = (parMode.especes ?? 0) - t.rendu;
   }
   const recette = tickets.reduce((s, t) => s + recetteDuTicket(t), 0);
-  return { parMode, recette, especesAttendues: fond + (parMode.especes ?? 0), nombre: tickets.filter((t) => t.type === "vente").length };
+  return { parMode, recette, depenses, especesAttendues: fond + (parMode.especes ?? 0) - depenses, nombre: tickets.filter((t) => t.type === "vente").length };
 }
 
 /** Voit toutes les caisses du jour (et pas seulement la sienne). */
@@ -532,7 +545,7 @@ export function voitToutesLesCaisses(membre: Membre) {
 
 type CaisseLue = FirebaseFirestore.DocumentSnapshot;
 
-function decrireCaisse(c: CaisseLue, tickets: TicketLu[]) {
+function decrireCaisse(c: CaisseLue, tickets: TicketLu[], sorties: Map<string, number>) {
   const siens = tickets.filter((t) => caisseDuTicket(t) === c.id);
   const fond = (c.get("fond") as number | undefined) ?? 0;
   return {
@@ -545,7 +558,7 @@ function decrireCaisse(c: CaisseLue, tickets: TicketLu[]) {
     ouvertLe: (c.get("ouvertLe") as Timestamp | undefined)?.toMillis?.() ?? null,
     cloture: c.get("cloture") ? { ...c.get("cloture"), le: (c.get("cloture.le") as Timestamp | undefined)?.toMillis?.() ?? null } : null,
     ticketsApresCloture: (c.get("ticketsApresCloture") as string[] | undefined) ?? [],
-    totaux: totaux(fond, siens),
+    totaux: totaux(fond, siens, sorties.get(c.id) ?? 0),
   };
 }
 
@@ -618,16 +631,17 @@ export async function sessionsCaisse(membre: Membre, duBrut?: string, auBrut?: s
   if (du > au) throw new Erreur("La date de début est après la date de fin.", 400);
   if ((Date.parse(`${au}T12:00:00Z`) - Date.parse(`${du}T12:00:00Z`)) / 86_400_000 > 93) throw new Erreur("Choisissez une période de 3 mois au plus.", 400);
   const base = db();
-  const [caissesSnap, ticketsSnap] = await Promise.all([
+  const [caissesSnap, ticketsSnap, sorties] = await Promise.all([
     base.collection("caisses").where("date", ">=", du).where("date", "<=", au).get(),
     base.collection("tickets").where("date", ">=", du).where("date", "<=", au).get(),
+    sortiesDesCaisses(du, au),
   ]);
   const tickets = ticketsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as TicketLu);
   const parJour = new Map<string, ReturnType<typeof decrireCaisse>[]>();
   for (const c of caissesSnap.docs) {
     const date = c.get("date") as string;
     const liste = parJour.get(date) ?? [];
-    liste.push(decrireCaisse(c, tickets.filter((t) => t.date === date)));
+    liste.push(decrireCaisse(c, tickets.filter((t) => t.date === date), sorties));
     parJour.set(date, liste);
   }
   const jours = [...parJour.entries()]
@@ -653,9 +667,9 @@ export async function journal(membre: Membre, dateBrute?: string) {
   exigerJournal(membre);
   const date = dateBrute && /^\d{4}-\d{2}-\d{2}$/.test(dateBrute) ? dateBrute : maintenantDakar().date;
   const base = db();
-  const [caissesSnap, snap] = await Promise.all([base.collection("caisses").where("date", "==", date).get(), base.collection("tickets").where("date", "==", date).get()]);
+  const [caissesSnap, snap, sorties] = await Promise.all([base.collection("caisses").where("date", "==", date).get(), base.collection("tickets").where("date", "==", date).get(), sortiesDesCaisses(date)]);
   const tickets = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TicketLu).sort((a, b) => a.numero - b.numero);
-  const caisses = caissesSnap.docs.map((c) => decrireCaisse(c, tickets)).sort((a, b) => (a.ouvertLe ?? 0) - (b.ouvertLe ?? 0));
+  const caisses = caissesSnap.docs.map((c) => decrireCaisse(c, tickets, sorties)).sort((a, b) => (a.ouvertLe ?? 0) - (b.ouvertLe ?? 0));
   const mienne = caisses.find((c) => c.id === idCaisse(date, membre.uid)) ?? caisses.find((c) => c.commune && c.uid === membre.uid) ?? null;
   const tout = voitToutesLesCaisses(membre);
   const visibles = tout ? tickets : tickets.filter((t) => mienne && caisseDuTicket(t) === mienne.id);
@@ -667,7 +681,11 @@ export async function journal(membre: Membre, dateBrute?: string) {
     caisses: tout ? caisses : mienne ? [mienne] : [],
     voitTout: tout,
     tickets: visibles,
-    totaux: totaux(tout ? caisses.reduce((s, c) => s + c.fond, 0) : (mienne?.fond ?? 0), visibles),
+    totaux: totaux(
+      tout ? caisses.reduce((s, c) => s + c.fond, 0) : (mienne?.fond ?? 0),
+      visibles,
+      tout ? caisses.reduce((s, c) => s + c.totaux.depenses, 0) : (mienne?.totaux.depenses ?? 0),
+    ),
   };
 }
 
@@ -695,9 +713,10 @@ export async function cloturerCaisse(membre: Membre, compteBrut: unknown, justif
       }
       if (caisse.get("statut") !== "ouverte") throw new Erreur("Cette caisse est déjà clôturée.", 409);
     } else caisse = await caisseOuverte(tx, membre, date);
-    const snap = await tx.get(base.collection("tickets").where("date", "==", date));
+    const [snap, sorties] = await Promise.all([tx.get(base.collection("tickets").where("date", "==", date)), tx.get(base.collection("depenses").where("caisse", "==", caisse.id))]);
     const tickets = snap.docs.map((d) => d.data() as TicketLu).filter((t) => caisseDuTicket(t) === caisse.id);
-    const t = totaux(caisse.get("fond") as number, tickets);
+    const depenses = sorties.docs.filter((d) => !d.get("annulee")).reduce((s, d) => s + ((d.get("montant") as number) ?? 0), 0);
+    const t = totaux(caisse.get("fond") as number, tickets, depenses);
     const ecart = compte - t.especesAttendues;
     if (ecart !== 0 && justification.length < 3) {
       throw new Erreur(`Écart de ${new Intl.NumberFormat("fr-FR").format(ecart)} F : indiquez la raison.`, 400);
@@ -711,6 +730,7 @@ export async function cloturerCaisse(membre: Membre, compteBrut: unknown, justif
         justification,
         recette: t.recette,
         parMode: t.parMode,
+        depenses: t.depenses,
         nombreTickets: t.nombre,
         par: trace(membre),
         le: Timestamp.now(),

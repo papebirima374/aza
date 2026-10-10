@@ -21,7 +21,7 @@ import { peut } from "@/lib/acces";
 // (rendez-vous terminés ou vente libre), paiement réparti sur plusieurs moyens, tickets du
 // jour, annulation par avoir, clôture du soir avec comptage et écart justifié.
 
-type Totaux = { parMode: Record<string, number>; recette: number; especesAttendues: number; nombre: number };
+type Totaux = { parMode: Record<string, number>; recette: number; depenses?: number; especesAttendues: number; nombre: number };
 // Une caisse par personne et par jour : son fond, ses tickets, sa clôture.
 type CaisseJour = {
   id: string;
@@ -217,6 +217,11 @@ export function Caisse() {
                 </button>
               )}
             </>
+          )}
+          {pointDeVente && peut(compte, "depenses") && (
+            <Link href="/gestion/depenses" className={outil}>
+              💸 Dépense
+            </Link>
           )}
           {journal?.voitTout && (
             <Link href="/gestion/caisse/sessions" className={outil}>
@@ -1133,6 +1138,17 @@ function Bilan({ caisse: c, date, attente, cloturer }: { caisse: CaisseJour; dat
           <dt>Mon fond de caisse</dt>
           <dd className="prix">{formatPrix(c.fond)}</dd>
         </div>
+        {t.depenses ? (
+          <div className="flex justify-between">
+            <dt>
+              Dépenses payées avec mon tiroir{" "}
+              <Link href="/gestion/depenses" className="text-doux underline">
+                (voir)
+              </Link>
+            </dt>
+            <dd className="prix">−{formatPrix(t.depenses)}</dd>
+          </div>
+        ) : null}
         <div className="flex justify-between font-bold text-profond">
           <dt>Espèces attendues dans mon tiroir</dt>
           <dd className="prix">{formatPrix(t.especesAttendues)}</dd>

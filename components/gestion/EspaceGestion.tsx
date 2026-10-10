@@ -138,6 +138,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
             { href: "/gestion", libelle: telephonePerso ? "Ma journée" : "Agenda", visible: true },
             { href: "/gestion/clientes", libelle: "Clientes", visible: Boolean(compte && peut(compte, "clientes")) },
             { href: "/gestion/caisse", libelle: "Caisse", visible: Boolean(compte && (peut(compte, "caisse") || compte.role === "comptable")) },
+            { href: "/gestion/depenses", libelle: "Dépenses", visible: Boolean(compte && (peut(compte, "depenses") || peut(compte, "rapports"))) },
             { href: "/gestion/commandes", libelle: "Commandes", visible: Boolean(compte && peut(compte, "commandes")) },
             { href: "/gestion/stock", libelle: "Stock", visible: Boolean(compte && (["accueil", "comptable"].includes(compte.role) || peut(compte, "stock"))) },
           ]

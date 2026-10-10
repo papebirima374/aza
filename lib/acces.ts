@@ -14,6 +14,7 @@ export type Acces =
   | "journal"
   | "clientes"
   | "caisse"
+  | "depenses"
   | "remises"
   | "commandes"
   | "stock"
@@ -21,6 +22,7 @@ export type Acces =
 
 export const ACCES: { id: Acces; libelle: string; detail: string; roles: Role[] }[] = [
   { id: "caisse", libelle: "Caisse", detail: "ouvrir, encaisser, clôturer, cartes cadeaux", roles: ["direction", "manager", "accueil"] },
+  { id: "depenses", libelle: "Dépenses", detail: "noter les dépenses du jour (achats, transport, avances…)", roles: ["direction", "manager", "accueil"] },
   { id: "remises", libelle: "Remises et annulations", detail: "accorder une remise, annuler un ticket par un avoir", roles: ["direction", "manager"] },
   { id: "clientes", libelle: "Fichier clientes", detail: "fiches, allergies, crédits", roles: ["direction", "manager", "accueil"] },
   { id: "commandes", libelle: "Commandes et devis", detail: "boutique en ligne, perruques sur mesure", roles: ["direction", "manager", "accueil"] },
