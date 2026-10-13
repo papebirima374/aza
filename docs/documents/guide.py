@@ -540,6 +540,8 @@ pages.append(page(f"""
 <li>Touchez <b>« Voir et fusionner »</b> : chaque numéro en double, avec ses fiches.</li>
 <li><span class="bouton">Fusionner en une seule fiche</span> : le crédit, les points et les passages s'additionnent ; les rendez-vous, tickets, commandes et avis sont rattachés à la fiche unique. Rien n'est perdu.</li>
 </ol>
+<h3>Importer une liste de clientes</h3>
+<p><b>📥 Importer des clientes</b> (direction, manager) : un fichier CSV <b>Nom ; Téléphone</b> (et Notes). Le compte rendu s'affiche d'abord, sans rien enregistrer : les fiches à créer, les numéros qui ont <b>déjà une fiche</b> (laissés de côté, la fiche n'est pas touchée), les numéros répétés, les lignes refusées (sans numéro, numéro incomplet). Puis <span class="bouton">Créer les … fiches</span>. Relancer le même fichier ne crée rien une seconde fois.</p>
 </div>{figure("122-doublons","Les doublons")}</div>
 """, P))
 

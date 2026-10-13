@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
+import { ImporterClientes } from "@/components/gestion/ImporterClientes";
 import { telephoneAffiche } from "@/lib/telephone";
 import { formatPrix } from "@/lib/catalogue";
 import { ressemble } from "@/lib/recherche";
@@ -98,6 +99,7 @@ export function Clientes() {
   }
   const [creation, setCreation] = useState(false);
   const [auj] = useState(() => Date.now());
+  const [version, setVersion] = useState(0);
 
   useEffect(() => {
     let actif = true;
@@ -111,7 +113,7 @@ export function Clientes() {
     return () => {
       actif = false;
     };
-  }, [compte.user]);
+  }, [compte.user, version]);
 
   const comptes = useMemo(() => Object.fromEntries(GROUPES.map((g) => [g.id, (liste ?? []).filter((c) => g.test(c, auj)).length])), [liste, auj]);
   const visibles = useMemo(() => {
@@ -131,7 +133,12 @@ export function Clientes() {
         </button>
       </div>
       {creation && <Creation fermer={() => setCreation(false)} />}
-      {(compte.role === "direction" || compte.role === "manager") && <Doublons />}
+      {(compte.role === "direction" || compte.role === "manager") && (
+        <>
+          <ImporterClientes fait={() => setVersion((v) => v + 1)} />
+          <Doublons />
+        </>
+      )}
 
       <input
         type="search"

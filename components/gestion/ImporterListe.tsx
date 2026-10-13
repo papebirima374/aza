@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { FAMILLES, formatPrix } from "@/lib/catalogue";
 import { rafraichirCatalogue } from "@/lib/client/catalogue";
+import { lireLignesCsv, simpleCsv } from "@/lib/client/csv";
 
 // Importer une liste dans le catalogue (par exemple la reprise de l'ancienne application) :
 // un fichier CSV « Nom ; Famille ; Prix ; Type ; Sur le site ». D'abord un compte rendu (rien
@@ -19,40 +20,9 @@ type Rapport = {
   importees?: number;
 };
 
-const simple = (t: string) =>
-  t
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-
-/** Une ligne CSV (séparateur ; ou ,), avec les guillemets d'Excel. */
-function champs(ligne: string, sep: string): string[] {
-  const res: string[] = [];
-  let cur = "";
-  let guillemets = false;
-  for (let i = 0; i < ligne.length; i++) {
-    const c = ligne[i];
-    if (c === '"') {
-      if (guillemets && ligne[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else guillemets = !guillemets;
-    } else if (c === sep && !guillemets) {
-      res.push(cur);
-      cur = "";
-    } else cur += c;
-  }
-  res.push(cur);
-  return res.map((x) => x.trim());
-}
-
 export function lireCsv(texte: string): { lignes: Ligne[]; erreurs: string[] } {
-  const brutes = texte.replace(/^﻿/, "").split(/\r?\n/).filter((l) => l.trim());
-  if (brutes.length === 0) return { lignes: [], erreurs: ["Le fichier est vide."] };
-  const sep = (brutes[0].match(/;/g)?.length ?? 0) >= (brutes[0].match(/,/g)?.length ?? 0) ? ";" : ",";
-  const entete = champs(brutes[0], sep).map(simple);
+  const { entete, lignes: brutes } = lireLignesCsv(texte);
+  if (entete.length === 0) return { lignes: [], erreurs: ["Le fichier est vide."] };
   const avecEntete = entete.includes("nom") && entete.some((x) => x.startsWith("famille"));
   const col = (nom: string, defaut: number) => {
     const i = entete.findIndex((x) => x.startsWith(nom));
@@ -61,21 +31,20 @@ export function lireCsv(texte: string): { lignes: Ligne[]; erreurs: string[] } {
   const [cNom, cFam, cPrix, cType, cSite] = [col("nom", 0), col("famille", 1), col("prix", 2), col("type", 3), col("sur le site", 4)];
   const familles = new Map<string, string>();
   for (const f of FAMILLES) {
-    familles.set(simple(f.id), f.id);
-    familles.set(simple(f.nom), f.id);
+    familles.set(simpleCsv(f.id), f.id);
+    familles.set(simpleCsv(f.nom), f.id);
   }
   const lignes: Ligne[] = [];
   const erreurs: string[] = [];
-  (avecEntete ? brutes.slice(1) : brutes).forEach((l, i) => {
-    const c = champs(l, sep);
-    const familleId = familles.get(simple(c[cFam] ?? ""));
+  (avecEntete ? brutes.slice(1) : brutes).forEach((c, i) => {
+    const familleId = familles.get(simpleCsv(c[cFam] ?? ""));
     if (!familleId) return erreurs.push(`Ligne ${i + 1} : famille inconnue « ${c[cFam] ?? ""} »`);
-    const site = simple(c[cSite] ?? "oui");
+    const site = simpleCsv(c[cSite] ?? "oui");
     lignes.push({
       nom: c[cNom] ?? "",
       familleId,
       prix: Math.round(Number((c[cPrix] ?? "").replace(/[^\d,.-]/g, "").replace(",", "."))),
-      produit: simple(c[cType] ?? "").startsWith("produit"),
+      produit: simpleCsv(c[cType] ?? "").startsWith("produit"),
       site: !["non", "0", "faux", "no"].includes(site),
     });
   });

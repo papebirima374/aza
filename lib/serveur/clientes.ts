@@ -318,3 +318,60 @@ export async function alerteCliente(membre: Membre, rdvId: string) {
       .map(([k, v]) => ({ champ: k, valeur: v })),
   };
 }
+
+type ClienteImport = { nom: string; telephone: string; notes?: string };
+export type ResultatImportClientes = {
+  nouvelles: ClienteImport[];
+  existantes: (ClienteImport & { nomActuel: string })[];
+  doublons: ClienteImport[];
+  refusees: { ligne: number; raison: string }[];
+  importees?: number;
+};
+
+/**
+ * Importer des clientes (reprise de l'ancienne application). Un numéro = une cliente : un
+ * numéro qui a déjà une fiche (même écrit autrement) est laissé de côté sans rien toucher à
+ * la fiche ; un numéro répété dans la liste n'est pris qu'une fois. `essai` : seulement le
+ * compte rendu, rien n'est écrit. Direction et manager.
+ */
+export async function importerClientes(membre: Membre, brut: unknown, essai: boolean): Promise<ResultatImportClientes> {
+  exiger(membre);
+  if (membre.role !== "direction" && membre.role !== "manager") throw new Erreur("Réservé à la direction et au manager.", 403);
+  if (!Array.isArray(brut) || brut.length === 0) throw new Erreur("La liste est vide.", 400);
+  if (brut.length > 5000) throw new Erreur("5 000 clientes au plus par import.", 400);
+  const base = db();
+  const fiches = await base.collection("clientes").get();
+  const deja = new Map<string, string>();
+  for (const d of fiches.docs) {
+    deja.set(telephoneCanonique(d.id), (d.get("nom") as string) ?? "");
+    const t = d.get("telephone") as string | undefined;
+    if (t) deja.set(telephoneCanonique(t), (d.get("nom") as string) ?? "");
+  }
+  const vus = new Set<string>();
+  const res: ResultatImportClientes = { nouvelles: [], existantes: [], doublons: [], refusees: [] };
+  brut.forEach((x, i) => {
+    const nom = String(x?.nom ?? "").trim().replace(/\s+/g, " ").slice(0, CHAMPS_TEXTE.nom);
+    const brutTel = String(x?.telephone ?? "").trim();
+    const notes = String(x?.notes ?? "").trim().slice(0, CHAMPS_TEXTE.notes);
+    if (nom.length < 2) return res.refusees.push({ ligne: i + 1, raison: "nom manquant" });
+    if (!brutTel) return res.refusees.push({ ligne: i + 1, raison: `${nom} : pas de numéro` });
+    if (!telephoneValide(brutTel)) return res.refusees.push({ ligne: i + 1, raison: `${nom} : numéro invalide (${brutTel})` });
+    const telephone = telephoneCanonique(brutTel);
+    const ligne: ClienteImport = { nom, telephone, ...(notes ? { notes } : {}) };
+    if (deja.has(telephone)) return res.existantes.push({ ...ligne, nomActuel: deja.get(telephone)! });
+    if (vus.has(telephone)) return res.doublons.push(ligne);
+    vus.add(telephone);
+    res.nouvelles.push(ligne);
+  });
+  if (essai || res.nouvelles.length === 0) return res;
+  const trace = { modifiePar: { uid: membre.uid, nom: membre.nom }, modifieLe: FieldValue.serverTimestamp() };
+  for (let i = 0; i < res.nouvelles.length; i += 400) {
+    const lot = base.batch();
+    // create : refuse d'écraser une fiche qui serait apparue entre-temps.
+    for (const c of res.nouvelles.slice(i, i + 400)) {
+      lot.create(base.doc(`clientes/${c.telephone}`), { nom: c.nom, telephone: c.telephone, ...(c.notes ? { notes: c.notes } : {}), absences: 0, origine: "import", creeLe: FieldValue.serverTimestamp(), ...trace });
+    }
+    await lot.commit();
+  }
+  return { ...res, importees: res.nouvelles.length };
+}

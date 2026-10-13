@@ -1,5 +1,5 @@
 import { membreConnecte } from "@/lib/serveur/agenda";
-import { alerteCliente, changerNumero, doublonsClientes, enregistrerCliente, fusionnerDoublons, ficheCliente, listerClientes, noterRelance } from "@/lib/serveur/clientes";
+import { alerteCliente, changerNumero, doublonsClientes, enregistrerCliente, fusionnerDoublons, ficheCliente, importerClientes, listerClientes, noterRelance } from "@/lib/serveur/clientes";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
 import { noter } from "@/lib/serveur/activite";
@@ -10,6 +10,7 @@ import { noter } from "@/lib/serveur/activite";
 // POST /api/gestion/clientes { id?, telephone?, nom, … }  créer (sans id) ou modifier une fiche
 // POST /api/gestion/clientes { action: "relance", id, type }  noter une relance WhatsApp
 // GET  /api/gestion/clientes?doublons=1    fiches en double (même numéro écrit autrement)
+// POST /api/gestion/clientes { action: "importer", lignes: [{ nom, telephone, notes? }], essai }  reprise d'une liste (direction, manager)
 // POST /api/gestion/clientes { action: "fusionner", cle }  fusionner les doublons d'un numéro (direction, manager)
 // POST /api/gestion/clientes { action: "numero", id, telephone }  changer le numéro (la fiche et son historique suivent)
 const sansCache = { headers: { "Cache-Control": "no-store" } };
@@ -37,6 +38,11 @@ export async function POST(request: Request) {
       const r = await noterRelance(membre, String(c.id ?? "-"), String(c.type ?? ""));
       const quoi: Record<string, string> = { anniversaire: "souhaité l'anniversaire de", revoir: "relancé", credit: "rappelé son crédit à" };
       await noter(membre, "clientes", `A ${quoi[String(c.type)] ?? "relancé"} ${r.nom} par WhatsApp`, `/gestion/clientes/${String(c.id)}`);
+      return Response.json(r);
+    }
+    if (c?.action === "importer") {
+      const r = await importerClientes(membre, c.lignes, c.essai !== false);
+      if (r.importees) await noter(membre, "clientes", `Liste de clientes importée : ${r.importees} fiches créées (${r.existantes.length} déjà présentes laissées de côté)`, "/gestion/clientes");
       return Response.json(r);
     }
     if (c?.action === "fusionner") {
