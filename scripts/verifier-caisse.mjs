@@ -63,7 +63,7 @@ ok(
   "encaisser avant l'ouverture : refusé",
 );
 ok((await caisse(accueil, { action: "ouvrir", fond: 20000 })).statut === 201, "l'accueil ouvre la caisse avec 20 000 F de fond");
-ok((await caisse(accueil, { action: "ouvrir", fond: 5000 })).statut === 409, "on n'ouvre pas deux fois sa caisse du jour");
+ok((await caisse(accueil, { action: "ouvrir", fond: 5000 })).statut === 409, "on n'ouvre pas une 2e caisse tant que la 1re est ouverte");
 // Chaque personne a sa propre caisse : le manager ouvre la sienne, à côté de celle de l'accueil.
 ok((await caisse(manager, { action: "ouvrir", fond: 0 })).statut === 201, "le manager ouvre SA caisse en même temps (fond 0 F)");
 

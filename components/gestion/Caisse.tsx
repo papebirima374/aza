@@ -251,7 +251,9 @@ export function Caisse() {
           {fait && <Confirmation fait={fait} ticket={journal.tickets.find((t) => t.id === fait.id)} fermer={() => setFait(null)} />}
 
           {/* Ma caisse : chacun ouvre la sienne (son fond), encaisse dedans, la clôture le soir. */}
-          {journal.aujourdhui && tientLaCaisse && !journal.caisse && <Ouvrir ouvrir={(fond) => action({ action: "ouvrir", fond })} />}
+          {journal.aujourdhui && tientLaCaisse && (!journal.caisse || journal.caisse.statut === "cloturee") && (
+            <Ouvrir nouvelle={Boolean(journal.caisse)} ouvrir={(fond) => action({ action: "ouvrir", fond })} />
+          )}
 
           {pointDeVente && (
             <div className="mt-2 grid items-start gap-3 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_27rem] lg:grid-rows-[minmax(0,1fr)] lg:items-stretch">
@@ -420,12 +422,16 @@ export function Caisse() {
   );
 }
 
-function Ouvrir({ ouvrir }: { ouvrir: (fond: number) => void }) {
+function Ouvrir({ ouvrir, nouvelle }: { ouvrir: (fond: number) => void; nouvelle: boolean }) {
   const [fond, setFond] = useState("");
   return (
     <section className="mt-6 rounded-2xl border border-bordure p-5">
-      <h2 className="font-serif text-2xl font-semibold text-profond">Ouvrir ma caisse</h2>
-      <p className="mt-1 text-sm text-doux">Chacun a sa caisse. Comptez les espèces de votre tiroir (le fond de caisse), puis ouvrez.</p>
+      <h2 className="font-serif text-2xl font-semibold text-profond">{nouvelle ? "Ouvrir une nouvelle caisse" : "Ouvrir ma caisse"}</h2>
+      <p className="mt-1 text-sm text-doux">
+        {nouvelle
+          ? "Votre caisse précédente est clôturée (elle reste dans les Sessions de caisse). Vous pouvez en ouvrir une autre aujourd'hui : comptez le fond de caisse, puis ouvrez."
+          : "Chacun a sa caisse. Comptez les espèces de votre tiroir (le fond de caisse), puis ouvrez."}
+      </p>
       <label className="mt-4 block max-w-xs">
         <span className="text-sm font-semibold">Fond de caisse (F CFA)</span>
         <input inputMode="numeric" value={fond} onChange={(e) => setFond(e.target.value)} placeholder="ex. 20 000" className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 text-lg" />

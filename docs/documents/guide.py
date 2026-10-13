@@ -377,7 +377,7 @@ pages.append(page(f"""
 <li>En haut de la Caisse, <span class="touche">🔒 Clôture</span> : le <b>bilan</b> s'ouvre — recette, chaque moyen de paiement, fond de caisse, et les <b>espèces attendues dans le tiroir</b>.</li>
 <li>Comptez les espèces du tiroir et tapez le montant dans « Espèces comptées ».</li>
 <li>« Le compte est juste » ou « Écart : … ». S'il y a un écart, écrivez l'explication (obligatoire).</li>
-<li><span class="bouton" style="background:#7E0A4C">Clôturer ma caisse</span>. Vous ne pouvez plus encaisser ce jour-là ; les autres caisses restent ouvertes.</li>
+<li><span class="bouton" style="background:#7E0A4C">Clôturer ma caisse</span>. Vous ne pouvez plus encaisser dans cette caisse ; les autres caisses restent ouvertes. Besoin d'encaisser encore (après un essai, une 2ᵉ équipe…) ? <b>Ouvrir une nouvelle caisse</b> apparaît : elle repart de son propre fond, et les deux sessions restent dans les Sessions de caisse. Une caisse oubliée un jour passé se clôture après coup depuis <b>Plus ▾ → Sessions de caisse</b>.</li>
 </ol>
 <div class="encadre or"><b>Toutes les caisses du jour</b> (direction, manager, comptable) : bouton <span class="touche">🗂️ Toutes les caisses</span>, chaque caisse avec son état, son tiroir attendu et sa recette. Quelqu'un est parti sans clôturer ? La direction ou le manager touche <span class="touche">Clôturer</span> sur sa ligne et tape les espèces comptées dans son tiroir. Le <b>journal</b> d'un autre jour : « Journal du » en haut de la Caisse.</div></div>
 {figure("103-caisses-du-jour","Toutes les caisses du jour")}{figure("24b-caisse-bilan","Bilan et clôture")}</div>

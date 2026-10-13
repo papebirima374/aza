@@ -12,6 +12,7 @@ import { formatPrix } from "@/lib/catalogue";
 
 type Caisse = {
   id: string;
+  session?: number;
   statut: "ouverte" | "cloturee";
   fond: number;
   ouvertPar: { nom: string };
@@ -152,7 +153,10 @@ export function SessionsCaisse() {
               {j.caisses.map((c) => (
                 <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
                   <div className="min-w-0">
-                    <p className="font-semibold">Caisse de {c.ouvertPar.nom}</p>
+                    <p className="font-semibold">
+                      Caisse de {c.ouvertPar.nom}
+                      {(c.session ?? 1) > 1 && <span className="text-doux"> · {c.session}e session</span>}
+                    </p>
                     <p className="text-sm text-doux">
                       {c.ouvertLe ? `Ouverte à ${heure(c.ouvertLe)}` : "Ouverte"} · fond {formatPrix(c.fond)} · {c.totaux.nombre} ticket{c.totaux.nombre > 1 ? "s" : ""}
                       {" · "}

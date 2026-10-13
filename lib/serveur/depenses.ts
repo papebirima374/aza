@@ -13,7 +13,7 @@ import { CATEGORIES_DEPENSE, MODES_DEPENSE } from "@/lib/caisse/depenses";
 import { recetteDuTicket } from "@/lib/caisse/modes";
 import { exigerAcces } from "@/lib/serveur/acces";
 import type { Membre } from "@/lib/serveur/agenda";
-import { caisseOuverte, idCaisse, trace, voitToutesLesCaisses } from "@/lib/serveur/caisse";
+import { caisseOuverte, trace, voitToutesLesCaisses } from "@/lib/serveur/caisse";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation as Erreur, maintenantDakar } from "@/lib/serveur/reservations";
 
@@ -128,16 +128,17 @@ export async function depensesDuJour(membre: Membre, dateBrute?: string | null) 
   const date = dateBrute && JOUR.test(dateBrute) ? dateBrute : auj;
   const base = db();
   const tout = voitToutesLesCaisses(membre);
-  const [snap, tickets, perso, commune] = await Promise.all([
+  const [snap, tickets, siennes, commune] = await Promise.all([
     base.collection("depenses").where("date", "==", date).get(),
     tout ? base.collection("tickets").where("date", "==", date).get() : null,
-    base.doc(`caisses/${idCaisse(auj, membre.uid)}`).get(),
+    base.collection("caisses").where("date", "==", auj).where("uid", "==", membre.uid).get(),
     base.doc(`caisses/${auj}`).get(),
   ]);
   const depenses = snap.docs.map(lue).sort((a, b) => b.heure - a.heure);
   const total = somme(depenses);
   const recette = tickets ? tickets.docs.reduce((s, d) => s + recetteDuTicket(d.data() as Parameters<typeof recetteDuTicket>[0]), 0) : null;
-  const maCaisse = perso.exists ? perso : commune.exists && commune.get("ouvertPar.uid") === membre.uid ? commune : null;
+  // Une de ses caisses (ses sessions du jour, ou l'ancienne caisse commune) est-elle ouverte ?
+  const ouverte = siennes.docs.some((c) => c.get("statut") === "ouverte") || (commune.exists && !commune.get("uid") && commune.get("ouvertPar.uid") === membre.uid && commune.get("statut") === "ouverte");
   return {
     date,
     aujourdhui: date === auj,
@@ -148,7 +149,7 @@ export async function depensesDuJour(membre: Membre, dateBrute?: string | null) 
     recette,
     reste: recette === null ? null : recette - total,
     peutNoter: peut(membre, "depenses"),
-    maCaisseOuverte: Boolean(peut(membre, "caisse") && maCaisse?.get("statut") === "ouverte"),
+    maCaisseOuverte: Boolean(peut(membre, "caisse") && ouverte),
   };
 }
 

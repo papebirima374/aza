@@ -75,30 +75,38 @@ export function trace(membre: Membre) {
   return { uid: membre.uid, nom: membre.nom };
 }
 
-// Une caisse par personne et par jour : caisses/{date}~{uid} (son fond, ses tickets, sa
-// clôture). Avant ce changement, il n'y avait qu'une caisse commune par jour, caisses/{date} :
-// elle reste lisible, et elle compte comme la caisse de la personne qui l'a ouverte (ses
-// tickets n'ont pas de champ « caisse » : ils lui appartiennent).
-export const idCaisse = (date: string, uid: string) => `${date}~${uid}`;
+// Une caisse par personne et par SESSION : caisses/{date}~{uid} (son fond, ses tickets, sa
+// clôture). Après avoir clôturé, on peut en ouvrir une autre le même jour (un essai, une
+// deuxième équipe…) : caisses/{date}~{uid}~2, ~3… (champ « session »). Avant les caisses par
+// personne, il n'y avait qu'une caisse commune par jour, caisses/{date} : elle reste lisible, et
+// elle compte comme la caisse de la personne qui l'a ouverte (ses tickets n'ont pas de champ
+// « caisse » : ils lui appartiennent).
+export const idCaisse = (date: string, uid: string, session = 1) => `${date}~${uid}${session > 1 ? `~${session}` : ""}`;
 
 /** La caisse d'un ticket (les anciens tickets, sans champ « caisse », sont dans la caisse commune du jour). */
 export const caisseDuTicket = (t: { caisse?: string | null; date: string }) => t.caisse ?? t.date;
 
-/** Celle de cette personne aujourd'hui (la sienne, ou l'ancienne caisse commune qu'elle a ouverte). */
-async function maCaisse(tx: Transaction, membre: Membre, date: string) {
+/** Toutes les caisses de cette personne ce jour-là (ses sessions, et l'ancienne caisse commune qu'elle a ouverte). */
+async function mesCaisses(tx: Transaction, membre: Membre, date: string) {
   const base = db();
-  const perso = await tx.get(base.doc(`caisses/${idCaisse(date, membre.uid)}`));
-  if (perso.exists) return perso;
-  const commune = await tx.get(base.doc(`caisses/${date}`));
-  return commune.exists && commune.get("ouvertPar.uid") === membre.uid ? commune : null;
+  const [siennes, commune] = await Promise.all([tx.get(base.collection("caisses").where("date", "==", date).where("uid", "==", membre.uid)), tx.get(base.doc(`caisses/${date}`))]);
+  const liste: FirebaseFirestore.DocumentSnapshot[] = [...siennes.docs];
+  if (commune.exists && !commune.get("uid") && commune.get("ouvertPar.uid") === membre.uid) liste.push(commune);
+  return liste;
+}
+const sessionDe = (c: FirebaseFirestore.DocumentSnapshot) => (c.get("session") as number | undefined) ?? 1;
+
+/** Sa caisse du moment : celle qui est ouverte, sinon la dernière clôturée. */
+function courante(liste: FirebaseFirestore.DocumentSnapshot[]) {
+  return liste.find((c) => c.get("statut") === "ouverte") ?? [...liste].sort((a, b) => sessionDe(b) - sessionDe(a))[0] ?? null;
 }
 
 /** Sa caisse du jour doit être ouverte (et pas encore clôturée) pour encaisser. */
 export async function caisseOuverte(tx: Transaction, membre: Membre, date: string, horsLigne = false) {
-  const caisse = await maCaisse(tx, membre, date);
+  const caisse = courante(await mesCaisses(tx, membre, date));
   if (!caisse) throw new Erreur("Ouvrez d'abord votre caisse (fond de caisse).", 409);
   // Une vente faite hors connexion avant la clôture est toujours acceptée : aucune vente perdue.
-  if (caisse.get("statut") !== "ouverte" && !horsLigne) throw new Erreur("Votre caisse du jour est clôturée.", 409);
+  if (caisse.get("statut") !== "ouverte" && !horsLigne) throw new Erreur("Votre caisse est clôturée : ouvrez-en une nouvelle pour encaisser.", 409);
   return caisse;
 }
 
@@ -114,13 +122,18 @@ export async function ouvrirCaisse(membre: Membre, fondBrut: unknown) {
   const fond = entier(fondBrut);
   if (!Number.isFinite(fond) || fond < 0 || fond > 10_000_000) throw new Erreur("Fond de caisse invalide.", 400);
   const { date } = maintenantDakar();
-  const ref = db().doc(`caisses/${idCaisse(date, membre.uid)}`);
-  await db().runTransaction(async (tx) => {
-    const deja = await maCaisse(tx, membre, date);
-    if (deja) throw new Erreur(deja.get("statut") === "ouverte" ? "Votre caisse du jour est déjà ouverte." : "Votre caisse du jour est déjà clôturée.", 409);
-    tx.set(ref, { date, uid: membre.uid, statut: "ouverte", fond, ouvertPar: trace(membre), ouvertLe: FieldValue.serverTimestamp() });
+  const base = db();
+  const id = await base.runTransaction(async (tx) => {
+    const liste = await mesCaisses(tx, membre, date);
+    if (liste.some((c) => c.get("statut") === "ouverte")) throw new Erreur("Votre caisse est déjà ouverte.", 409);
+    // Déjà une (ou plusieurs) clôturée aujourd'hui : on ouvre la session suivante.
+    const session = liste.reduce((n, c) => Math.max(n, sessionDe(c)), 0) + 1;
+    const ref = base.doc(`caisses/${idCaisse(date, membre.uid, session)}`);
+    if ((await tx.get(ref)).exists) throw new Erreur("Réessayez dans un instant.", 409);
+    tx.set(ref, { date, uid: membre.uid, session, statut: "ouverte", fond, ouvertPar: trace(membre), ouvertLe: FieldValue.serverTimestamp() });
+    return ref.id;
   });
-  return { ok: true, date, caisse: ref.id };
+  return { ok: true, date, caisse: id };
 }
 
 function lignesValides(brutes: unknown, catalogue: Catalogue, cadeauPermis = false): LigneTicket[] {
@@ -552,6 +565,7 @@ function decrireCaisse(c: CaisseLue, tickets: TicketLu[], sorties: Map<string, n
     id: c.id,
     uid: (c.get("uid") as string | undefined) ?? (c.get("ouvertPar.uid") as string),
     commune: !c.get("uid"),
+    session: (c.get("session") as number | undefined) ?? 1,
     statut: c.get("statut") as "ouverte" | "cloturee",
     fond,
     ouvertPar: c.get("ouvertPar") as { uid: string; nom: string },
@@ -670,7 +684,9 @@ export async function journal(membre: Membre, dateBrute?: string) {
   const [caissesSnap, snap, sorties] = await Promise.all([base.collection("caisses").where("date", "==", date).get(), base.collection("tickets").where("date", "==", date).get(), sortiesDesCaisses(date)]);
   const tickets = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as TicketLu).sort((a, b) => a.numero - b.numero);
   const caisses = caissesSnap.docs.map((c) => decrireCaisse(c, tickets, sorties)).sort((a, b) => (a.ouvertLe ?? 0) - (b.ouvertLe ?? 0));
-  const mienne = caisses.find((c) => c.id === idCaisse(date, membre.uid)) ?? caisses.find((c) => c.commune && c.uid === membre.uid) ?? null;
+  // Sa caisse : celle qui est ouverte, sinon sa dernière session du jour.
+  const siennes = caisses.filter((c) => c.uid === membre.uid);
+  const mienne = siennes.find((c) => c.statut === "ouverte") ?? [...siennes].sort((a, b) => b.session - a.session)[0] ?? null;
   const tout = voitToutesLesCaisses(membre);
   const visibles = tout ? tickets : tickets.filter((t) => mienne && caisseDuTicket(t) === mienne.id);
   return {
