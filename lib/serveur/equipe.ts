@@ -13,6 +13,9 @@ import { telephoneCanonique, telephoneValide } from "@/lib/telephone";
 import { accesValides, type AccesPerso } from "@/lib/acces";
 
 export const ROLES: Role[] = ["direction", "manager", "accueil", "praticienne", "prestataire", "comptable"];
+
+/** Rôles qui peuvent AUSSI faire des prestations (ex. une caissière qui pose des ongles). */
+export const ROLES_CUMUL: Role[] = ["direction", "manager", "accueil"];
 const JOURS: Record<string, number> = { Su: 0, Mo: 1, Tu: 2, We: 3, Th: 4, Fr: 5, Sa: 6 };
 
 function minutes(hhmm: string): number {
@@ -100,6 +103,7 @@ export async function listerEquipe(membre: Membre) {
       role: d.get("role"),
       praticienne: d.get("praticienne") ?? null,
       competences: competences.get(d.get("praticienne")) ?? [],
+      aussiPrestataire: d.get("aussiPrestataire") === true,
       actif: d.get("actif") !== false,
       acces: (d.get("acces") as AccesPerso | undefined) ?? {},
     }))
@@ -137,6 +141,8 @@ export type Modification = {
   nom?: string;
   role?: Role;
   competences?: string[];
+  /** Fait aussi des prestations (accueil, manager, direction) : colonne d'agenda, « Fait par ». */
+  aussiPrestataire?: boolean;
   actif?: boolean;
   lien?: boolean;
   telephone?: string;
@@ -211,8 +217,11 @@ export async function modifierMembre(membre: Membre, uid: string, m: Modificatio
     maj.acces = accesValides(role, m.acces ?? doc.get("acces"));
   }
 
-  // Fiche d'agenda : une intervenante en a une ; les autres rôles n'apparaissent pas dans l'agenda.
-  const intervenante = role === "praticienne" || role === "prestataire";
+  // Fiche d'agenda : une intervenante en a une, et aussi une caissière (ou manager…) qui fait
+  // des prestations ; les autres n'apparaissent pas dans l'agenda.
+  const aussi = ROLES_CUMUL.includes(role) && (m.aussiPrestataire ?? doc.get("aussiPrestataire") === true);
+  maj.aussiPrestataire = aussi;
+  const intervenante = role === "praticienne" || role === "prestataire" || aussi;
   const familles = new Set(FAMILLES.map((f) => f.id));
   let ficheId = doc.get("praticienne") as string | undefined;
   const fiche: Record<string, unknown> = { nom, actif: intervenante && actif, externe: role === "prestataire" };
@@ -250,7 +259,7 @@ export async function modifierMembre(membre: Membre, uid: string, m: Modificatio
   return { ok: true, ...(lien ? { lien } : {}), ...(motDePasse ? { motDePasse, telephone: (maj.telephone ?? doc.get("telephone")) as string } : {}) };
 }
 
-export type NouveauMembre = { nom: string; email: string; role: Role; competences?: string[]; telephone?: string; motDePasse?: string };
+export type NouveauMembre = { nom: string; email: string; role: Role; competences?: string[]; aussiPrestataire?: boolean; telephone?: string; motDePasse?: string };
 
 function telephonePropre(t?: string): string {
   const brut = (t ?? "").trim();
@@ -273,7 +282,8 @@ export async function creerMembre(membre: Membre, n: NouveauMembre) {
   if (!telephone) throw new ErreurReservation("Indiquez son numéro de téléphone : c'est son identifiant de connexion.", 400);
   if (!ROLES.includes(n.role)) throw new ErreurReservation("Rôle inconnu.", 400);
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ErreurReservation("Email invalide.", 400);
-  const intervenante = n.role === "praticienne" || n.role === "prestataire";
+  const aussi = ROLES_CUMUL.includes(n.role) && n.aussiPrestataire === true;
+  const intervenante = n.role === "praticienne" || n.role === "prestataire" || aussi;
   const familles = new Set(FAMILLES.map((f) => f.id));
   const competences = (n.competences ?? []).filter((c) => familles.has(c));
   if (intervenante && competences.length === 0) throw new ErreurReservation("Cochez au moins une compétence.", 400);
@@ -304,6 +314,7 @@ export async function creerMembre(membre: Membre, n: NouveauMembre) {
     telephone,
     telephoneCanonique: tel,
     role: n.role,
+    ...(aussi ? { aussiPrestataire: true } : {}),
     ...(praticienne ? { praticienne } : {}),
     creePar: membre.uid,
     creeLe: FieldValue.serverTimestamp(),

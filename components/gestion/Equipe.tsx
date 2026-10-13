@@ -11,7 +11,10 @@ import { texteWhatsApp } from "@/lib/whatsapp";
 // Écran « Équipe » : la direction crée les comptes (un par personne, jamais partagé).
 // La personne reçoit un lien pour choisir elle-même son mot de passe.
 
-type Ligne = { uid: string; nom: string; email: string; telephone: string; role: Role; praticienne: string | null; competences: string[]; actif: boolean; acces: AccesPerso };
+type Ligne = { uid: string; nom: string; email: string; telephone: string; role: Role; praticienne: string | null; competences: string[]; aussiPrestataire?: boolean; actif: boolean; acces: AccesPerso };
+
+// Ces rôles peuvent AUSSI faire des prestations (ex. la caissière qui pose des ongles).
+const ROLES_CUMUL: Role[] = ["direction", "manager", "accueil"];
 
 const ROLES: { id: Role; libelle: string; aide: string }[] = [
   { id: "accueil", libelle: "Accueil / caisse", aide: "Agenda complet, rendez-vous, encaissement." },
@@ -32,6 +35,7 @@ export function Equipe() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("accueil");
   const [competences, setCompetences] = useState<string[]>([]);
+  const [aussi, setAussi] = useState(false);
   const [envoi, setEnvoi] = useState(false);
   const [telephone, setTelephone] = useState("");
   const [motDePasse, setMotDePasse] = useState("");
@@ -68,14 +72,15 @@ export function Equipe() {
     };
   }, [appel, version]);
 
-  const intervenante = role === "praticienne" || role === "prestataire";
+  const peutCumuler = ROLES_CUMUL.includes(role);
+  const intervenante = role === "praticienne" || role === "prestataire" || (peutCumuler && aussi);
 
   async function creer(e: React.FormEvent) {
     e.preventDefault();
     setEnvoi(true);
     setErreur("");
     try {
-      const res = await appel("POST", { nom, email, telephone, role, motDePasse, competences: intervenante ? competences : [] });
+      const res = await appel("POST", { nom, email, telephone, role, motDePasse, competences: intervenante ? competences : [], aussiPrestataire: peutCumuler && aussi });
       setLien(envoiIdentifiants(nom, res.telephone, res.motDePasse, `Compte créé pour ${nom}.`));
       setMotDePasse("");
       setNom("");
@@ -121,7 +126,7 @@ export function Equipe() {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1.5">
                     <span className="rounded-full bg-creme px-3 py-1 text-xs font-bold text-profond">
-                      {m.actif ? (LIBELLE[m.role] ?? m.role) : "Désactivé"}
+                      {m.actif ? `${LIBELLE[m.role] ?? m.role}${m.aussiPrestataire ? " + prestations" : ""}` : "Désactivé"}
                     </span>
                     {compte.role === "direction" && (
                       <button
@@ -198,6 +203,7 @@ export function Equipe() {
               <span className="text-sm font-semibold">Email</span> <span className="text-sm text-doux">(facultatif)</span>
               <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond" />
             </label>
+            {peutCumuler && <AussiPrestataire aussi={aussi} setAussi={setAussi} />}
             {intervenante && <ChoixCompetences competences={competences} setCompetences={setCompetences} />}
             <button type="submit" disabled={envoi} className="mt-6 w-full rounded-full bg-aza py-3 font-bold text-white hover:bg-aza-fonce disabled:opacity-50">
               {envoi ? "Création…" : "Créer le compte"}
@@ -231,6 +237,20 @@ function ChoixRole({ role, setRole, desactive }: { role: Role; setRole: (r: Role
   );
 }
 
+function AussiPrestataire({ aussi, setAussi }: { aussi: boolean; setAussi: (v: boolean) => void }) {
+  return (
+    <label className={`mt-4 flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 ${aussi ? "border-profond bg-creme" : "border-bordure"}`}>
+      <input type="checkbox" checked={aussi} onChange={(e) => setAussi(e.target.checked)} className="mt-1 h-5 w-5 accent-[#7E0A4C]" />
+      <span>
+        <span className="block font-semibold">💅 Fait aussi des prestations</span>
+        <span className="block text-xs text-doux">
+          Elle a sa colonne dans l&apos;agenda, on peut lui confier des rendez-vous, et elle apparaît dans « Fait par » à la caisse (et dans son chiffre). Cochez ce qu&apos;elle sait faire.
+        </span>
+      </span>
+    </label>
+  );
+}
+
 function ChoixCompetences({ competences, setCompetences }: { competences: string[]; setCompetences: (f: (c: string[]) => string[]) => void }) {
   return (
     <fieldset className="mt-4">
@@ -260,7 +280,7 @@ function ChoixCompetences({ competences, setCompetences }: { competences: string
   );
 }
 
-type Changes = { nom?: string; role?: Role; competences?: string[]; actif?: boolean; lien?: boolean; lienConnexion?: boolean; telephone?: string; motDePasse?: true; acces?: AccesPerso };
+type Changes = { nom?: string; role?: Role; competences?: string[]; aussiPrestataire?: boolean; actif?: boolean; lien?: boolean; lienConnexion?: boolean; telephone?: string; motDePasse?: true; acces?: AccesPerso };
 
 function envoiIdentifiants(nom: string, telephone: string, motDePasse: string, titre: string): Envoi {
   return {
@@ -327,10 +347,12 @@ function Modifier({ m, soiMeme, enregistrer }: { m: Ligne; soiMeme: boolean; enr
   const [nom, setNom] = useState(m.nom);
   const [role, setRole] = useState<Role>(m.role);
   const [competences, setCompetences] = useState<string[]>(m.competences);
+  const [aussi, setAussi] = useState(m.aussiPrestataire === true);
   const [telephone, setTelephone] = useState(m.telephone);
   const [envoi, setEnvoi] = useState(false);
   const [acces, setAcces] = useState<AccesPerso>(m.acces ?? {});
-  const intervenante = role === "praticienne" || role === "prestataire";
+  const peutCumuler = ROLES_CUMUL.includes(role);
+  const intervenante = role === "praticienne" || role === "prestataire" || (peutCumuler && aussi);
 
   async function envoyer(c: Changes) {
     setEnvoi(true);
@@ -355,11 +377,12 @@ function Modifier({ m, soiMeme, enregistrer }: { m: Ligne; soiMeme: boolean; enr
       </label>
       <ChoixRole role={role} setRole={setRole} desactive={soiMeme} />
       {soiMeme && <p className="mt-1 text-xs text-doux">Vous ne pouvez pas changer votre propre rôle.</p>}
+      {peutCumuler && <AussiPrestataire aussi={aussi} setAussi={setAussi} />}
       {intervenante && <ChoixCompetences competences={competences} setCompetences={setCompetences} />}
       {!soiMeme && role !== "direction" && <ChoixAcces role={role} acces={acces} setAcces={setAcces} />}
       <button
         disabled={envoi}
-        onClick={() => envoyer({ nom, role, telephone, ...(intervenante ? { competences } : {}), ...(!soiMeme && role !== "direction" ? { acces } : {}) })}
+        onClick={() => envoyer({ nom, role, telephone, ...(peutCumuler ? { aussiPrestataire: aussi } : {}), ...(intervenante ? { competences } : {}), ...(!soiMeme && role !== "direction" ? { acces } : {}) })}
         className="mt-5 w-full rounded-full bg-aza py-2.5 font-bold text-white hover:bg-aza-fonce disabled:opacity-50"
       >
         {envoi ? "Enregistrement…" : "Enregistrer les modifications"}

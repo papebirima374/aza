@@ -763,6 +763,21 @@ pages.append(page(f"""
 
 pages.append(page(f"""
 <span class="etiquette">10 · La direction</span>
+<h2>Une caissière qui fait aussi des prestations</h2>
+{duo('''<p>Une personne de l'<b>accueil / caisse</b> (ou le manager, ou la direction) peut aussi poser des ongles, faire un soin… Elle garde son rôle et ses accès, et devient <b>aussi prestataire</b>.</p>
+<ol class="etapes">
+<li><b>Plus ▾ → Équipe</b>, <b>Modifier</b> sous son nom.</li>
+<li>Cochez <b>💅 Fait aussi des prestations</b>.</li>
+<li>Cochez <b>ce qu'elle sait faire</b> (par exemple L'Onglerie).</li>
+<li><span class="bouton">Enregistrer les modifications</span>.</li>
+</ol>
+<p>Aussitôt, elle a <b>sa colonne dans l'agenda</b>, on peut lui confier des rendez-vous (et le site aussi, pour ce qu'elle sait faire), et elle apparaît dans <b>« Fait par »</b> à la caisse : ses prestations comptent dans <b>son chiffre</b> (Rapports).</p>
+<p>Dans la liste de l'équipe, son rôle s'affiche « Accueil / caisse + prestations ». Décochez la case pour la retirer de l'agenda : ses rendez-vous passés restent.</p>
+<div class="encadre or">Pensez ensuite à la placer dans <b>l'ordre des colonnes de l'agenda</b> (page suivante).</div>''', "125-equipe-cumul", "Fait aussi des prestations")}
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">10 · La direction</span>
 <h2>L'ordre des colonnes de l'agenda</h2>
 <div class="duo" style="grid-template-columns:1fr 58mm;"><div>
 <p>Par défaut, les praticiennes sont rangées par ordre alphabétique. Pour les mettre dans l'ordre de l'institut :</p>

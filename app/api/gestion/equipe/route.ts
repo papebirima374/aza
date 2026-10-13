@@ -43,6 +43,7 @@ export async function POST(request: Request) {
       email: String(c.email ?? ""),
       role: String(c.role ?? "") as Role,
       competences: Array.isArray(c.competences) ? c.competences.map(String) : [],
+      aussiPrestataire: c.aussiPrestataire === true,
       telephone: c.telephone === undefined ? undefined : String(c.telephone),
       motDePasse: c.motDePasse ? String(c.motDePasse) : undefined,
     });
@@ -69,6 +70,7 @@ export async function PATCH(request: Request) {
         nom: c.nom === undefined ? undefined : String(c.nom),
         role: c.role === undefined ? undefined : (String(c.role) as Role),
         competences: Array.isArray(c.competences) ? c.competences.map(String) : undefined,
+        aussiPrestataire: typeof c.aussiPrestataire === "boolean" ? c.aussiPrestataire : undefined,
         actif: typeof c.actif === "boolean" ? c.actif : undefined,
         lien: c.lien === true,
         telephone: c.telephone === undefined ? undefined : String(c.telephone),
@@ -78,6 +80,7 @@ export async function PATCH(request: Request) {
     const changes = [
       c.role !== undefined ? `rôle : ${LIBELLE_ROLE[String(c.role)] ?? String(c.role)}` : "",
       c.acces && typeof c.acces === "object" ? `accès : ${decrireAcces(c.acces) || "ceux du rôle"}` : "",
+      typeof c.aussiPrestataire === "boolean" ? (c.aussiPrestataire ? "fait aussi des prestations" : "ne fait plus de prestations") : "",
       typeof c.actif === "boolean" ? (c.actif ? "compte réactivé" : "compte désactivé") : "",
       c.motDePasse ? "nouveau mot de passe" : "",
       c.lien === true ? "lien de mot de passe" : "",
