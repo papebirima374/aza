@@ -105,6 +105,7 @@ export function Recu({ id }: { id: string }) {
       <div className="mx-auto bg-white py-4 shadow-[0_2px_14px_rgba(0,0,0,.12)] print:m-0 print:py-0 print:shadow-none" style={{ width: `${r.papier}mm` }}>
         <article
           ref={ref}
+          data-ticket
           className="text-black"
           style={{ width: `${r.zone}mm`, marginLeft: `calc((${r.papier}mm - ${r.zone}mm) / 2 + ${r.decalage}mm)`, fontSize: `${r.texte}px` }}
         >

@@ -706,14 +706,16 @@ export async function cloturerCaisse(membre: Membre, compteBrut: unknown, justif
     let caisse: CaisseLue;
     if (autre) {
       caisse = await tx.get(base.doc(`caisses/${autre}`));
-      if (!caisse.exists || caisse.get("date") !== date) throw new Erreur("Caisse introuvable.", 404);
+      // Celle d'aujourd'hui, ou une caisse oubliée d'un jour passé (clôturée après coup).
+      if (!caisse.exists || (caisse.get("date") as string) > date) throw new Erreur("Caisse introuvable.", 404);
       const proprio = (caisse.get("uid") as string | undefined) ?? (caisse.get("ouvertPar.uid") as string);
       if (proprio !== membre.uid && membre.role !== "direction" && membre.role !== "manager") {
         throw new Erreur("Seuls la direction et le manager clôturent la caisse d'une autre personne.", 403);
       }
       if (caisse.get("statut") !== "ouverte") throw new Erreur("Cette caisse est déjà clôturée.", 409);
     } else caisse = await caisseOuverte(tx, membre, date);
-    const [snap, sorties] = await Promise.all([tx.get(base.collection("tickets").where("date", "==", date)), tx.get(base.collection("depenses").where("caisse", "==", caisse.id))]);
+    const jour = caisse.get("date") as string;
+    const [snap, sorties] = await Promise.all([tx.get(base.collection("tickets").where("date", "==", jour)), tx.get(base.collection("depenses").where("caisse", "==", caisse.id))]);
     const tickets = snap.docs.map((d) => d.data() as TicketLu).filter((t) => caisseDuTicket(t) === caisse.id);
     const depenses = sorties.docs.filter((d) => !d.get("annulee")).reduce((s, d) => s + ((d.get("montant") as number) ?? 0), 0);
     const t = totaux(caisse.get("fond") as number, tickets, depenses);
@@ -734,9 +736,10 @@ export async function cloturerCaisse(membre: Membre, compteBrut: unknown, justif
         nombreTickets: t.nombre,
         par: trace(membre),
         le: Timestamp.now(),
+        ...(jour < date ? { apresCoup: true } : {}),
       },
     });
-    return { ok: true, ecart, caisse: caisse.id, proprietaire: (caisse.get("ouvertPar.nom") as string) ?? "" };
+    return { ok: true, ecart, jour, caisse: caisse.id, proprietaire: (caisse.get("ouvertPar.nom") as string) ?? "" };
   });
 }
 

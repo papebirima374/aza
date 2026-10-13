@@ -6,8 +6,14 @@ import { useEffect, useState } from "react";
 // (chaque poste a son imprimante), page imprimée à la hauteur exacte du ticket, ticket de
 // réglage. Servent au reçu de chaque vente et à la feuille de caisse du soir.
 
-export type Imprimante = { papier: 80 | 58; zone: number; decalage: number; texte: number; logo: boolean; qr: boolean; avance: number };
-export const PAR_DEFAUT: Imprimante = { papier: 80, zone: 72, decalage: 0, texte: 12, logo: true, qr: true, avance: 8 };
+/**
+ * « pilote » : le site n'impose pas de longueur de papier ; le ticket part en haut de la page
+ * et l'imprimante s'arrête après la dernière ligne (le cas des pilotes POS-80 sous Windows, qui
+ * gardent leur propre papier très long et CENTRERAIENT un ticket de longueur imposée).
+ * « exacte » : la page a la hauteur exacte du ticket (imprimantes qui acceptent ce format).
+ */
+export type Imprimante = { papier: 80 | 58; zone: number; decalage: number; texte: number; logo: boolean; qr: boolean; avance: number; longueur: "pilote" | "exacte" };
+export const PAR_DEFAUT: Imprimante = { papier: 80, zone: 72, decalage: 0, texte: 12, logo: true, qr: true, avance: 8, longueur: "pilote" };
 const CLE = "aza-imprimante";
 
 function lireImprimante(): Imprimante {
@@ -39,19 +45,25 @@ export function useImprimante() {
 }
 
 /**
- * La page imprimée a exactement la hauteur du ticket (plus l'avance avant la coupe) :
- * pas de papier gâché, et l'imprimante coupe juste après « Merci ».
+ * La page imprimée : en haut du papier, sans marge. En mode « exacte », elle a la hauteur du
+ * ticket (plus l'avance avant la coupe) ; en mode « pilote », l'imprimante garde son papier et
+ * s'arrête après la dernière ligne (l'avance est alors une marge blanche sous le ticket).
  */
 export function reglerPage(el: HTMLElement | null, r: Imprimante) {
   if (!el) return;
-  const hauteur = Math.ceil((el.getBoundingClientRect().height * 25.4) / 96) + r.avance;
   let style = document.getElementById("page-ticket");
   if (!style) {
     style = document.createElement("style");
     style.id = "page-ticket";
     document.head.appendChild(style);
   }
-  style.textContent = `@page { size: ${r.papier}mm ${hauteur}mm; margin: 0 } @media print { html, body { background: #fff !important; width: ${r.papier}mm; min-height: 0 !important } }`;
+  const commun = `@media print { html, body { background: #fff !important; width: ${r.papier}mm; min-height: 0 !important; margin: 0 !important; padding: 0 !important } }`;
+  if (r.longueur === "exacte") {
+    const hauteur = Math.ceil((el.getBoundingClientRect().height * 25.4) / 96) + r.avance;
+    style.textContent = `@page { size: ${r.papier}mm ${hauteur}mm; margin: 0 } ${commun}`;
+  } else {
+    style.textContent = `@page { margin: 0 } ${commun} @media print { [data-ticket] { padding-bottom: ${r.avance}mm !important } }`;
+  }
 }
 
 export function usePageAuTicket(ticket: React.RefObject<HTMLElement | null>, r: Imprimante) {
@@ -166,6 +178,28 @@ export function ReglageImprimante(props: { r: Imprimante; changer: (x: Partial<I
         <Pas libelle="Taille du texte" valeur={r.texte} pas={1} min={10} max={15} unite="px" changer={(v) => changer({ texte: v })} />
         <Pas libelle="Papier avant la coupe" valeur={r.avance} pas={2} min={0} max={30} unite="mm" changer={(v) => changer({ avance: v })} />
       </div>
+      <fieldset className="mt-3">
+        <legend className="text-sm font-semibold">Longueur du papier</legend>
+        <div className="mt-1 flex flex-wrap gap-2">
+          {(
+            [
+              ["pilote", "Laisser l'imprimante couper (conseillé)"],
+              ["exacte", "Imposer la longueur du ticket"],
+            ] as const
+          ).map(([id, libelle]) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => changer({ longueur: id })}
+              aria-pressed={r.longueur === id}
+              className={`min-h-10 rounded-full px-4 text-sm font-semibold ${r.longueur === id ? "bg-profond text-white" : "border border-bordure"}`}
+            >
+              {libelle}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-doux">Si le ticket sort au milieu d&apos;un très long papier, choisissez « Laisser l&apos;imprimante couper ».</p>
+      </fieldset>
       <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2 text-sm">
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={r.logo} onChange={(e) => changer({ logo: e.target.checked })} className="h-5 w-5" />

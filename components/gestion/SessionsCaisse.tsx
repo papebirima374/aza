@@ -33,6 +33,27 @@ export function SessionsCaisse() {
   const [donnees, setDonnees] = useState<Sessions | null>(null);
   const [erreur, setErreur] = useState("");
   const [chargement, setChargement] = useState(true);
+  const [version, setVersion] = useState(0);
+  const peutCloturer = compte.role === "direction" || compte.role === "manager";
+
+  // Une caisse restée ouverte (oubliée un jour passé) : la direction ou le manager la clôture
+  // après coup, avec les espèces comptées dans le tiroir et la raison d'un écart.
+  async function cloturer(c: Caisse) {
+    const attendu = c.totaux.especesAttendues;
+    const saisi = window.prompt(`Clôturer la caisse de ${c.ouvertPar.nom}.\nEspèces comptées dans son tiroir ? (attendu : ${formatPrix(attendu)})`, String(attendu));
+    if (saisi === null) return;
+    const compte_ = Math.round(Number(saisi.replace(/[^\d-]/g, "")));
+    if (!Number.isFinite(compte_) || compte_ < 0) return window.alert("Montant invalide.");
+    const justification = compte_ === attendu ? "" : (window.prompt(`Écart de ${signe(compte_ - attendu)} : explication ?`) ?? "");
+    const r = await fetch("/api/gestion/caisse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${await compte.user.getIdToken()}` },
+      body: JSON.stringify({ action: "cloturer", caisse: c.id, compte: compte_, justification }),
+    });
+    if (!r.ok) window.alert((await r.json()).erreur ?? "Clôture impossible.");
+    setVersion((v) => v + 1);
+    window.dispatchEvent(new Event("aza-commandes"));
+  }
 
   useEffect(() => {
     let actif = true;
@@ -56,7 +77,7 @@ export function SessionsCaisse() {
       actif = false;
       clearTimeout(t);
     };
-  }, [du, au, compte.user]);
+  }, [du, au, compte.user, version]);
 
   const raccourcis: [string, () => void][] = [
     ["Aujourd'hui", () => (setDu(ilYa(0)), setAu(ilYa(0)))],
@@ -146,8 +167,13 @@ export function SessionsCaisse() {
                       )}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <span className="prix font-bold">{formatPrix(c.totaux.recette)}</span>
+                    {!c.cloture && peutCloturer && (
+                      <button onClick={() => cloturer(c)} className="flex min-h-10 items-center rounded-full bg-aza px-3 text-sm font-bold text-white">
+                        🔒 Clôturer
+                      </button>
+                    )}
                     <Link
                       href={`/gestion/caisse/feuille?date=${j.date}&caisse=${encodeURIComponent(c.id)}`}
                       className="flex min-h-10 items-center rounded-full border border-bordure px-3 text-sm font-semibold text-profond"
