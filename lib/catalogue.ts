@@ -374,6 +374,21 @@ const FAMILLES_BRUTES: { id: string; nom: string; univers: UniversId; lignes: Li
     boutique: true,
     lignes: Array.from({ length: 29 }, (_, i): Ligne => [`Modèle C-${String(i + 1).padStart(2, "0")}`, 2000 + i * 1000, "Produit"]),
   },
+
+  // ——— Familles ouvertes pour reprendre la liste de l'ancienne application (octobre 2026) ———
+  // Vides ici : leurs lignes sont ajoutées par la direction (écran Catalogue → Importer).
+  { id: "microblading", nom: "Microblading & sourcils", univers: "institut", lignes: [] },
+  { id: "offres", nom: "Offres & forfaits", univers: "institut", lignes: [] },
+  { id: "formations", nom: "Formations", univers: "institut", lignes: [] },
+  { id: "frais", nom: "Frais & suppléments", univers: "institut", lignes: [] },
+  // Produits vendus à l'institut (caisse ; boutique en ligne une fois mis en stock).
+  { id: "habillement", nom: "Habillement", univers: "coiffure", boutique: true, lignes: [] },
+  { id: "accessoires", nom: "Accessoires", univers: "coiffure", boutique: true, lignes: [] },
+  { id: "meches", nom: "Mèches & perles", univers: "coiffure", boutique: true, lignes: [] },
+  { id: "cosmetiques", nom: "Cosmétiques", univers: "institut", boutique: true, lignes: [] },
+  { id: "bien-etre", nom: "Bien-être & compléments", univers: "institut", boutique: true, lignes: [] },
+  { id: "parfums", nom: "Parfums", univers: "institut", boutique: true, lignes: [] },
+  { id: "thiouraye", nom: "Thiouraye & encens", univers: "institut", boutique: true, lignes: [] },
 ];
 
 function slug(texte: string): string {
@@ -432,9 +447,11 @@ export type ModifCatalogue = {
   nom?: string;
   familleId?: string;
   note?: string;
+  /** Pas sur le site public (ni pages, ni réservation, ni boutique) ; reste en caisse et à l'agenda. */
+  horsSite?: boolean;
 };
 
-export type PrestationComplete = Prestation & { famille: string; familleId: string; univers: UniversId; masque?: boolean; ajoute?: boolean };
+export type PrestationComplete = Prestation & { famille: string; familleId: string; univers: UniversId; masque?: boolean; ajoute?: boolean; horsSite?: boolean };
 
 export type Catalogue = {
   familles: Famille[];
@@ -443,18 +460,32 @@ export type Catalogue = {
   famillesDe: (u: UniversId) => Famille[];
 };
 
-/** La plaquette avec les changements appliqués. `avecMasquees` : pour l'écran Catalogue. */
-export function construireCatalogue(modifs: Record<string, ModifCatalogue> = {}, avecMasquees = false): Catalogue {
+/**
+ * La plaquette avec les changements appliqués. `avecMasquees` : pour l'écran Catalogue.
+ * `pourLeSite` : sans les lignes que la direction a retirées du site (case « Sur le site »).
+ */
+export function construireCatalogue(modifs: Record<string, ModifCatalogue> = {}, avecMasquees = false, pourLeSite = false): Catalogue {
   const familles: Famille[] = FAMILLES.map((f) => {
     const base = f.prestations.map((p) => {
       const m = modifs[p.id];
-      return { ...p, ...(m?.prix !== undefined ? { prix: m.prix } : {}), ...(m?.masque ? { masque: true } : {}) };
+      return { ...p, ...(m?.prix !== undefined ? { prix: m.prix } : {}), ...(m?.masque ? { masque: true } : {}), ...(m?.horsSite ? { horsSite: true } : {}) };
     });
     const ajouts = Object.entries(modifs)
       .filter(([, m]) => m.ajoute && m.familleId === f.id && m.nom && m.prix !== undefined)
-      .map(([id, m]) => ({ id, nom: m.nom!, prix: m.prix!, ajoute: true, ...(m.note ? { note: m.note } : {}), ...(m.masque ? { masque: true } : {}) }))
-      .sort((a, b) => a.nom.localeCompare(b.nom));
-    return { ...f, prestations: [...base, ...ajouts].filter((p) => avecMasquees || !("masque" in p && p.masque)) };
+      .map(([id, m]) => ({
+        id,
+        nom: m.nom!,
+        prix: m.prix!,
+        ajoute: true,
+        ...(m.note ? { note: m.note } : {}),
+        ...(m.masque ? { masque: true } : {}),
+        ...(m.horsSite ? { horsSite: true } : {}),
+      }))
+      .sort((a, b) => a.nom.localeCompare(b.nom, "fr", { numeric: true }));
+    return {
+      ...f,
+      prestations: [...base, ...ajouts].filter((p) => (avecMasquees || !("masque" in p && p.masque)) && !(pourLeSite && "horsSite" in p && p.horsSite)),
+    };
   });
   const prestations = familles.flatMap((f) => f.prestations.map((p) => ({ ...p, famille: f.nom, familleId: f.id, univers: f.univers })));
   const index = new Map(prestations.map((p) => [p.id, p]));

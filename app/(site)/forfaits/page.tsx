@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function Forfaits() {
-  const forfaits = (await catalogueServeur()).prestations.filter((p) => p.note === "Forfait");
+  const forfaits = (await catalogueServeur(false, true)).prestations.filter((p) => p.note === "Forfait");
 
   return (
     <div>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
+import { ImporterListe } from "@/components/gestion/ImporterListe";
 import { formatPrix, UNIVERS, type Famille, type Prestation } from "@/lib/catalogue";
 import { rafraichirCatalogue, useCatalogue } from "@/lib/client/catalogue";
 import { correspond } from "@/lib/recherche";
@@ -12,7 +13,7 @@ import { peut } from "@/lib/acces";
 // prestation ou un produit. La plaquette reste la base ; les changements s'appliquent
 // partout (site, réservation, caisse) en moins d'une minute, et chacun est tracé.
 
-type Ligne = Prestation & { masque?: boolean; ajoute?: boolean };
+type Ligne = Prestation & { masque?: boolean; ajoute?: boolean; horsSite?: boolean };
 
 export function Catalogue() {
   const compte = useCompte();
@@ -61,7 +62,7 @@ export function Catalogue() {
       </div>
       <p className="mt-1 text-doux">
         Changez un prix, masquez une ligne ou ajoutez une prestation ou un produit. C&apos;est appliqué partout (site, réservation, caisse) en
-        moins d&apos;une minute.
+        moins d&apos;une minute. Décochez « Sur le site » pour qu&apos;une ligne reste en caisse sans paraître sur le site.
       </p>
 
       <div className="sticky top-[5.75rem] z-20 mt-3 min-h-0 sm:top-14">
@@ -80,10 +81,12 @@ export function Catalogue() {
         className="mt-4 w-full rounded-xl border border-bordure px-4 py-3"
       />
 
+      <ImporterListe />
+
       <div className="mt-4 space-y-5">
-        {UNIVERS.map((u) => {
+        {[...UNIVERS.map((u) => ({ id: u.id, nom: u.nom, boutique: false })), { id: "boutique", nom: "Produits (vente en caisse et boutique)", boutique: true }].map((u) => {
           const familles = cat.familles
-            .filter((f) => f.univers === u.id)
+            .filter((f) => (u.boutique ? Boolean(f.boutique) : !f.boutique && f.univers === u.id))
             .map((f) => ({ ...f, prestations: f.prestations.filter((p) => !recherche || correspond(`${p.nom} ${f.nom}`, requete)) }))
             .filter((f) => !recherche || f.prestations.length > 0);
           if (familles.length === 0) return null;
@@ -126,10 +129,10 @@ function BlocFamille(props: { f: Famille; ouverte: boolean; basculer: () => void
         <>
           <ul className="divide-y divide-bordure border-t border-bordure">
             {lignes.map((p) => (
-              <LignePrix key={`${p.id}:${p.prix}:${p.masque}`} p={p} envoyer={props.envoyer} />
+              <LignePrix key={`${p.id}:${p.prix}:${p.masque}:${p.horsSite}`} p={p} envoyer={props.envoyer} />
             ))}
           </ul>
-          <Ajouter familleId={f.id} nomFamille={f.nom} envoyer={props.envoyer} />
+          <Ajouter key={f.id} familleId={f.id} nomFamille={f.nom} boutique={Boolean(f.boutique)} envoyer={props.envoyer} />
         </>
       )}
     </div>
@@ -158,6 +161,7 @@ function LignePrix({ p, envoyer }: { p: Ligne; envoyer: (c: object, ok: string) 
             {p.note === "Produit" && <span className="rounded-full bg-or/20 px-2 py-0.5 font-semibold">produit</span>}
             {p.ajoute && <span className="rounded-full bg-[#e7f5ec] px-2 py-0.5 font-semibold text-[#0d6b37]">ajoutée</span>}
             {p.masque && <span className="rounded-full bg-bordure px-2 py-0.5 font-semibold text-doux">masquée</span>}
+            {p.horsSite && !p.masque && <span className="rounded-full bg-bordure px-2 py-0.5 font-semibold text-doux">pas sur le site</span>}
           </span>
         </span>
         <label className="flex items-center gap-1.5">
@@ -191,16 +195,34 @@ function LignePrix({ p, envoyer }: { p: Ligne; envoyer: (c: object, ok: string) 
         >
           {p.masque ? "Réafficher" : "Masquer"}
         </button>
+        {!p.masque && (
+          <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-full border border-bordure px-4 text-sm font-semibold text-profond">
+            <input
+              type="checkbox"
+              checked={!p.horsSite}
+              disabled={envoi}
+              onChange={(e) =>
+                faire(
+                  { action: "site", id: p.id, site: e.target.checked },
+                  e.target.checked ? `« ${p.nom} » est de nouveau sur le site.` : `« ${p.nom} » n'est plus sur le site (elle reste en caisse).`,
+                )
+              }
+              className="h-5 w-5 accent-[#7E0A4C]"
+            />
+            Sur le site
+          </label>
+        )}
       </div>
     </li>
   );
 }
 
-function Ajouter({ familleId, nomFamille, envoyer }: { familleId: string; nomFamille: string; envoyer: (c: object, ok: string) => Promise<boolean> }) {
+function Ajouter(props: { familleId: string; nomFamille: string; boutique: boolean; envoyer: (c: object, ok: string) => Promise<boolean> }) {
+  const { familleId, nomFamille, envoyer } = props;
   const [ouvert, setOuvert] = useState(false);
   const [nom, setNom] = useState("");
   const [prix, setPrix] = useState("");
-  const [produit, setProduit] = useState(false);
+  const [produit, setProduit] = useState(props.boutique);
   const [envoi, setEnvoi] = useState(false);
   if (!ouvert) {
     return (
@@ -231,7 +253,7 @@ function Ajouter({ familleId, nomFamille, envoyer }: { familleId: string; nomFam
             if (ok) {
               setNom("");
               setPrix("");
-              setProduit(false);
+              setProduit(props.boutique);
               setOuvert(false);
             }
           }}

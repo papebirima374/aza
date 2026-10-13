@@ -71,7 +71,7 @@ export async function prestationsDemandees(ids: string[]): Promise<PrestationEnL
   const [snaps, postes, cat] = await Promise.all([
     db().getAll(...ids.map((id) => db().doc(`prestationsResa/${id}`))),
     db().collection("postes").get(),
-    catalogueServeur(),
+    catalogueServeur(false, true),
   ]);
   // Un poste demandé mais jamais créé (écran Réglages → Postes) est ignoré, comme au comptoir.
   const typesPresents = new Set(postes.docs.filter((d) => d.get("actif") !== false).map((d) => d.get("type") as string));

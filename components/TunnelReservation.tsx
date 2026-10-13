@@ -1,6 +1,6 @@
 "use client";
 
-import { useCatalogue } from "@/lib/client/catalogue";
+import { useCatalogueSite } from "@/lib/client/catalogue";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { IconeRecherche, IconeWhatsApp } from "@/components/Icones";
@@ -48,7 +48,7 @@ function jourLisible(date: string): string {
 }
 
 export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }: { enLigne?: boolean; idsEnLigne?: string[] }) {
-  const cat = useCatalogue();
+  const cat = useCatalogueSite();
   const params = useSearchParams();
   const [choix, setChoix] = useState<string[]>(() =>
     params.getAll("p").slice(0, 6),

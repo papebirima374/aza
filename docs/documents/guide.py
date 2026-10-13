@@ -859,11 +859,27 @@ pages.append(page(f"""
 <li><b>Changer un prix</b> : cherchez la prestation, tapez le prix, <span class="bouton">Enregistrer le prix</span>.</li>
 <li><b>Ajouter</b> : ouvrez la famille, « + Ajouter dans … », nom et prix. Cochez « C'est un produit » pour un article de boutique.</li>
 <li><b>Masquer</b> : elle disparaît du site et de la caisse ; « Réafficher » la remet.</li>
+<li><b>Sur le site</b> : décochez la case pour qu'une ligne reste en caisse mais ne paraisse plus sur le site (ni pages, ni réservation, ni boutique).</li>
 <li>Appliqué partout en moins d'une minute, avec trace (ancien prix, nouveau prix, qui, quand).</li>
 </ul>
 <h3>🖼️ Photos du site</h3>
 <ol class="etapes"><li>Choisissez l'emplacement : bandeau, un univers, galerie « En images », le lieu.</li><li>Cochez l'accord des personnes visibles.</li><li>📷 Ajouter : choisissez une photo du téléphone (par exemple enregistrée depuis Instagram).</li></ol>
 </div>{figure("34-catalogue","Catalogue")}{figure("35-photos-site","Photos du site")}</div>
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">11 · La direction</span>
+<h2>Importer une liste dans le catalogue</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
+<p>Pour ajouter beaucoup de lignes d'un coup (par exemple les produits de l'ancienne application) : <b>Plus ▾ → Catalogue et prix → 📥 Importer une liste</b>.</p>
+<ol class="etapes">
+<li>Choisissez le fichier CSV (colonnes <b>Nom ; Famille ; Prix ; Type ; Sur le site</b>).</li>
+<li>Le compte rendu s'affiche, <b>sans rien enregistrer</b> : les lignes <b>nouvelles</b>, celles qui sont <b>déjà présentes</b> (même nom dans la même famille, aux accents et majuscules près : elles sont laissées de côté), les <b>doublons</b> de la liste, les lignes refusées.</li>
+<li>En orange : une ligne déjà présente dont le prix de la liste est différent. Le prix actuel est gardé.</li>
+<li><span class="bouton">Ajouter les … lignes nouvelles</span>, puis confirmez.</li>
+</ol>
+<p class="doux">Relancer le même fichier n'ajoute rien une seconde fois. Les produits (habillement, parfums, cosmétiques, thiouraye…) sont rangés dans « Produits » : ils se vendent en caisse ; pour la boutique en ligne, il faut aussi leur stock et leur photo (Stock → Boutique).</p>
+</div>{figure("129-import-catalogue","Le compte rendu avant l'ajout")}{figure("130-sur-le-site","La case « Sur le site »")}</div>
 """, P))
 
 # 12. Réglages

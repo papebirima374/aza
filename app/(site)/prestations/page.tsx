@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function Prestations() {
-  const cat = await catalogueServeur();
+  const cat = await catalogueServeur(false, true);
   return (
     <div className="mx-auto max-w-6xl px-4 py-12">
       <h1 className="font-serif text-5xl font-semibold text-profond">Prestations et tarifs</h1>

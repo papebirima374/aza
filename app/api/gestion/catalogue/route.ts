@@ -4,7 +4,8 @@ import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
 import { noter, prix } from "@/lib/serveur/activite";
 
-// POST /api/gestion/catalogue { action: "prix" | "masquer" | "ajouter" | "renommer", … } — direction seulement
+// POST /api/gestion/catalogue { action: "prix" | "masquer" | "ajouter" | "renommer" | "site", … } — direction seulement
+// POST /api/gestion/catalogue { action: "importer", lignes: [{ nom, familleId, prix, produit, site }], essai } — reprise d'une liste
 export async function POST(request: Request) {
   if (!firebaseConfigure()) return Response.json({ erreur: "Gestion indisponible." }, { status: 503 });
   try {
@@ -18,8 +19,11 @@ export async function POST(request: Request) {
       ajouter: `Ajouté au catalogue : ${quoi} (${prix(c?.prix)})`,
       masquer: `${c?.masque === false ? "Réaffiché" : "Masqué"} dans le catalogue : ${quoi || c?.id}`,
       renommer: `Renommé dans le catalogue : ${c?.id} → ${quoi}`,
+      site: `${c?.site === false ? "Retiré du site" : "Remis sur le site"} : ${quoi || c?.id}`,
+      importer: `Liste importée dans le catalogue : ${Number((r as { importees?: number }).importees ?? 0)} lignes ajoutées`,
     };
-    await noter(membre, "reglages", textes[String(c?.action)] ?? `Catalogue modifié (${String(c?.action)})`, "/gestion/catalogue");
+    // Un essai d'import (compte rendu seulement) n'écrit rien : rien à noter.
+    if (c?.action !== "importer" || c?.essai === false) await noter(membre, "reglages", textes[String(c?.action)] ?? `Catalogue modifié (${String(c?.action)})`, "/gestion/catalogue");
     return Response.json(r);
   } catch (e) {
     return reponseErreur(e);

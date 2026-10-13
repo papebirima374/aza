@@ -10,6 +10,7 @@ const BASE: Catalogue = construireCatalogue();
 const BASE_COMPLET: Catalogue = construireCatalogue({}, true);
 let actuel: Catalogue = BASE;
 let avecMasquees: Catalogue = BASE_COMPLET;
+let pourLeSite: Catalogue = BASE;
 let charge: Promise<void> | null = null;
 const abonnes = new Set<() => void>();
 
@@ -19,6 +20,7 @@ export function rafraichirCatalogue(): Promise<void> {
     .then(({ modifs }) => {
       actuel = construireCatalogue(modifs);
       avecMasquees = construireCatalogue(modifs, true);
+      pourLeSite = construireCatalogue(modifs, false, true);
       abonnes.forEach((f) => f());
     })
     .catch(() => {});
@@ -38,5 +40,14 @@ export function useCatalogue(complet = false): Catalogue {
     () => (complet ? avecMasquees : actuel),
     // Au premier affichage, la plaquette (comme la page envoyée par le serveur).
     () => (complet ? BASE_COMPLET : BASE),
+  );
+}
+
+/** Le catalogue du site public : sans les lignes retirées du site par la direction. */
+export function useCatalogueSite(): Catalogue {
+  return useSyncExternalStore(
+    abonner,
+    () => pourLeSite,
+    () => BASE,
   );
 }

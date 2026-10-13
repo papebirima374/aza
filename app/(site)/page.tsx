@@ -28,7 +28,7 @@ export const revalidate = 60;
 
 export default async function Accueil() {
   const [cat, photos, couture, avis] = await Promise.all([
-    catalogueServeur(),
+    catalogueServeur(false, true),
     photosDuSite(),
     modelesCouture(),
     firebaseConfigure() ? avisPublics().then((a) => a.avis).catch(() => []) : [],

@@ -30,7 +30,7 @@ async function lireFiches() {
 
 /** Les modèles de la collection (prix du catalogue ; masqués seulement sur demande). Les plus récents d'abord. */
 export async function modelesCouture(avecMasques = false): Promise<ModeleCouture[]> {
-  const [cat, { fiches }] = await Promise.all([catalogueServeur(avecMasques), lireFiches()]);
+  const [cat, { fiches }] = await Promise.all([catalogueServeur(avecMasques, !avecMasques), lireFiches()]);
   const famille = cat.familles.find((f) => f.id === "couture");
   const base = new Map(MODELES_BASE.map((m, i) => [m.produit, { ...m, ordre: i }]));
   return (famille?.prestations ?? [])

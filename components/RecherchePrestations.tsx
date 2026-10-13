@@ -1,6 +1,6 @@
 "use client";
 
-import { useCatalogue } from "@/lib/client/catalogue";
+import { useCatalogueSite } from "@/lib/client/catalogue";
 import { useState } from "react";
 import { IconeRecherche } from "@/components/Icones";
 import { LignePrestation } from "@/components/LignePrestation";
@@ -9,10 +9,12 @@ import { correspond } from "@/lib/recherche";
 
 // Recherche instantanée dans les 130+ prestations (cahier des charges §3.3).
 export function RecherchePrestations() {
-  const cat = useCatalogue();
+  const cat = useCatalogueSite();
   const [requete, setRequete] = useState("");
+  // Les produits de la boutique (habillement, parfums…) ne sont pas des prestations.
+  const produits = new Set(cat.familles.filter((f) => f.boutique && f.id !== "couture").map((f) => f.id));
   const resultats = requete.trim().length >= 2
-    ? cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, requete))
+    ? cat.prestations.filter((p) => !produits.has(p.familleId) && correspond(`${p.nom} ${p.famille}`, requete))
     : [];
 
   return (

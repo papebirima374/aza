@@ -76,7 +76,8 @@ export async function etatBoutique() {
   const [reglages, articles, cat] = await Promise.all([
     base.doc("reglages/institut").get(),
     base.collection("articles").where("type", "==", "revente").get(),
-    catalogueServeur(),
+    // Un produit retiré du site (case « Sur le site ») n'est pas dans la boutique en ligne.
+    catalogueServeur(false, true),
   ]);
   const groupes = new Map<string, ProduitBoutique>();
   for (const d of articles.docs) {

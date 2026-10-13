@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: PageProps<"/prestations/[univ
 export default async function PageUnivers({ params }: PageProps<"/prestations/[univers]">) {
   const u = universParId((await params).univers);
   if (!u) notFound();
-  const [cat, photos] = await Promise.all([catalogueServeur(), photosDuSite()]);
+  const [cat, photos] = await Promise.all([catalogueServeur(false, true), photosDuSite()]);
   const familles = cat.famillesDe(u.id);
   const photo = photosEmplacement(photos, `univers-${u.id}` as Emplacement)[0];
 
