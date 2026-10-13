@@ -37,7 +37,8 @@ ok((await appel(P, coiffeuse, { action: "pointer", code: code(f - 3) })).statut 
 ok((await appel(P, coiffeuse, { action: "pointer", code: "12345" })).statut === 400, "un code mal tapé : refusé");
 
 // Entrée, double scan, sortie
-const e1 = await appel(P, coiffeuse, { action: "pointer", code: code(f - 1) });
+// Le code d'il y a 30 s, calculé juste avant l'envoi (sinon il peut avoir vieilli entre-temps).
+const e1 = await appel(P, coiffeuse, { action: "pointer", code: code(Math.floor(Date.now() / 30_000) - 1) });
 ok(e1.statut === 201 && e1.corps.type === "entree" && !e1.corps.deja, "1er scan du jour (code d'il y a 30 s, encore bon) : ENTRÉE");
 const e2 = await appel(P, coiffeuse, { action: "pointer", code: (await appel(`${P}?borne=1`, direction)).corps.code });
 ok(e2.corps.deja === true && e2.corps.type === "entree", "scan en double dans la minute : un seul pointage");

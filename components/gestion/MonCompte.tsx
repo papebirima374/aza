@@ -1,6 +1,7 @@
 "use client";
 
 import { signOut } from "firebase/auth";
+import Link from "next/link";
 import { useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { Installer } from "@/components/pwa/Installer";
@@ -36,6 +37,11 @@ export function MonCompte() {
       <div className="mt-5">
         <Installer nom="AZA Gestion" />
       </div>
+      {compte.praticienne && (
+        <Link href="/gestion/historique" className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-bordure font-bold text-profond">
+          <span aria-hidden>📒</span> Mon historique (mes soins, mois par mois)
+        </Link>
+      )}
 
       <section className="mt-8 rounded-2xl border border-bordure p-5">
         <h2 className="font-serif text-2xl font-semibold text-profond">🔑 Changer mon mot de passe</h2>

@@ -76,6 +76,14 @@ const GROUPES: { id: string; libelle: string; test: (c: ResumeCliente, auj: numb
   { id: "allergies", libelle: "⚠️ Allergies", test: (c) => Boolean(c.allergies) },
 ];
 
+const PAGE = 30;
+/** La lettre d'une cliente pour l'index : la 1re du nom, sans « Mme », « Mr »… ni accent. */
+function initiale(nom: string): string {
+  const sans = nom.replace(/^(mme|mr|dr|me|ma[iî]tre)\.?\s+/i, "").trim();
+  const l = sans.normalize("NFD").replace(/[\u0300-\u036f]/g, "").charAt(0).toUpperCase();
+  return /[A-Z]/.test(l) ? l : "#";
+}
+
 export function Clientes() {
   const compte = useCompte();
   const [liste, setListe] = useState<ResumeCliente[] | null>(null);
@@ -116,13 +124,19 @@ export function Clientes() {
   }, [compte.user, version]);
 
   const comptes = useMemo(() => Object.fromEntries(GROUPES.map((g) => [g.id, (liste ?? []).filter((c) => g.test(c, auj)).length])), [liste, auj]);
-  const visibles = useMemo(() => {
+  // Raccourcis pour les longues listes : une lettre (A, B, C…), puis 30 fiches à la fois.
+  const [lettre, setLettre] = useState("");
+  const [nombre, setNombre] = useState(PAGE);
+  const filtrees = useMemo(() => {
     const g = GROUPES.find((x) => x.id === groupe)!;
     const res = (liste ?? []).filter((c) => g.test(c, auj) && (requete.trim() === "" || ressemble(c.nom, c.telephone, requete)));
     // Anniversaires : le plus proche d'abord.
     if (g.id === "anniversaires") res.sort((a, b) => (joursAvantAnniversaire(a.naissance, auj) ?? 99) - (joursAvantAnniversaire(b.naissance, auj) ?? 99));
-    return res.slice(0, 200);
+    return res;
   }, [liste, groupe, requete, auj]);
+  const lettres = useMemo(() => [...new Set(filtrees.map((c) => initiale(c.nom)))].sort(), [filtrees]);
+  const dansLettre = useMemo(() => (lettre ? filtrees.filter((c) => initiale(c.nom) === lettre) : filtrees), [filtrees, lettre]);
+  const visibles = dansLettre.slice(0, nombre);
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
@@ -143,7 +157,11 @@ export function Clientes() {
       <input
         type="search"
         value={requete}
-        onChange={(e) => setRequete(e.target.value)}
+        onChange={(e) => {
+          setRequete(e.target.value);
+          setLettre("");
+          setNombre(PAGE);
+        }}
         placeholder="Nom ou numéro (même mal écrit : « aoua » trouve « Awa »)"
         className="mt-4 w-full rounded-xl border border-bordure px-4 py-3 text-lg"
       />
@@ -151,7 +169,11 @@ export function Clientes() {
         {GROUPES.map((g) => (
           <button
             key={g.id}
-            onClick={() => setGroupe(g.id)}
+            onClick={() => {
+              setGroupe(g.id);
+              setLettre("");
+              setNombre(PAGE);
+            }}
             aria-pressed={groupe === g.id}
             className={`min-h-10 shrink-0 whitespace-nowrap rounded-full px-3 text-sm font-semibold ${groupe === g.id ? "bg-profond text-white" : "bg-creme text-profond"}`}
           >
@@ -160,6 +182,23 @@ export function Clientes() {
         ))}
       </div>
 
+      {filtrees.length > PAGE && lettres.length > 1 && (
+        <div className="mt-2 flex flex-wrap gap-1" aria-label="Aller à une lettre">
+          {["", ...lettres].map((l) => (
+            <button
+              key={l || "tout"}
+              onClick={() => {
+                setLettre(l);
+                setNombre(PAGE);
+              }}
+              aria-pressed={lettre === l}
+              className={`h-9 min-w-9 rounded-lg px-2 text-sm font-bold ${lettre === l ? "bg-profond text-white" : "bg-creme text-profond"}`}
+            >
+              {l || "Tout"}
+            </button>
+          ))}
+        </div>
+      )}
       {erreur && <p className="mt-4 rounded-xl bg-aza/10 p-3 font-semibold text-profond">{erreur}</p>}
       {!liste && !erreur && <p className="mt-8 text-center text-doux">Chargement…</p>}
       {liste && (
@@ -175,13 +214,13 @@ export function Clientes() {
             const deja = relancees[c.id] === relance || (c.derniereRelance?.type === relance && Date.parse(c.derniereRelance.date) > auj - 30 * JOUR);
             return (
             <li key={c.id} className="flex items-center gap-2 pr-3">
-              <Link href={`/gestion/clientes/${c.id}`} className="flex min-w-0 flex-1 items-center justify-between gap-3 px-4 py-3 hover:bg-creme/60">
+              <Link href={`/gestion/clientes/${c.id}`} className="flex min-w-0 flex-1 items-center justify-between gap-3 px-4 py-2 hover:bg-creme/60">
                 <span className="min-w-0">
                   <span className="block truncate font-semibold">
                     {c.nom}
                     {c.totalAchats >= SEUIL_VIP && " ⭐"}
                   </span>
-                  <span className="block text-sm text-doux">
+                  <span className="block text-xs text-doux">
                     {telephoneAffiche(c.telephone)}
                     {c.derniereVisite ? ` · venue le ${new Date(`${c.derniereVisite}T12:00:00Z`).toLocaleDateString("fr-FR")}` : " · jamais venue"}
                   </span>
@@ -212,6 +251,13 @@ export function Clientes() {
             </li>
             );
           })}
+          {dansLettre.length > visibles.length && (
+            <li>
+              <button onClick={() => setNombre((n) => n + PAGE)} className="w-full px-4 py-3 text-sm font-bold text-profond hover:bg-creme/60">
+                Afficher {Math.min(PAGE, dansLettre.length - visibles.length)} de plus ({dansLettre.length - visibles.length} restantes)
+              </button>
+            </li>
+          )}
         </ul>
       )}
     </div>

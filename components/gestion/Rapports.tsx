@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { LIBELLE_MODE, type Mode } from "@/lib/caisse/modes";
@@ -240,7 +241,11 @@ export function Rapports() {
                     <tbody>
                       {r.equipe.map((e) => (
                         <tr key={e.id} className="border-b border-bordure last:border-0">
-                          <td className="py-2 font-semibold">{e.nom}</td>
+                          <td className="py-2 font-semibold">
+                            <Link href={`/gestion/rapports/prestataire?p=${e.id}&mois=${r.du.slice(0, 7)}`} className="text-profond underline print:no-underline">
+                              {e.nom}
+                            </Link>
+                          </td>
                           <td className="prix py-2 text-right">{formatPrix(e.montant)}</td>
                           <td className="py-2 text-right">{e.prestations}</td>
                           <td className="py-2 text-right">{e.rendezVous}</td>
@@ -253,7 +258,8 @@ export function Rapports() {
                 </div>
               )}
               <p className="mt-3 text-xs text-doux">
-                Chiffre des prestations faites sur rendez-vous, partagé à parts égales quand plusieurs praticiennes ont travaillé ensemble.
+                Chiffre des prestations (remises et soins offerts déduits), partagé à parts égales quand plusieurs praticiennes ont travaillé ensemble.
+                Touchez un nom pour sa fiche du mois (détail, présence, primes).
                 {r.sansPraticienne > 0 && ` Ventes au comptoir sans praticienne : ${formatPrix(r.sansPraticienne)}.`}
               </p>
             </Volet>

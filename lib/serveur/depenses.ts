@@ -53,7 +53,7 @@ function lue(d: FirebaseFirestore.QueryDocumentSnapshot): DepenseLue {
   };
 }
 
-export async function ajouterDepense(membre: Membre, brut: { montant?: unknown; categorie?: unknown; libelle?: unknown; mode?: unknown; deLaCaisse?: unknown }) {
+export async function ajouterDepense(membre: Membre, brut: { montant?: unknown; categorie?: unknown; libelle?: unknown; mode?: unknown; deLaCaisse?: unknown; pour?: unknown }) {
   exigerAcces(membre, "depenses");
   const montant = Math.round(Number(brut.montant));
   if (!Number.isFinite(montant) || montant < 1 || montant > 50_000_000) throw new Erreur("Indiquez le montant de la dépense.", 400);
@@ -67,6 +67,15 @@ export async function ajouterDepense(membre: Membre, brut: { montant?: unknown; 
   if (deLaCaisse) exigerAcces(membre, "caisse");
 
   const base = db();
+  // Une prime ou un pourboire versé à une prestataire : on note pour qui (fiche du mois).
+  let pour: { id: string; nom: string } | null = null;
+  if (brut.pour) {
+    const id = String(brut.pour);
+    if (!/^[\w-]{1,80}$/.test(id)) throw new Erreur("Prestataire inconnue.", 400);
+    const f = await base.doc(`praticiennes/${id}`).get();
+    if (!f.exists) throw new Erreur("Prestataire inconnue.", 400);
+    pour = { id, nom: f.get("nom") as string };
+  }
   const { date, minutes } = maintenantDakar();
   const ref = base.collection("depenses").doc();
   await base.runTransaction(async (tx) => {
@@ -79,6 +88,7 @@ export async function ajouterDepense(membre: Membre, brut: { montant?: unknown; 
       libelle,
       mode,
       caisse: caisse?.id ?? null,
+      ...(pour ? { pour } : {}),
       par: trace(membre),
       creeLe: FieldValue.serverTimestamp(),
     });

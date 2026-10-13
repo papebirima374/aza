@@ -170,6 +170,19 @@ pages.append(page(f"""
 </div>{figure("93-ajout-prestation","Choisir le soin")}{figure("94-ajout-confirme","C'est ajouté")}</div>
 """, P))
 
+pages.append(page(f"""
+<span class="etiquette">2 · La praticienne</span>
+<h2>Mon historique : mes soins, mois par mois</h2>
+{duo('''<p>Dans <b>Ma journée</b>, touchez <span class="touche">📒 Mon historique</span> (aussi dans <b>Mon compte</b> pour une caissière qui fait des prestations).</p>
+<ul class="puces">
+<li>En haut : le nombre de <b>soins</b> du mois et de <b>jours de travail</b>.</li>
+<li>Chaque jour, touchez-le pour voir ses soins : l'heure, le soin, la cliente (prénom et initiale).</li>
+<li>Les flèches ‹ › changent de mois.</li>
+<li><b>Sans les montants</b> : la prestataire voit ce qu'elle a fait ; le chiffre reste à la direction (fiche du mois).</li>
+</ul>
+<p class="doux">Seuls les soins encaissés comptent ; un ticket annulé disparaît de l'historique.</p>''', "131-mon-historique", "Mon historique")}
+""", P))
+
 # 3. Agenda
 pages.append(page(f"""
 <span class="etiquette">3 · L'accueil</span>
@@ -540,6 +553,7 @@ pages.append(page(f"""
 <li>Touchez <b>« Voir et fusionner »</b> : chaque numéro en double, avec ses fiches.</li>
 <li><span class="bouton">Fusionner en une seule fiche</span> : le crédit, les points et les passages s'additionnent ; les rendez-vous, tickets, commandes et avis sont rattachés à la fiche unique. Rien n'est perdu.</li>
 </ol>
+<p class="doux"><b>Liste longue ?</b> Touchez une <b>lettre</b> (A, B, C…) sous les groupes : seules les clientes dont le nom commence par elle s'affichent ; 30 à la fois, puis « Afficher plus ».</p>
 <h3>Importer une liste de clientes</h3>
 <p><b>📥 Importer des clientes</b> (direction, manager) : un fichier CSV <b>Nom ; Téléphone</b> (et Notes). Le compte rendu s'affiche d'abord, sans rien enregistrer : les fiches à créer, les numéros qui ont <b>déjà une fiche</b> (laissés de côté, la fiche n'est pas touchée), les numéros répétés, les lignes refusées (sans numéro, numéro incomplet). Puis <span class="bouton">Créer les … fiches</span>. Relancer le même fichier ne crée rien une seconde fois.</p>
 </div>{figure("122-doublons","Les doublons")}</div>
@@ -720,6 +734,19 @@ pages.append(page(f"""
 
 pages.append(page(f"""
 <span class="etiquette">9 · La direction</span>
+<h2>La fiche du mois de chaque prestataire</h2>
+{duo('''<p>Pour décider d'une <b>prime</b> ou d'un <b>pourboire</b> : Rapports → volet 👥 L'équipe → <b>touchez son nom</b>.</p>
+<ul class="puces">
+<li><b>Chiffre des soins</b> (ce que ses soins ont vraiment rapporté : remises et soins offerts déduits), <b>soins faits</b>, <b>jours travaillés</b>, <b>note des clientes</b>, rendez-vous et absences.</li>
+<li>Avec le pointage : <b>heures de présence</b> et <b>retards</b>.</li>
+<li>Le <b>détail</b> : chaque soin, jour, heure, cliente et montant.</li>
+<li>Le menu en haut passe d'une prestataire à l'autre ; ‹ › change de mois ; <span class="touche">🖨️ Imprimer</span> pour une feuille A4.</li>
+</ul>
+<div class="encadre or"><b>+ Noter une prime ou un pourboire</b> : choisissez Prime ou Pourboire, le montant et le moyen de paiement. Il apparaît sur sa fiche (« Total versé ») et dans les <b>Dépenses</b> (Salaires et avances).</div>''', "132-fiche-du-mois", "La fiche du mois")}
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">9 · La direction</span>
 <h2>Les avis des clientes</h2>
 <div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
 <p>Après sa visite, la cliente reçoit le lien de l'avis avec son reçu WhatsApp, ou scanne le QR code du ticket. Elle touche les étoiles, écrit un mot si elle veut, et dit si son avis peut paraître sur le site.</p>
@@ -861,7 +888,8 @@ pages.append(page(f"""
 <li><b>Changer un prix</b> : cherchez la prestation, tapez le prix, <span class="bouton">Enregistrer le prix</span>.</li>
 <li><b>Ajouter</b> : ouvrez la famille, « + Ajouter dans … », nom et prix. Cochez « C'est un produit » pour un article de boutique.</li>
 <li><b>Masquer</b> : elle disparaît du site et de la caisse ; « Réafficher » la remet.</li>
-<li><b>Sur le site</b> : décochez la case pour qu'une ligne reste en caisse mais ne paraisse plus sur le site (ni pages, ni réservation, ni boutique).</li>
+<li><b>Site</b> : décochez la case pour qu'une ligne reste en caisse mais ne paraisse plus sur le site (ni pages, ni réservation, ni boutique).</li>
+<li><b>Grandes familles</b> (Habillement, Parfums…) : touchez une <b>lettre</b> pour aller droit au but ; 25 lignes à la fois, puis « Afficher plus ».</li>
 <li>Appliqué partout en moins d'une minute, avec trace (ancien prix, nouveau prix, qui, quand).</li>
 </ul>
 <h3>🖼️ Photos du site</h3>
@@ -881,7 +909,7 @@ pages.append(page(f"""
 <li><span class="bouton">Ajouter les … lignes nouvelles</span>, puis confirmez.</li>
 </ol>
 <p class="doux">Relancer le même fichier n'ajoute rien une seconde fois. Les produits (habillement, parfums, cosmétiques, thiouraye…) sont rangés dans « Produits » : ils se vendent en caisse ; pour la boutique en ligne, il faut aussi leur stock et leur photo (Stock → Boutique).</p>
-</div>{figure("129-import-catalogue","Le compte rendu avant l'ajout")}{figure("130-sur-le-site","La case « Sur le site »")}</div>
+</div>{figure("129-import-catalogue","Le compte rendu avant l'ajout")}{figure("134-catalogue-compact","Lettres et case « Site »")}</div>
 """, P))
 
 # 12. Réglages

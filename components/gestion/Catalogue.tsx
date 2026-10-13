@@ -110,10 +110,22 @@ export function Catalogue() {
   );
 }
 
+const PAGE = 25;
+const initiale = (nom: string) => {
+  const l = nom.normalize("NFD").replace(/[\u0300-\u036f]/g, "").charAt(0).toUpperCase();
+  return /[A-Z]/.test(l) ? l : "#";
+};
+
 function BlocFamille(props: { f: Famille; ouverte: boolean; basculer: () => void; envoyer: (c: object, ok: string) => Promise<boolean> }) {
   const { f } = props;
   const lignes = f.prestations as Ligne[];
   const visibles = lignes.filter((p) => !p.masque).length;
+  // Raccourcis pour les grandes familles (Habillement, Parfums…) : une lettre, 25 lignes à la fois.
+  const [lettre, setLettre] = useState("");
+  const [nombre, setNombre] = useState(PAGE);
+  const lettres = [...new Set(lignes.map((p) => initiale(p.nom)))].sort();
+  const dansLettre = lettre ? lignes.filter((p) => initiale(p.nom) === lettre) : lignes;
+  const montrees = dansLettre.slice(0, nombre);
   return (
     <div className="mt-2 overflow-hidden rounded-xl border border-bordure">
       <button onClick={props.basculer} aria-expanded={props.ouverte} className="flex w-full items-center justify-between gap-3 bg-creme px-3 py-3 text-left">
@@ -127,10 +139,34 @@ function BlocFamille(props: { f: Famille; ouverte: boolean; basculer: () => void
       </button>
       {props.ouverte && (
         <>
+          {lignes.length > PAGE && lettres.length > 1 && (
+            <div className="flex flex-wrap gap-1 border-t border-bordure px-3 py-2" aria-label="Aller à une lettre">
+              {["", ...lettres].map((l) => (
+                <button
+                  key={l || "tout"}
+                  onClick={() => {
+                    setLettre(l);
+                    setNombre(PAGE);
+                  }}
+                  aria-pressed={lettre === l}
+                  className={`h-8 min-w-8 rounded-lg px-2 text-xs font-bold ${lettre === l ? "bg-profond text-white" : "bg-creme text-profond"}`}
+                >
+                  {l || "Tout"}
+                </button>
+              ))}
+            </div>
+          )}
           <ul className="divide-y divide-bordure border-t border-bordure">
-            {lignes.map((p) => (
+            {montrees.map((p) => (
               <LignePrix key={`${p.id}:${p.prix}:${p.masque}:${p.horsSite}`} p={p} envoyer={props.envoyer} />
             ))}
+            {dansLettre.length > montrees.length && (
+              <li>
+                <button onClick={() => setNombre((n) => n + PAGE)} className="w-full px-3 py-2.5 text-sm font-bold text-profond hover:bg-creme/60">
+                  Afficher {Math.min(PAGE, dansLettre.length - montrees.length)} de plus ({dansLettre.length - montrees.length} restantes)
+                </button>
+              </li>
+            )}
           </ul>
           <Ajouter key={f.id} familleId={f.id} nomFamille={f.nom} boutique={Boolean(f.boutique)} envoyer={props.envoyer} />
         </>
@@ -153,64 +189,63 @@ function LignePrix({ p, envoyer }: { p: Ligne; envoyer: (c: object, ok: string) 
   }
 
   return (
-    <li className={`px-3 py-3 ${p.masque ? "bg-creme/60" : ""}`}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <span className="min-w-0 flex-1">
-          <span className={`block font-semibold ${p.masque ? "text-doux line-through" : ""}`}>{p.nom}</span>
-          <span className="flex flex-wrap gap-1.5 text-xs">
-            {p.note === "Produit" && <span className="rounded-full bg-or/20 px-2 py-0.5 font-semibold">produit</span>}
-            {p.ajoute && <span className="rounded-full bg-[#e7f5ec] px-2 py-0.5 font-semibold text-[#0d6b37]">ajoutée</span>}
-            {p.masque && <span className="rounded-full bg-bordure px-2 py-0.5 font-semibold text-doux">masquée</span>}
-            {p.horsSite && !p.masque && <span className="rounded-full bg-bordure px-2 py-0.5 font-semibold text-doux">pas sur le site</span>}
-          </span>
+    <li className={`px-3 py-2 ${p.masque ? "bg-creme/60" : ""}`}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+        <span className="min-w-0 flex-1 basis-full sm:basis-40">
+          <span className={`text-sm leading-tight font-semibold ${p.masque ? "text-doux line-through" : ""}`}>{p.nom}</span>
+          {(p.note === "Produit" || p.masque || p.horsSite) && (
+            <span className="ml-1.5 inline-flex flex-wrap gap-1 align-middle text-[11px]">
+              {p.note === "Produit" && <span className="rounded-full bg-or/20 px-1.5 font-semibold">produit</span>}
+              {p.masque && <span className="rounded-full bg-bordure px-1.5 font-semibold text-doux">masquée</span>}
+              {p.horsSite && !p.masque && <span className="rounded-full bg-bordure px-1.5 font-semibold text-doux">pas sur le site</span>}
+            </span>
+          )}
         </span>
-        <label className="flex items-center gap-1.5">
-          <input
-            inputMode="numeric"
-            value={prix}
-            onChange={(e) => setPrix(e.target.value)}
-            aria-label={`Prix de ${p.nom}`}
-            className={`w-28 rounded-lg border px-2 py-2 text-right ${modifie ? "border-aza" : "border-bordure"}`}
-          />
-          <span className="text-sm text-doux">F</span>
-        </label>
-      </div>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {modifie && (
+        <input
+          inputMode="numeric"
+          value={prix}
+          onChange={(e) => setPrix(e.target.value)}
+          aria-label={`Prix de ${p.nom}`}
+          className={`w-24 rounded-lg border px-2 py-1.5 text-right text-sm ${modifie ? "border-aza" : "border-bordure"}`}
+        />
+        {modifie ? (
           <button
             disabled={!valide || envoi}
             onClick={() => faire({ action: "prix", id: p.id, prix: nouveau }, `${p.nom} : ${formatPrix(nouveau)} (au lieu de ${formatPrix(p.prix)}).`)}
-            className="min-h-10 rounded-full bg-aza px-5 text-sm font-bold text-white disabled:opacity-40"
+            className="min-h-9 rounded-full bg-aza px-3 text-xs font-bold text-white disabled:opacity-40"
           >
-            Enregistrer le prix
+            Enregistrer
           </button>
-        )}
-        <button
-          disabled={envoi}
-          onClick={() => {
-            if (!p.masque && !window.confirm(`Masquer « ${p.nom} » ? Elle n'apparaîtra plus sur le site ni en caisse. Vous pourrez la réafficher.`)) return;
-            faire({ action: "masquer", id: p.id, masque: !p.masque }, p.masque ? `« ${p.nom} » est de nouveau proposée.` : `« ${p.nom} » est masquée.`);
-          }}
-          className="min-h-10 rounded-full border border-bordure px-4 text-sm font-semibold text-profond disabled:opacity-40"
-        >
-          {p.masque ? "Réafficher" : "Masquer"}
-        </button>
-        {!p.masque && (
-          <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded-full border border-bordure px-4 text-sm font-semibold text-profond">
-            <input
-              type="checkbox"
-              checked={!p.horsSite}
+        ) : (
+          <>
+            {!p.masque && (
+              <label className="flex min-h-9 cursor-pointer items-center gap-1.5 rounded-full border border-bordure px-2.5 text-xs font-semibold text-profond" title="Visible sur le site">
+                <input
+                  type="checkbox"
+                  checked={!p.horsSite}
+                  disabled={envoi}
+                  onChange={(e) =>
+                    faire(
+                      { action: "site", id: p.id, site: e.target.checked },
+                      e.target.checked ? `« ${p.nom} » est de nouveau sur le site.` : `« ${p.nom} » n'est plus sur le site (elle reste en caisse).`,
+                    )
+                  }
+                  className="h-4 w-4 accent-[#7E0A4C]"
+                />
+                Site
+              </label>
+            )}
+            <button
               disabled={envoi}
-              onChange={(e) =>
-                faire(
-                  { action: "site", id: p.id, site: e.target.checked },
-                  e.target.checked ? `« ${p.nom} » est de nouveau sur le site.` : `« ${p.nom} » n'est plus sur le site (elle reste en caisse).`,
-                )
-              }
-              className="h-5 w-5 accent-[#7E0A4C]"
-            />
-            Sur le site
-          </label>
+              onClick={() => {
+                if (!p.masque && !window.confirm(`Masquer « ${p.nom} » ? Elle n'apparaîtra plus sur le site ni en caisse. Vous pourrez la réafficher.`)) return;
+                faire({ action: "masquer", id: p.id, masque: !p.masque }, p.masque ? `« ${p.nom} » est de nouveau proposée.` : `« ${p.nom} » est masquée.`);
+              }}
+              className="min-h-9 rounded-full border border-bordure px-2.5 text-xs font-semibold text-profond disabled:opacity-40"
+            >
+              {p.masque ? "Réafficher" : "Masquer"}
+            </button>
+          </>
         )}
       </div>
     </li>

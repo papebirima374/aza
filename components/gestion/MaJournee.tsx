@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
 import { useEffect, useRef, useState } from "react";
 import { AlerteCliente } from "@/components/gestion/AlerteCliente";
@@ -97,6 +98,10 @@ export function MaJournee() {
           </button>
         ))}
       </div>
+
+      <Link href="/gestion/historique" className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-bordure font-bold text-profond">
+        <span aria-hidden>📒</span> Mon historique
+      </Link>
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <p className="text-lg font-semibold text-profond">
