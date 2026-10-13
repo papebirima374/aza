@@ -6,8 +6,9 @@ import { useCompte } from "@/components/gestion/EspaceGestion";
 import { heurePointage } from "@/lib/pointage";
 
 // La borne de pointage : un écran posé à l'institut (tablette ou ordinateur de l'accueil).
-// Le QR code et le code à 6 chiffres changent toutes les 30 secondes ; chacun les scanne avec
-// SON compte (AZA Gestion → ⏱ Pointer). L'écran reste allumé et montre les derniers pointages.
+// Le QR code change toutes les 30 secondes (sans chiffres affichés : personne ne peut dicter
+// le code au téléphone) ; chacun le scanne avec SON compte (AZA Gestion → ⏱ Pointer).
+// L'écran reste allumé et montre les derniers pointages.
 
 type Borne = { code: string; expireDans: number; periode: number; derniers: { id: string; nom: string; type: "entree" | "sortie"; heure: number }[] };
 
@@ -31,7 +32,6 @@ const horloge = (ms: number) => new Date(ms).toLocaleTimeString("fr-FR", { hour:
 export function BornePointage() {
   const compte = useCompte();
   const [borne, setBorne] = useState<Borne | null>(null);
-  const [finLe, setFinLe] = useState(0);
   const [maintenant, setMaintenant] = useState(() => Date.now());
   const [erreur, setErreur] = useState("");
   const [recent, setRecent] = useState<string | null>(null);
@@ -54,7 +54,6 @@ export function BornePointage() {
         }
         setErreur("");
         setBorne(j);
-        setFinLe(Date.now() + j.expireDans);
         const ids = (j.derniers as Borne["derniers"]).map((d) => d.id);
         if (connus.current && ids[0] && !connus.current.has(ids[0])) setRecent(ids[0]);
         connus.current = new Set(ids);
@@ -105,8 +104,6 @@ export function BornePointage() {
 
   // Rendue seulement dans le navigateur (après la connexion) : l'adresse du site est connue.
   const origine = typeof window === "undefined" ? "" : window.location.origin;
-  const reste = Math.max(0, finLe - maintenant);
-  const part = borne ? reste / borne.periode : 0;
   const nouveau = borne?.derniers.find((d) => d.id === recent);
   return (
     <div ref={cadre} className="min-h-[calc(100vh-3.5rem)] bg-bordeaux px-4 py-6 text-white">
@@ -115,13 +112,6 @@ export function BornePointage() {
           <p className="font-serif text-2xl font-semibold text-profond">Pointage</p>
           <p className="text-sm text-doux">AZA Gestion → ⏱ Pointer → scannez</p>
           <div className="mx-auto mt-3 w-full max-w-[18rem]">{borne && origine ? <Qr texte={`${origine}/gestion/pointer?c=${borne.code}`} /> : <div className="aspect-square animate-pulse rounded-xl bg-creme" />}</div>
-          <p className="mt-3 font-mono text-4xl font-bold tracking-[0.25em] text-profond" aria-live="polite">
-            {borne ? `${borne.code.slice(0, 3)} ${borne.code.slice(3)}` : "··· ···"}
-          </p>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-creme" aria-hidden>
-            <div className="h-full rounded-full bg-aza transition-[width] duration-200 ease-linear" style={{ width: `${Math.round(part * 100)}%` }} />
-          </div>
-          <p className="mt-1 text-xs text-doux">Nouveau code dans {Math.ceil(reste / 1000)} s</p>
           {erreur && <p className="mt-3 rounded-xl bg-[#fde8ec] p-2 text-sm font-semibold text-[#a3123a]">{erreur}</p>}
         </div>
 

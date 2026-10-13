@@ -5,8 +5,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { codeDuTexte, dureeTexte, heurePointage } from "@/lib/pointage";
 
-// « Pointer » : chaque personne, connectée à SON compte, scanne le code affiché sur la borne
-// de l'institut (ou tape les 6 chiffres). Premier pointage du jour : entrée ; puis sortie…
+// « Pointer » : chaque personne, connectée à SON compte, scanne le QR code affiché sur la borne
+// de l'institut. Premier pointage du jour : entrée ; puis sortie…
 // Le code change toutes les 30 secondes : une photo envoyée par quelqu'un ne marche plus.
 
 type Mon = { date: string; pointages: { type: "entree" | "sortie"; heure: number }[]; arrivee: number | null; depart: number | null; present: boolean; minutes: number };
@@ -22,7 +22,6 @@ export function Pointer() {
   const [erreur, setErreur] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [scan, setScan] = useState(false);
-  const [saisie, setSaisie] = useState("");
   const dejaAuto = useRef(false);
 
   const lire = useCallback(async () => {
@@ -45,7 +44,6 @@ export function Pointer() {
         if (!r.ok) setErreur(j.erreur ?? "Pointage impossible.");
         else {
           setResultat(j);
-          setSaisie("");
           navigator.vibrate?.(150);
         }
         await lire();
@@ -137,33 +135,6 @@ export function Pointer() {
         </button>
       )}
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          const code = codeDuTexte(saisie);
-          if (!code) return setErreur("Tapez les 6 chiffres affichés sous le QR code.");
-          envoyer(code);
-        }}
-        className="mt-6 rounded-2xl border border-bordure p-4"
-      >
-        <label htmlFor="code-pointage" className="text-sm font-semibold">
-          Le scan ne marche pas ? Tapez le code à 6 chiffres de la borne
-        </label>
-        <div className="mt-2 flex gap-2">
-          <input
-            id="code-pointage"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            value={saisie}
-            onChange={(e) => setSaisie(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            placeholder="123456"
-            className="min-w-0 flex-1 rounded-xl border border-bordure px-4 py-3 text-center text-2xl font-bold tracking-[0.3em]"
-          />
-          <button disabled={envoi || saisie.length !== 6} className="rounded-xl bg-aza px-5 font-bold text-white disabled:opacity-40">
-            Valider
-          </button>
-        </div>
-      </form>
     </div>
   );
 }
@@ -187,7 +158,7 @@ function Scanner({ trouve, fermer }: { trouve: (texte: string) => boolean; ferme
       try {
         flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
       } catch {
-        setMessage("La caméra est refusée. Autorisez-la dans les réglages du navigateur, ou tapez le code à 6 chiffres.");
+        setMessage("La caméra est refusée. Autorisez-la dans les réglages du navigateur, ou scannez le QR code avec l'appareil photo du téléphone.");
         return;
       }
       if (fini || !video.current) return;

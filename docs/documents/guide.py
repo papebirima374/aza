@@ -764,13 +764,13 @@ pages.append(page(f"""
 pages.append(page(f"""
 <span class="etiquette">10 · La direction</span>
 <h2>Le pointage : la borne de l'institut</h2>
-<p class="chapeau">Chaque personne pointe son <b>arrivée</b> et son <b>départ</b> avec son propre compte, en scannant le code affiché à l'institut. Le code <b>change toutes les 30 secondes</b> : une photo envoyée à quelqu'un qui n'est pas là ne marche plus une minute après.</p>
+<p class="chapeau">Chaque personne pointe son <b>arrivée</b> et son <b>départ</b> avec son propre compte, en scannant le code affiché à l'institut. Le QR code <b>change toutes les 30 secondes</b> et n'affiche aucun chiffre : une photo envoyée à quelqu'un qui n'est pas là ne marche plus une minute après, et personne ne peut dicter le code au téléphone.</p>
 <p><b>Installer la borne</b> (une fois) : sur une tablette ou l'ordinateur de l'accueil, connectez un compte qui a l'accès « Borne de pointage » (la direction, le manager, ou un compte créé pour la tablette), puis <b>Plus ▾ → 📺 Borne de pointage</b> et <span class="touche">⛶ Plein écran</span>. Laissez-la allumée et branchée.</p>
-<div class="duo" style="grid-template-columns:1fr 58mm;"><div>{figure("126-borne","La borne : QR code, code à 6 chiffres, derniers pointages","pc")}</div>{figure("127-pointer","Pointer, sur son téléphone")}</div>
+<div class="duo" style="grid-template-columns:1fr 58mm;"><div>{figure("126-borne","La borne : le QR code et les derniers pointages","pc")}</div>{figure("127-pointer","Pointer, sur son téléphone")}</div>
 <ol class="etapes">
 <li>En arrivant : ouvrir <b>AZA Gestion</b>, toucher <span class="touche">⏱️</span> en haut (« Pointer »), puis <span class="bouton" style="background:#0d6b37">📷 Scanner : j'arrive</span> et viser le QR code.</li>
 <li>L'écran dit <b>« Entrée à 9h02 »</b> ; la borne dit « Bonjour … ». En partant, même geste : <b>« Sortie »</b>.</li>
-<li>Le scan ne marche pas ? <b>Taper les 6 chiffres</b> affichés sous le QR code, puis Valider.</li>
+<li>Le bouton Scanner ne marche pas (caméra refusée) ? Scanner le QR code avec <b>l'appareil photo</b> du téléphone : le lien ouvre AZA Gestion et pointe tout seul.</li>
 </ol>
 """, P))
 pages.append(page(f"""

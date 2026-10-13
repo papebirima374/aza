@@ -20,13 +20,13 @@ const calmer = async (p) => {
 const borne = await entrer("77 900 00 01", 1180, 820);
 await borne.goto(S + "/gestion/pointage/borne");
 await calmer(borne);
-await borne.getByText(/Nouveau code dans/).waitFor();
+await borne.locator("svg[aria-label='QR code de pointage']").waitFor();
 // 127 : la coiffeuse pointe en tapant le code
-const code = (await borne.locator("p.font-mono").first().textContent()).replace(/\D/g, "");
+// Le code du moment (celui que contient le QR code), comme si on l'avait scanné
+const jd = (await (await fetch("http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=demo-api-key", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: "direction@test.aza", password: "AzaTest2026!", returnSecureToken: true }) })).json()).idToken;
+const code = (await (await fetch(S + "/api/gestion/pointage?borne=1", { headers: { Authorization: `Bearer ${jd}` } })).json()).code;
 const tel = await entrer("77 900 00 04", 390, 844);
-await tel.goto(S + "/gestion/pointer");
-await tel.fill("#code-pointage", code);
-await tel.getByRole("button", { name: "Valider" }).click();
+await tel.goto(S + "/gestion/pointer?c=" + code);
 await tel.getByText(/(Entrée|Sortie) à/).first().waitFor();
 await tel.waitForTimeout(500);
 await tel.screenshot({ path: `${D}127-pointer.png` });
