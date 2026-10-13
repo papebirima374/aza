@@ -14,6 +14,8 @@ import { db } from "@/lib/serveur/firebase";
 import { maintenantDakar } from "@/lib/serveur/reservations";
 import { compterNouveauxDevis } from "@/lib/serveur/perruques";
 import { compterAlertes } from "@/lib/serveur/stock";
+import { pointagesPourCloche } from "@/lib/serveur/pointage";
+import { heurePointage } from "@/lib/pointage";
 
 export type Notification = {
   id: string;
@@ -40,7 +42,7 @@ export async function notifications(membre: Membre): Promise<Notification[]> {
   const { date } = maintenantDakar();
   const base = db();
   const agenda = ROLES_AGENDA.includes(membre.role);
-  const [commandes, devis, avis, stock, anniversaires, enLigne, caisses] = await Promise.all([
+  const [commandes, devis, avis, stock, anniversaires, enLigne, caisses, pointages] = await Promise.all([
     peut(membre, "commandes") ? essayer(() => compterNouvelles(membre)) : null,
     peut(membre, "commandes") ? essayer(() => compterNouveauxDevis(membre)) : null,
     peut(membre, "avis") ? essayer(() => compterAvisATraiter(membre)) : null,
@@ -50,6 +52,7 @@ export async function notifications(membre: Membre): Promise<Notification[]> {
       ? essayer(async () => (await base.collection("rendezVous").where("creeLe", ">=", Timestamp.fromMillis(Date.now() - 48 * 3600_000)).get()).docs)
       : null,
     voitToutesLesCaisses(membre) ? essayer(async () => (await base.collection("caisses").where("statut", "==", "ouverte").get()).docs) : null,
+    peut(membre, "pointage") ? essayer(() => pointagesPourCloche(membre)) : null,
   ]);
 
   const res: Notification[] = [];
@@ -72,6 +75,20 @@ export async function notifications(membre: Membre): Promise<Notification[]> {
         })),
       });
   }
+  if (pointages?.length)
+    res.push({
+      id: "pointages",
+      icone: "⏱️",
+      titre: `${pointages.length} pointage${pointages.length > 1 ? "s" : ""} aujourd'hui`,
+      detail: "Entrées et sorties de l'équipe",
+      lien: "/gestion/pointage",
+      nombre: pointages.length,
+      elements: pointages.map((p) => ({
+        id: `pointage-${p.id}`,
+        texte: `${p.type === "entree" ? "🟢" : "🔴"} ${p.nom} : ${p.type === "entree" ? "arrivée" : "départ"} à ${heurePointage(p.heure)}`,
+        lien: "/gestion/pointage",
+      })),
+    });
   const totalCommandes = (commandes ?? 0) + (devis ?? 0);
   if (totalCommandes)
     res.push({

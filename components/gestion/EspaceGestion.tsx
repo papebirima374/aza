@@ -159,6 +159,19 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
           {compte && <MenuPlus compte={compte} chemin={chemin} />}
         </nav>
         <div className="ml-auto flex items-center gap-2 text-sm sm:gap-3">
+          {compte && (
+            <Link
+              href="/gestion/pointer"
+              aria-label="Pointer (entrée ou sortie)"
+              title="Pointer"
+              className={`flex h-10 items-center gap-1 rounded-full px-2.5 font-semibold hover:bg-white/10 ${chemin === "/gestion/pointer" ? "bg-white/15 text-white" : ""}`}
+            >
+              <span aria-hidden className="text-xl">
+                ⏱️
+              </span>
+              <span className="hidden lg:inline">Pointer</span>
+            </Link>
+          )}
           {compte && <CentreNotifications compte={compte} />}
           <Link href="/gestion/mon-compte" className="flex min-h-10 max-w-[9rem] items-center gap-1 truncate rounded-full px-2 py-1 hover:bg-white/10 md:max-w-none" title="Mon compte">
             <span aria-hidden>👤</span>
@@ -197,6 +210,8 @@ function MenuPlus({ compte, chemin }: { compte: Compte; chemin: string }) {
       libelle: "🧾 Sessions de caisse",
       visible: ["direction", "manager", "comptable"].includes(role) || peut(compte, "jour") || peut(compte, "rapports"),
     },
+    { href: "/gestion/pointage", libelle: "⏱️ Pointages de l'équipe", visible: peut(compte, "pointage") },
+    { href: "/gestion/pointage/borne", libelle: "📺 Borne de pointage", visible: peut(compte, "borne") },
     { href: "/gestion/catalogue", libelle: "📋 Catalogue et prix", visible: peut(compte, "catalogue") },
     { href: "/gestion/collection", libelle: "👗 Collection Couture", visible: direction },
     { href: "/gestion/cartes", libelle: "🎁 Cartes cadeaux", visible: direction || peut(compte, "caisse") },

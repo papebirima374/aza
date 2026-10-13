@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { lienAttente, useRetards } from "@/components/gestion/AlerteHeure";
 import type { Compte } from "@/components/gestion/EspaceGestion";
 import { useAEncaisser } from "@/components/gestion/SuiviCaisse";
@@ -33,6 +33,11 @@ function lireVus(): string[] {
   }
 }
 
+function titreElements(id: string, n: number) {
+  const s = n > 1 ? "s" : "";
+  return id === "pointages" ? `${n} pointage${s} à voir` : `${n} rendez-vous pris en ligne`;
+}
+
 export function CentreNotifications({ compte }: { compte: Compte }) {
   const chemin = usePathname();
   const retards = useRetards();
@@ -41,19 +46,31 @@ export function CentreNotifications({ compte }: { compte: Compte }) {
   const [ouvert, setOuvert] = useState(false);
   const [vus, setVus] = useState<string[]>([]);
   const [deplie, setDeplie] = useState(false);
+  // Pointages arrivés depuis la dernière lecture : un petit message s'affiche quelques secondes.
+  const pointagesConnus = useRef<Set<string> | null>(null);
+  const [nouveaux, setNouveaux] = useState<string[]>([]);
   const gerante = ROLES_AGENDA.includes(compte.role);
 
   useEffect(() => {
     let actif = true;
     const lire = async () => {
       const r = await fetch("/api/gestion/notifications", { headers: { Authorization: `Bearer ${await compte.user.getIdToken()}` } });
-      if (r.ok && actif) setServeur(await r.json());
+      if (!r.ok || !actif) return;
+      const liste: Notification[] = await r.json();
+      setServeur(liste);
+      const pts = liste.find((n) => n.id === "pointages")?.elements ?? [];
+      const connus = pointagesConnus.current;
+      if (connus) {
+        const neufs = pts.filter((e) => !connus.has(e.id)).map((e) => e.texte);
+        if (neufs.length) setNouveaux(neufs.slice(0, 3));
+      }
+      pointagesConnus.current = new Set([...(connus ?? []), ...pts.map((e) => e.id)]);
     };
     const t0 = setTimeout(() => {
       setVus(lireVus());
       lire().catch(() => {});
     }, 0);
-    const t = setInterval(() => lire().catch(() => {}), 60_000);
+    const t = setInterval(() => lire().catch(() => {}), 30_000);
     const relire = () => lire().catch(() => {});
     for (const e of ["aza-commandes", "aza-avis"]) window.addEventListener(e, relire);
     return () => {
@@ -63,6 +80,12 @@ export function CentreNotifications({ compte }: { compte: Compte }) {
       for (const e of ["aza-commandes", "aza-avis"]) window.removeEventListener(e, relire);
     };
   }, [compte.user, chemin]);
+
+  useEffect(() => {
+    if (!nouveaux.length) return;
+    const t = setTimeout(() => setNouveaux([]), 12_000);
+    return () => clearTimeout(t);
+  }, [nouveaux]);
 
   // Fermer avec Échap ou en touchant ailleurs.
   useEffect(() => {
@@ -81,7 +104,7 @@ export function CentreNotifications({ compte }: { compte: Compte }) {
   // Rendez-vous en ligne déjà vus sur cet appareil : ils ne comptent plus.
   const notifs = serveur
     .map((n) => (n.elements ? { ...n, elements: n.elements.filter((e) => !vus.includes(e.id)) } : n))
-    .map((n) => (n.elements ? { ...n, nombre: n.elements.length, titre: `${n.elements.length} rendez-vous pris en ligne` } : n))
+    .map((n) => (n.elements ? { ...n, nombre: n.elements.length, titre: titreElements(n.id, n.elements.length) } : n))
     .filter((n) => n.nombre > 0);
   const total = retards.length + aEncaisser.length + notifs.reduce((s, n) => s + n.nombre, 0);
   const marquerVu = (ids: string[]) => {
@@ -108,6 +131,20 @@ export function CentreNotifications({ compte }: { compte: Compte }) {
           <span className="absolute -top-0.5 -right-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-aza px-1 text-xs font-bold text-white">{total > 99 ? "99+" : total}</span>
         )}
       </button>
+      {nouveaux.length > 0 && (
+        <button
+          onClick={() => setNouveaux([])}
+          role="status"
+          className="fixed right-3 bottom-24 z-50 max-w-xs rounded-2xl border border-bordure bg-white px-4 py-3 text-left text-sm font-semibold text-encre shadow-2xl print:hidden"
+        >
+          <span className="block text-xs font-bold tracking-wide text-doux uppercase">⏱️ Pointage</span>
+          {nouveaux.map((t) => (
+            <span key={t} className="block">
+              {t}
+            </span>
+          ))}
+        </button>
+      )}
       {ouvert && (
         <div className="fixed inset-x-3 top-14 z-50 max-h-[75vh] overflow-y-auto rounded-2xl border border-bordure bg-white text-encre shadow-2xl sm:absolute sm:inset-x-auto sm:top-12 sm:right-0 sm:w-[24rem]">
           <p className="sticky top-0 border-b border-bordure bg-white px-4 py-3 font-serif text-xl font-semibold text-profond">Notifications</p>

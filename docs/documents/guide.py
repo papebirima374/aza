@@ -763,6 +763,32 @@ pages.append(page(f"""
 
 pages.append(page(f"""
 <span class="etiquette">10 · La direction</span>
+<h2>Le pointage : la borne de l'institut</h2>
+<p class="chapeau">Chaque personne pointe son <b>arrivée</b> et son <b>départ</b> avec son propre compte, en scannant le code affiché à l'institut. Le code <b>change toutes les 30 secondes</b> : une photo envoyée à quelqu'un qui n'est pas là ne marche plus une minute après.</p>
+<p><b>Installer la borne</b> (une fois) : sur une tablette ou l'ordinateur de l'accueil, connectez un compte qui a l'accès « Borne de pointage » (la direction, le manager, ou un compte créé pour la tablette), puis <b>Plus ▾ → 📺 Borne de pointage</b> et <span class="touche">⛶ Plein écran</span>. Laissez-la allumée et branchée.</p>
+<div class="duo" style="grid-template-columns:1fr 58mm;"><div>{figure("126-borne","La borne : QR code, code à 6 chiffres, derniers pointages","pc")}</div>{figure("127-pointer","Pointer, sur son téléphone")}</div>
+<ol class="etapes">
+<li>En arrivant : ouvrir <b>AZA Gestion</b>, toucher <span class="touche">⏱️</span> en haut (« Pointer »), puis <span class="bouton" style="background:#0d6b37">📷 Scanner : j'arrive</span> et viser le QR code.</li>
+<li>L'écran dit <b>« Entrée à 9h02 »</b> ; la borne dit « Bonjour … ». En partant, même geste : <b>« Sortie »</b>.</li>
+<li>Le scan ne marche pas ? <b>Taper les 6 chiffres</b> affichés sous le QR code, puis Valider.</li>
+</ol>
+""", P))
+pages.append(page(f"""
+<span class="etiquette">10 · La direction</span>
+<h2>Suivre les pointages de l'équipe</h2>
+{duo('''<p><b>Plus ▾ → ⏱️ Pointages de l'équipe</b> (direction et manager) :</p>
+<ul class="puces">
+<li>En haut : <b>combien de personnes sont à l'institut</b> maintenant.</li>
+<li>Pour chacun : <b>arrivée, départ, temps de présence</b>, et en orange le <b>retard</b> sur l'heure d'ouverture (Réglages → Horaires). « Pas pointé » pour qui n'est pas encore venu.</li>
+<li><b>La cloche 🔔</b> reçoit chaque arrivée et chaque départ, et un petit message apparaît à l'écran : « 🟢 Fatou : arrivée à 9h02 ».</li>
+<li><b>Le mois de chacun</b> : jours de présence, heures, retards, sorties oubliées. Touchez un nom pour le détail jour par jour (utile pour la paie).</li>
+<li><b>Un oubli</b> (téléphone sans batterie, sortie pas pointée) : <b>✏️ Ajouter un pointage oublié</b>, avec l'heure et la raison. Un pointage faux s'<b>annule</b> avec un motif. Rien ne s'efface : chaque correction porte le nom de qui l'a faite.</li>
+</ul>
+<div class="encadre or"><b>Accès.</b> « Pointages de l'équipe » et « Borne de pointage » sont réservés à la direction et au manager ; la direction peut les donner à une personne (Équipe → Modifier → Accès).</div>''', "128-pointages", "Les pointages du jour")}
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">10 · La direction</span>
 <h2>Une caissière qui fait aussi des prestations</h2>
 {duo('''<p>Une personne de l'<b>accueil / caisse</b> (ou le manager, ou la direction) peut aussi poser des ongles, faire un soin… Elle garde son rôle et ses accès, et devient <b>aussi prestataire</b>.</p>
 <ol class="etapes">

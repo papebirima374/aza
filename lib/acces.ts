@@ -12,6 +12,8 @@ export type Acces =
   | "rapports"
   | "avis"
   | "journal"
+  | "pointage"
+  | "borne"
   | "clientes"
   | "caisse"
   | "depenses"
@@ -30,6 +32,8 @@ export const ACCES: { id: Acces; libelle: string; detail: string; roles: Role[] 
   { id: "jour", libelle: "Tableau de bord du jour", detail: "recette, équipe, alertes", roles: ["direction", "manager"] },
   { id: "rapports", libelle: "Rapports", detail: "chiffres de la période, export Excel", roles: ["direction", "manager", "comptable"] },
   { id: "avis", libelle: "Avis des clientes", detail: "lire et traiter les avis", roles: ["direction", "manager"] },
+  { id: "pointage", libelle: "Pointages de l'équipe", detail: "voir les entrées et sorties de chacun, corriger un oubli", roles: ["direction", "manager"] },
+  { id: "borne", libelle: "Borne de pointage", detail: "afficher le code de pointage sur l'écran de l'institut", roles: ["direction", "manager"] },
   { id: "journal", libelle: "Journal d'activité", detail: "qui a fait quoi, et quand", roles: ["direction"] },
   { id: "catalogue", libelle: "Catalogue et prix", detail: "changer un prix, ajouter une prestation", roles: ["direction"] },
 ];
