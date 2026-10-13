@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { Rangee, ReglageImprimante, TicketTest, Trait, useImprimante, usePageAuTicket } from "@/components/gestion/Imprimante";
-import { LIBELLE_MODE, MODES, type Mode } from "@/lib/caisse/modes";
+import { LIBELLE_MODE, MODES, montantsNets, type Mode } from "@/lib/caisse/modes";
 import { dateTexte, heureTexte, type Ticket } from "@/lib/caisse/recu";
 import { formatPrix } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
@@ -286,12 +286,14 @@ function recapitulatif(tickets: Journal["tickets"]) {
   const parPrestataire = new Map<string, { nom: string; services: number; produits: number; montant: number }>();
   for (const x of tickets) {
     if (x.type !== "vente" || x.annule) continue;
-    for (const l of x.lignes) {
+    // Ce que chaque ligne a vraiment rapporté (remise et soin offert déduits).
+    const nets = montantsNets(x as typeof x & { sousTotal?: number });
+    for (const [i, l] of x.lignes.entries()) {
       if (l.type !== "prestation" && l.type !== "produit") continue;
       const groupe = l.type === "prestation" ? services : produits;
       const g = groupe.get(l.nom) ?? { nom: l.nom, quantite: 0, montant: 0, offerts: 0 };
       g.quantite += l.quantite;
-      g.montant += l.montant;
+      g.montant += nets[i];
       if (l.offert) g.offerts += l.quantite;
       groupe.set(l.nom, g);
       const p = l.praticienne;
@@ -299,7 +301,7 @@ function recapitulatif(tickets: Journal["tickets"]) {
         const q = parPrestataire.get(p.id) ?? { nom: p.nom, services: 0, produits: 0, montant: 0 };
         if (l.type === "prestation") q.services += l.quantite;
         else q.produits += l.quantite;
-        q.montant += l.montant;
+        q.montant += nets[i];
         parPrestataire.set(p.id, q);
       }
     }

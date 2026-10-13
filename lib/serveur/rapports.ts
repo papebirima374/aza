@@ -3,7 +3,7 @@
 // qui rapportent, chiffre de chaque praticienne, rendez-vous, clientes, avis — et l'export
 // des tickets pour le comptable.
 
-import { LIBELLE_MODE, MODES, MODES_DEJA_ENCAISSES, recetteDuTicket } from "@/lib/caisse/modes";
+import { LIBELLE_MODE, MODES, MODES_DEJA_ENCAISSES, montantsNets, recetteDuTicket } from "@/lib/caisse/modes";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation, maintenantDakar } from "@/lib/serveur/reservations";
@@ -31,6 +31,7 @@ type TicketLu = {
   heure: number;
   lignes: Ligne[];
   total: number;
+  sousTotal?: number;
   paiements: { mode: string; montant: number }[];
   rendu: number;
   credit: number;
@@ -107,7 +108,9 @@ export async function rapport(membre: Membre, duBrut?: string | null, auBrut?: s
     parJourSemaine[js].tickets += signe;
     for (const p of t.paiements) if (!MODES_DEJA_ENCAISSES.includes(p.mode)) parMode[p.mode] = (parMode[p.mode] ?? 0) + p.montant;
     if (t.rendu) parMode.especes = (parMode.especes ?? 0) - t.rendu;
-    if (t.type === "reglement") creditRembourse += t.total;
+    // Un règlement a un total de 0 (la vente à crédit a déjà compté) : ce qui est remboursé, c'est
+    // le crédit qu'il éteint.
+    if (t.type === "reglement") creditRembourse += -(t.credit ?? 0);
     // Qui a encaissé : utile quand plusieurs personnes tiennent la caisse.
     const caisse = parCaisse.get(t.par?.nom ?? "?") ?? { nom: t.par?.nom ?? "?", tickets: 0, montant: 0, annulations: 0 };
     caisse.montant += r;
@@ -131,14 +134,15 @@ export async function rapport(membre: Membre, duBrut?: string | null, auBrut?: s
         clientesServies.set(cle, c);
       }
     }
-    for (const l of t.lignes) {
-      parType[l.type] = (parType[l.type] ?? 0) + l.montant;
-      if (l.type !== "prestation" && l.type !== "produit") continue;
+    const nets = montantsNets(t);
+    t.lignes.forEach((l, i) => {
+      parType[l.type] = (parType[l.type] ?? 0) + nets[i];
+      if (l.type !== "prestation" && l.type !== "produit") return;
       const a = articles.get(l.id) ?? { nom: l.nom, type: l.type, nombre: 0, montant: 0 };
       a.nombre += t.type === "avoir" ? -l.quantite : l.quantite;
-      a.montant += l.montant;
+      a.montant += nets[i];
       articles.set(l.id, a);
-    }
+    });
   }
   const classer = (type: string, n: number) =>
     [...articles.values()].filter((a) => a.type === type && a.nombre > 0).sort((a, b) => b.montant - a.montant).slice(0, n);
@@ -166,18 +170,21 @@ export async function rapport(membre: Membre, duBrut?: string | null, auBrut?: s
     const rdv = t.rendezVous ? rdvParId.get(t.rendezVous) : undefined;
     const affectations = (rdv?.get("affectations") as { prestation: string; praticiennes: string[] }[] | undefined) ?? [];
     const toutes = (rdv?.get("praticiennesIds") as string[] | undefined) ?? [];
-    for (const l of t.lignes) {
+    // Ce que chaque soin a vraiment rapporté (remise et soin offert déduits).
+    const nets = montantsNets(t);
+    for (const [i, l] of t.lignes.entries()) {
       if (l.type !== "prestation") continue;
+      const net = nets[i];
       // Le prestataire noté sur la ligne (à la caisse) d'abord, sinon celles du rendez-vous.
       const faites = l.praticienne?.id ? [l.praticienne.id] : [...new Set(affectations.filter((a) => a.prestation === l.id).flatMap((a) => a.praticiennes))];
       const qui = faites.length > 0 ? faites : toutes;
       if (qui.length === 0) {
-        sansPraticienne += l.montant;
+        sansPraticienne += net;
         continue;
       }
       for (const p of qui) {
         const e = fiche(p);
-        e.montant += Math.round(l.montant / qui.length);
+        e.montant += Math.round(net / qui.length);
         e.prestations += (t.type === "avoir" ? -l.quantite : l.quantite) / qui.length;
       }
     }

@@ -3,7 +3,7 @@
 // Direction et manager seulement.
 
 import type { Statut } from "@/lib/agenda/statuts";
-import { recetteDuTicket } from "@/lib/caisse/modes";
+import { montantsNets, recetteDuTicket } from "@/lib/caisse/modes";
 import type { Horaires } from "@/lib/reservation/disponibilites";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
@@ -22,7 +22,7 @@ function decaler(date: string, jours: number) {
   return d.toISOString().slice(0, 10);
 }
 
-type TicketLu = { type: string; total: number; paiements: { mode: string; montant: number }[]; rendu: number; lignes: { type: string; montant: number }[] };
+type TicketLu = { type: string; total: number; sousTotal?: number; paiements: { mode: string; montant: number }[]; rendu: number; lignes: { type: string; montant: number }[] };
 
 function recette(tickets: TicketLu[]) {
   const ventes = tickets.filter((t) => t.type === "vente");
@@ -33,10 +33,11 @@ function recette(tickets: TicketLu[]) {
   for (const t of tickets) {
     for (const p of t.paiements) parMode[p.mode] = (parMode[p.mode] ?? 0) + p.montant;
     if (t.rendu) parMode.especes = (parMode.especes ?? 0) - t.rendu;
-    for (const l of t.lignes) {
-      if (l.type === "produit") produits += l.montant;
-      else if (l.type === "prestation") prestations += l.montant;
-    }
+    const nets = montantsNets(t);
+    t.lignes.forEach((l, i) => {
+      if (l.type === "produit") produits += nets[i];
+      else if (l.type === "prestation") prestations += nets[i];
+    });
   }
   const nombre = ventes.length - tickets.filter((t) => t.type === "avoir").length;
   return { total, nombre, panierMoyen: nombre > 0 ? Math.round(total / nombre) : 0, parMode, prestations, produits };
