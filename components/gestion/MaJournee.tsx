@@ -6,7 +6,9 @@ import { useEffect, useRef, useState } from "react";
 import { AlerteCliente } from "@/components/gestion/AlerteCliente";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { useCatalogue } from "@/lib/client/catalogue";
-import { statutsPermis, type Statut } from "@/lib/agenda/statuts";
+import { ROLES_AGENDA, statutsPermis, type Statut } from "@/lib/agenda/statuts";
+import { peut } from "@/lib/acces";
+import { NouveauRendezVous } from "@/components/gestion/NouveauRendezVous";
 import { formatPrix, type UniversId } from "@/lib/catalogue";
 import { correspond } from "@/lib/recherche";
 import { firebaseClient } from "@/lib/client/firebase";
@@ -81,6 +83,30 @@ export function MaJournee() {
     );
   }, [date, compte.praticienne]);
 
+  // « Prendre ses propres rendez-vous » (accès donné par la direction dans Équipe → Accès).
+  const mesRdv = Boolean(compte.praticienne) && !ROLES_AGENDA.includes(compte.role) && peut(compte, "rdvPerso");
+  const [nouveau, setNouveau] = useState(false);
+  const [equipe, setEquipe] = useState<{ id: string; nom: string }[] | null>(null);
+  const [fait, setFait] = useState("");
+  async function ouvrirNouveau() {
+    setFait("");
+    if (!equipe) {
+      try {
+        const r = await fetch("/api/gestion/comptoir", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${await compte.user.getIdToken()}` },
+          body: JSON.stringify({ action: "equipe" }),
+        });
+        const j = await r.json();
+        if (!r.ok) return setErreur(j.erreur ?? "Refusé.");
+        setEquipe(j);
+      } catch {
+        return setErreur("Pas de connexion internet.");
+      }
+    }
+    setNouveau(true);
+  }
+
   const visibles = (rdvs ?? []).filter((r) => r.statut !== "annule");
   const aFaire = visibles.filter((r) => !["termine", "encaisse", "absente"].includes(r.statut));
 
@@ -102,6 +128,28 @@ export function MaJournee() {
       <Link href="/gestion/historique" className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-bordure font-bold text-profond">
         <span aria-hidden>📒</span> Mon historique
       </Link>
+
+      {/* Accès donné par la direction : elle note elle-même SES rendez-vous. */}
+      {mesRdv && (
+        <button onClick={ouvrirNouveau} className="mt-2 flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-aza text-lg font-bold text-white">
+          <span aria-hidden>➕</span> Nouveau rendez-vous
+        </button>
+      )}
+      {fait && <p className="mt-2 rounded-xl bg-[#e7f5ec] p-3 font-semibold text-[#0d6b37]" role="status">✅ {fait}</p>}
+      {nouveau && equipe && compte.praticienne && (
+        <NouveauRendezVous
+          dateInitiale={date}
+          equipe={equipe}
+          moi={compte.praticienne}
+          fermer={() => setNouveau(false)}
+          reserve={(d) => {
+            setNouveau(false);
+            setFait(`Rendez-vous enregistré pour le ${d.split("-").reverse().join("/")}.`);
+            if (d === jour(0)) setDecalage(0);
+            else if (d === jour(1)) setDecalage(1);
+          }}
+        />
+      )}
 
       <div className="mt-4 flex items-center justify-between gap-3">
         <p className="text-lg font-semibold text-profond">

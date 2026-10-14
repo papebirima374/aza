@@ -446,7 +446,7 @@ function ChoixAcces({ role, acces, setAcces }: { role: Role; acces: AccesPerso; 
       <div className="border-t border-bordure p-3">
         <p className="text-xs text-doux">Cochés d&apos;office : ceux de son rôle. Cochez pour donner un accès en plus, décochez pour en retirer un.</p>
         <ul className="mt-2 grid gap-1.5">
-          {ACCES.map((a) => {
+          {ACCES.filter((a) => a.id !== "rdvPerso" || role === "praticienne" || role === "prestataire").map((a) => {
             const coche = peut({ role, acces }, a.id);
             const different = coche !== accesDuRole(role, a.id);
             return (

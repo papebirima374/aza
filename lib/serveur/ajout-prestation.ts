@@ -60,7 +60,7 @@ export async function ajouterPrestation(membre: Membre, rdvId: string, prestatio
       ...(duree > 0
         ? {
             fin: finAjout,
-            affectations: FieldValue.arrayUnion({ prestation: p.id, debut: debutAjout, fin: finAjout, praticiennes: qui ? [qui] : [], poste }),
+            affectations: FieldValue.arrayUnion({ prestation: p.id, debut: debutAjout, fin: finAjout, praticiennes: qui, poste }),
           }
         : {}),
       historique: FieldValue.arrayUnion({ statut, le: Timestamp.now(), par: membre.uid, nom: membre.nom, motif: `Ajout : ${p.nom}` }),
@@ -83,12 +83,16 @@ export async function ajouterPrestation(membre: Membre, rdvId: string, prestatio
 // permis, comme pour la saisie libre.
 
 const NON_MODIFIABLES: Statut[] = ["encaisse", "annule", "absente"];
-type LigneModif = { id: string; praticienne?: string };
+type LigneModif = { id: string; praticiennes: string[] };
 
 export async function modifierPrestations(membre: Membre, rdvId: string, lignesBrutes: unknown) {
   if (!ROLES_AGENDA.includes(membre.role)) throw new Erreur("Réservé à l'accueil et à la direction.", 403);
   const lignes: LigneModif[] = (Array.isArray(lignesBrutes) ? lignesBrutes : [])
-    .map((l) => ({ id: String(l?.id ?? ""), praticienne: l?.praticienne ? String(l.praticienne) : undefined }))
+    .map((l) => ({
+      id: String(l?.id ?? ""),
+      // Une ou plusieurs prestataires sur le soin (praticiennes), ou une seule (praticienne).
+      praticiennes: [...new Set<string>(Array.isArray(l?.praticiennes) ? l.praticiennes.map(String).filter(Boolean) : l?.praticienne ? [String(l.praticienne)] : [])],
+    }))
     .filter((l) => l.id);
   if (lignes.length === 0) throw new Erreur("Gardez au moins une prestation (ou annulez le rendez-vous).", 400);
   if (lignes.length > 20) throw new Erreur("Trop de prestations sur ce rendez-vous.", 400);
@@ -102,7 +106,10 @@ export async function modifierPrestations(membre: Membre, rdvId: string, lignesB
     base.getAll(...lignes.map((l) => base.doc(`prestationsResa/${l.id}`))),
   ]);
   const equipe = new Map(equipeSnap.docs.map((d) => [d.id, d.get("nom") as string]));
-  for (const l of lignes) if (l.praticienne && !equipe.has(l.praticienne)) throw new Erreur("Prestataire inconnue.", 400);
+  for (const l of lignes) {
+    if (l.praticiennes.length > 4) throw new Erreur("Au plus 4 prestataires sur une même prestation.", 400);
+    if (l.praticiennes.some((p) => !equipe.has(p))) throw new Erreur("Prestataire inconnue.", 400);
+  }
   const dureeParametree = new Map(resas.filter((r) => r.exists).map((r) => [r.id, ((r.get("phases") as { minutes: number }[]) ?? []).reduce((s, x) => s + x.minutes, 0)]));
 
   return base.runTransaction(async (tx) => {
@@ -129,9 +136,9 @@ export async function modifierPrestations(membre: Membre, rdvId: string, lignesB
       if (c?.note === "Produit") continue; // un produit n'occupe personne
       const ancienne = affAvant.find((a) => a.prestation === l.id);
       const duree = ancienne ? ancienne.fin - ancienne.debut : (dureeParametree.get(l.id) || 30);
-      const qui = l.praticienne ?? ancienne?.praticiennes[0] ?? quiParDefaut;
+      const qui = l.praticiennes.length > 0 ? l.praticiennes : (ancienne?.praticiennes ?? (quiParDefaut ? [quiParDefaut] : []));
       const fin = Math.min(t + duree, 24 * 60);
-      affectations.push({ prestation: l.id, debut: t, fin, praticiennes: qui ? [qui] : [], poste: ancienne?.poste ?? "" });
+      affectations.push({ prestation: l.id, debut: t, fin, praticiennes: qui, poste: ancienne?.poste ?? "" });
       t = fin;
     }
 

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlerteCliente } from "@/components/gestion/AlerteCliente";
+import { ChoixPrestataires } from "@/components/gestion/ChoixPrestataires";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { telephoneAffiche } from "@/lib/telephone";
 import { useCatalogue } from "@/lib/client/catalogue";
@@ -58,8 +59,13 @@ type RdvAEncaisser = {
 const acompteDispo = (r: Pick<RdvAEncaisser, "acompte">) => (r.acompte && !r.acompte.utilise ? r.acompte.montant : 0);
 // Les lignes d'un rendez-vous, avec la prestataire qui a fait chaque soin (modifiable).
 const lignesDuRdv = (r: Pick<RdvAEncaisser, "prestations" | "affectations">): Ligne[] =>
-  r.prestations.map((p) => ({ id: p.id, quantite: 1, praticienne: r.affectations?.find((a) => a.prestation === p.id)?.praticiennes[0] }));
-type Ligne = { id: string; quantite: number; praticienne?: string };
+  r.prestations.map((p) => {
+    const qui = [...new Set((r.affectations ?? []).filter((a) => a.prestation === p.id).flatMap((a) => a.praticiennes))];
+    return { id: p.id, quantite: 1, praticienne: qui[0], praticiennes: qui };
+  });
+// Une ou plusieurs prestataires par ligne (praticienne : la 1re, gardée pour les anciens brouillons).
+type Ligne = { id: string; quantite: number; praticienne?: string; praticiennes?: string[] };
+const quiLigne = (l: Ligne) => l.praticiennes ?? (l.praticienne ? [l.praticienne] : []);
 type FicheResume = { id: string; nom: string; telephone: string; points: number; credit: number };
 type Brouillon = { rendezVous?: string; cliente?: { nom: string; telephone: string }; lignes: Ligne[]; acompte?: number };
 
@@ -626,21 +632,14 @@ function Editeur(props: {
               ✕
             </button>
             {props.equipe.length > 0 && (
-              <label className="flex basis-full items-center gap-2 text-sm">
-                <span className="shrink-0 text-doux">{l.p.note === "Produit" ? "Vendu par" : "Fait par"}</span>
-                <select
-                  value={l.praticienne ?? ""}
-                  onChange={(e) => changer(b.lignes.map((x) => (x.id === l.id ? { ...x, praticienne: e.target.value || undefined } : x)))}
-                  className={`min-h-10 min-w-0 flex-1 rounded-lg border px-2 ${l.praticienne ? "border-bordure" : "border-dashed border-aza/60"}`}
-                >
-                  <option value="">{b.rendezVous ? "Selon le rendez-vous" : "— Qui ? —"}</option>
-                  {props.equipe.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nom}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <ChoixPrestataires
+                valeur={quiLigne(l)}
+                changer={(v) => changer(b.lignes.map((x) => (x.id === l.id ? { ...x, praticienne: v[0], praticiennes: v } : x)))}
+                equipe={props.equipe}
+                vide={b.rendezVous ? "Selon le rendez-vous" : "— Qui ? —"}
+                libelle={l.p.note === "Produit" ? "Vendu par" : "Fait par"}
+                quoi={l.p.nom}
+              />
             )}
           </li>
         ))}

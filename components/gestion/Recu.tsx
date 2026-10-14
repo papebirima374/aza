@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Rangee, ReglageImprimante, TicketTest, Trait, useImprimante, usePageAuTicket, type Imprimante } from "@/components/gestion/Imprimante";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { lienAvis } from "@/lib/avis";
+import { faitesPar, nomsEnsemble } from "@/lib/caisse/faites-par";
 import { LIBELLE_MODE } from "@/lib/caisse/modes";
 import { avisPossible, dateTexte, heureTexte, lienRecuWhatsApp, type Ticket } from "@/lib/caisse/recu";
 import { formatPrix } from "@/lib/catalogue";
@@ -161,7 +162,7 @@ function TicketCaisse({ t, r, origine }: { t: Ticket; r: Imprimante; origine: st
               {l.quantite} × {formatPrix(l.prixUnitaire)}
             </p>
           )}
-          {l.praticienne && <p className="pl-[2mm] text-[0.9em]">avec {l.praticienne.nom}</p>}
+          {l.praticienne && <p className="pl-[2mm] text-[0.9em]">avec {nomsEnsemble(faitesPar(l).map((x) => x.nom))}</p>}
         </div>
       ))}
       {Boolean(t.remise || t.fidelite?.remise) && <Rangee a="Sous-total" b={formatPrix(t.sousTotal)} />}

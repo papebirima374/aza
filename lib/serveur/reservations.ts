@@ -388,10 +388,10 @@ export async function creerRendezVousComptoir(
 // ——— Saisie libre au comptoir ———
 // Les clientes ne respectent pas toujours les heures : l'accueil enregistre ce qui s'est
 // passé (ou va se passer) sans aucun blocage. Heure libre, même passée ; une prestataire par
-// prestation ; durée facultative. Si la prestation est déjà faite, le rendez-vous est
+// prestation, ou plusieurs quand elles sont deux sur la même cliente ; durée facultative. Si la prestation est déjà faite, le rendez-vous est
 // « Terminé » d'office et part dans « À encaisser ».
 
-export type LigneLibre = { id: string; duree?: number; praticienne?: string };
+export type LigneLibre = { id: string; duree?: number; praticienne?: string; praticiennes?: string[] };
 const DUREE_PAR_DEFAUT = 30;
 
 function ecartEnJours(de: string, a: string) {
@@ -437,17 +437,21 @@ export async function creerRendezVousLibre(
       const saisie = Math.round(Number(l.duree));
       const duree = Number.isFinite(saisie) && saisie >= 5 && saisie <= 720 ? saisie : (durees[l.id] ?? DUREE_PAR_DEFAUT);
       const fin = Math.min(t + duree, 24 * 60);
-      let qui = l.praticienne ? equipe.praticiennes.find((x) => x.id === l.praticienne) : undefined;
-      if (l.praticienne && !qui) throw new ErreurReservation("Prestataire inconnue.", 400);
-      if (!qui) {
+      const choisies = [...new Set(l.praticiennes ?? (l.praticienne ? [l.praticienne] : []))];
+      if (choisies.length > 4) throw new ErreurReservation("Au plus 4 prestataires sur une même prestation.", 400);
+      const quis = choisies.map((id) => equipe.praticiennes.find((x) => x.id === id));
+      if (quis.some((x) => !x)) throw new ErreurReservation("Prestataire inconnue.", 400);
+      let ids = quis.map((x) => x!.id);
+      if (ids.length === 0) {
         // « Peu importe » : une prestataire qui sait le faire et qui est libre ; sinon qui sait le faire.
         const competentes = equipe.praticiennes.filter((x) => x.competences.includes(p.familleId));
-        qui = competentes.find((x) => !occupee(x.id, t, fin)) ?? competentes[0] ?? equipe.praticiennes.find((x) => !occupee(x.id, t, fin)) ?? equipe.praticiennes[0];
+        const qui = competentes.find((x) => !occupee(x.id, t, fin)) ?? competentes[0] ?? equipe.praticiennes.find((x) => !occupee(x.id, t, fin)) ?? equipe.praticiennes[0];
+        if (!qui) throw new ErreurReservation("Aucune prestataire dans l'équipe (écran Équipe).", 400);
+        ids = [qui.id];
       }
-      if (!qui) throw new ErreurReservation("Aucune prestataire dans l'équipe (écran Équipe).", 400);
       prestations.push({ id: p.id, nom: p.nom, prix: p.prix });
-      affectations.push({ prestation: p.id, debut: t, fin, praticiennes: [qui.id], poste: "" });
-      occupations.push({ ressource: qui.id, date: r.date, debut: t, fin });
+      affectations.push({ prestation: p.id, debut: t, fin, praticiennes: ids, poste: "" });
+      for (const id of ids) occupations.push({ ressource: id, date: r.date, debut: t, fin });
       t = fin;
     }
 
@@ -478,7 +482,7 @@ export async function creerRendezVousLibre(
       creeLe: FieldValue.serverTimestamp(),
     });
     for (const a of affectations) {
-      tx.set(base.collection("occupations").doc(), { ressource: a.praticiennes[0], date: r.date, debut: a.debut, fin: a.fin, rendezVous: rdvRef.id });
+      for (const id of a.praticiennes) tx.set(base.collection("occupations").doc(), { ressource: id, date: r.date, debut: a.debut, fin: a.fin, rendezVous: rdvRef.id });
     }
     tx.set(
       clienteRef,

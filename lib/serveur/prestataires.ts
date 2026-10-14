@@ -7,6 +7,7 @@
 
 import { exigerAcces } from "@/lib/serveur/acces";
 import type { Membre } from "@/lib/serveur/agenda";
+import { faitesPar } from "@/lib/caisse/faites-par";
 import { montantsNets } from "@/lib/caisse/modes";
 import { db } from "@/lib/serveur/firebase";
 import { pointagesDuMois } from "@/lib/serveur/pointage";
@@ -36,7 +37,7 @@ type TicketLu = {
   annule?: unknown;
   rendezVous?: string | null;
   cliente: { nom: string } | null;
-  lignes: { id: string; nom: string; type: string; quantite: number; montant: number; praticienne?: { id: string } }[];
+  lignes: { id: string; nom: string; type: string; quantite: number; montant: number; praticienne?: { id: string; nom: string }; praticiennes?: { id: string; nom: string }[] }[];
 };
 
 const moisValide = (m?: string | null) => (m && /^\d{4}-\d{2}$/.test(m) ? m : maintenantDakar().date.slice(0, 7));
@@ -57,7 +58,8 @@ export async function interventionsDe(praticienne: string, mois: string): Promis
     const nets = montantsNets(t);
     t.lignes.forEach((l, i) => {
       if (l.type !== "prestation" && l.type !== "produit") return;
-      const faites = l.praticienne?.id ? [l.praticienne.id] : [...new Set(affectations.filter((a) => a.prestation === l.id).flatMap((a) => a.praticiennes))];
+      const parLigne = faitesPar(l).map((x) => x.id);
+      const faites = parLigne.length > 0 ? parLigne : [...new Set(affectations.filter((a) => a.prestation === l.id).flatMap((a) => a.praticiennes))];
       const qui = faites.length > 0 ? faites : l.type === "prestation" ? toutes : [];
       if (!qui.includes(praticienne)) return;
       res.push({

@@ -183,6 +183,37 @@ pages.append(page(f"""
 <p class="doux">Seuls les soins encaissés comptent ; un ticket annulé disparaît de l'historique.</p>''', "131-mon-historique", "Mon historique")}
 """, P))
 
+pages.append(page(f"""
+<span class="etiquette">2 · La praticienne</span>
+<h2>Prendre ses propres rendez-vous</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
+<p>Une prestataire de confiance peut noter elle-même <b>ses</b> rendez-vous, sans passer par l'accueil. C'est la direction qui le décide, personne par personne.</p>
+<ol class="etapes">
+<li><b>La direction</b> : Équipe → la prestataire → Modifier → <b>🔐 Accès</b> → cochez <b>« Prendre ses propres rendez-vous »</b> → Enregistrer.</li>
+<li><b>La prestataire</b> : dans <b>Ma journée</b>, un gros bouton <span class="touche">➕ Nouveau rendez-vous</span> apparaît. Nom et numéro de la cliente, le soin, l'heure, puis Enregistrer.</li>
+<li>Le rendez-vous est <b>à son nom</b> : son nom est fixé sur chaque soin. Elle peut ajouter une collègue avec elle, mais pas prendre un rendez-vous pour une autre.</li>
+<li>Il apparaît aussitôt dans l'agenda de l'accueil et dans sa journée.</li>
+</ol>
+<div class="encadre or">Pour retirer cet accès : décochez la case. Le serveur refuse alors tout nouveau rendez-vous de sa part.</div>
+</div>{figure("135-acces-rdv-perso","La direction donne l'accès")}{figure("136-mon-rendez-vous","Elle note son rendez-vous")}</div>
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">3 · L'accueil</span>
+<h2>Plusieurs prestataires sur un même soin</h2>
+{duo('''<p>Quand deux prestataires (ou plus) s'occupent de la même cliente pour le même soin — une pose à quatre mains, des tresses longues… — on les note toutes.</p>
+<ol class="etapes">
+<li>Sous le soin, choisissez la 1re dans <b>Fait par</b>.</li>
+<li>Touchez <b>« + Une autre prestataire sur ce soin »</b> : une 2e liste apparaît (jusqu'à 4). La croix ✕ en retire une.</li>
+<li>Cela marche partout : <b>Nouveau rendez-vous</b>, <b>Modifier les prestations</b> d'un rendez-vous, et au <b>Comptoir</b> de la caisse.</li>
+</ol>
+<ul class="puces">
+<li>Le rendez-vous s'affiche dans l'agenda et dans « Ma journée » de chacune.</li>
+<li>À l'encaissement, le ticket reprend toutes les prestataires du rendez-vous.</li>
+<li>Le montant du soin est <b>partagé à parts égales</b> dans les Rapports, la fiche du mois et la feuille de caisse (15 000 F à deux = 7 500 F chacune).</li>
+</ul>''', "137-caisse-deux-prestataires", "Deux prestataires au comptoir")}
+""", P))
+
 # 3. Agenda
 pages.append(page(f"""
 <span class="etiquette">3 · L'accueil</span>

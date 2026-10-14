@@ -8,9 +8,11 @@ import { AlerteCliente } from "@/components/gestion/AlerteCliente";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { useCatalogue } from "@/lib/client/catalogue";
 import { DecalerHeure } from "@/components/gestion/DecalerHeure";
+import { ChoixPrestataires } from "@/components/gestion/ChoixPrestataires";
 import { NouveauRendezVous } from "@/components/gestion/NouveauRendezVous";
 import { Rappels } from "@/components/gestion/Rappels";
 import { LIBELLES, ROLES_AGENDA, statutsPermis, type Statut } from "@/lib/agenda/statuts";
+import { nomsEnsemble } from "@/lib/caisse/faites-par";
 import { formatPrix, UNIVERS, type UniversId } from "@/lib/catalogue";
 import { firebaseClient } from "@/lib/client/firebase";
 import { peut } from "@/lib/acces";
@@ -540,8 +542,8 @@ function ModifierPrestations({ rdv, equipe }: { rdv: RendezVous; equipe: { id: s
   const compte = useCompte();
   const cat = useCatalogue();
   const depart = () =>
-    rdv.prestations.map((p) => ({ id: p.id, nom: p.nom, prix: p.prix, praticienne: rdv.affectations.find((a) => a.prestation === p.id)?.praticiennes[0] ?? "" }));
-  const [edition, setEdition] = useState<{ id: string; nom: string; prix: number; praticienne: string }[] | null>(null);
+    rdv.prestations.map((p) => ({ id: p.id, nom: p.nom, prix: p.prix, praticiennes: [...new Set(rdv.affectations.filter((a) => a.prestation === p.id).flatMap((a) => a.praticiennes))] }));
+  const [edition, setEdition] = useState<{ id: string; nom: string; prix: number; praticiennes: string[] }[] | null>(null);
   const [recherche, setRecherche] = useState("");
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState("");
@@ -556,12 +558,12 @@ function ModifierPrestations({ rdv, equipe }: { rdv: RendezVous; equipe: { id: s
       <>
         <ul className="mt-3 space-y-1 text-sm">
           {rdv.prestations.map((p) => {
-            const qui = rdv.affectations.find((a) => a.prestation === p.id)?.praticiennes[0];
+            const qui = [...new Set(rdv.affectations.filter((a) => a.prestation === p.id).flatMap((a) => a.praticiennes))].map((x) => nomDe[x] ?? "?");
             return (
               <li key={p.id} className="flex justify-between gap-3">
                 <span>
                   {p.nom}
-                  {qui && <span className="text-doux"> · {nomDe[qui] ?? "?"}</span>}
+                  {qui.length > 0 && <span className="text-doux"> · {nomsEnsemble(qui)}</span>}
                 </span>
                 <span className="prix font-semibold">{formatPrix(p.prix)}</span>
               </li>
@@ -586,7 +588,7 @@ function ModifierPrestations({ rdv, equipe }: { rdv: RendezVous; equipe: { id: s
       const r = await fetch(`/api/gestion/rendez-vous/${rdv.id}/prestations`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await compte.user.getIdToken()}` },
-        body: JSON.stringify({ lignes: edition!.map((l) => ({ id: l.id, praticienne: l.praticienne || undefined })) }),
+        body: JSON.stringify({ lignes: edition!.map((l) => ({ id: l.id, praticiennes: l.praticiennes })) }),
       });
       if (!r.ok) setErreur((await r.json()).erreur ?? "Modification refusée.");
       else setEdition(null);
@@ -612,22 +614,17 @@ function ModifierPrestations({ rdv, equipe }: { rdv: RendezVous; equipe: { id: s
               </button>
             </div>
             {cat.parId(l.id)?.note !== "Produit" && (
-              <label className="mt-1 flex items-center gap-2 text-xs">
-                <span className="shrink-0 text-doux">Fait par</span>
-                <select
-                  value={l.praticienne}
-                  onChange={(e) => setEdition(edition.map((x) => (x.id === l.id ? { ...x, praticienne: e.target.value } : x)))}
-                  className="min-h-9 min-w-0 flex-1 rounded-lg border border-bordure bg-white px-2 text-sm"
-                  aria-label={`Qui fait ${l.nom}`}
-                >
-                  <option value="">— Qui ? —</option>
-                  {equipe.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.nom}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="mt-1">
+                <ChoixPrestataires
+                  valeur={l.praticiennes}
+                  changer={(v) => setEdition(edition.map((x) => (x.id === l.id ? { ...x, praticiennes: v } : x)))}
+                  equipe={equipe}
+                  vide="— Qui ? —"
+                  libelle="Fait par"
+                  quoi={l.nom}
+                  taille="min-h-9"
+                />
+              </div>
             )}
           </li>
         ))}
@@ -646,7 +643,7 @@ function ModifierPrestations({ rdv, equipe }: { rdv: RendezVous; equipe: { id: s
               <button
                 disabled={edition.some((x) => x.id === p.id)}
                 onClick={() => {
-                  setEdition([...edition, { id: p.id, nom: p.nom, prix: p.prix, praticienne: "" }]);
+                  setEdition([...edition, { id: p.id, nom: p.nom, prix: p.prix, praticiennes: [] }]);
                   setRecherche("");
                 }}
                 className="flex w-full justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-creme disabled:opacity-40"

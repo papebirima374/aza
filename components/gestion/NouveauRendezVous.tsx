@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ChoixPrestataires } from "@/components/gestion/ChoixPrestataires";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { telephoneAffiche } from "@/lib/telephone";
 import { peut } from "@/lib/acces";
@@ -14,7 +15,7 @@ import { correspond } from "@/lib/recherche";
 // rendez-vous est « Terminé » d'office et part dans « À encaisser ». Les heures libres ne
 // sont qu'une aide.
 
-type Ligne = { id: string; duree: string; praticienne: string };
+type Ligne = { id: string; duree: string; praticiennes: string[] };
 type FicheResume = { id: string; nom: string; telephone: string };
 type Dispo = { creneaux: { debut: number; fin: number; praticiennes: string[] }[]; praticiennes: { id: string; nom: string }[] };
 
@@ -41,12 +42,17 @@ export function NouveauRendezVous({
   equipe,
   fermer,
   reserve,
+  moi,
 }: {
   dateInitiale: string;
   equipe: { id: string; nom: string }[];
   fermer: () => void;
   reserve: (date: string) => void;
+  /** Une prestataire qui prend SES rendez-vous (accès « Prendre ses propres rendez-vous ») : sa fiche. */
+  moi?: string;
 }) {
+  const moiSeule = Boolean(moi);
+  const initialesPrestataires = moi ? [moi] : [];
   const cat = useCatalogue();
   const compte = useCompte();
   const ici = maintenantDakar();
@@ -112,7 +118,7 @@ export function NouveauRendezVous({
   async function ajouter(id: string) {
     setRequete("");
     if (lignes.some((l) => l.id === id) || lignes.length >= 8) return;
-    setLignes((ls) => [...ls, { id, duree: "", praticienne: "" }]);
+    setLignes((ls) => [...ls, { id, duree: "", praticiennes: initialesPrestataires }]);
     try {
       const durees: Record<string, number> = await appel({ action: "durees", ids: [id] });
       if (durees[id]) setLignes((ls) => ls.map((l) => (l.id === id && !l.duree ? { ...l, duree: String(durees[id]) } : l)));
@@ -133,11 +139,11 @@ export function NouveauRendezVous({
     setChargement(true);
     setErreur("");
     try {
-      const memes = new Set(lignes.map((l) => l.praticienne));
+      const memes = new Set(lignes.map((l) => l.praticiennes[0] ?? ""));
       const res: Dispo = await appel({
         action: "creneaux",
         date,
-        praticienne: memes.size === 1 && lignes[0].praticienne ? lignes[0].praticienne : undefined,
+        praticienne: memes.size === 1 && lignes[0].praticiennes[0] ? lignes[0].praticiennes[0] : undefined,
         lignes: lignes.map((l) => ({ id: l.id, duree: Number(l.duree) >= 5 ? Number(l.duree) : 30 })),
       });
       setDispo(res);
@@ -157,7 +163,7 @@ export function NouveauRendezVous({
         action: "libre",
         date,
         debut: debut ?? undefined,
-        lignes: lignes.map((l) => ({ id: l.id, duree: Number(l.duree) >= 5 ? Number(l.duree) : undefined, praticienne: l.praticienne || undefined })),
+        lignes: lignes.map((l) => ({ id: l.id, duree: Number(l.duree) >= 5 ? Number(l.duree) : undefined, praticiennes: l.praticiennes })),
         nom,
         telephone,
         remarque,
@@ -270,21 +276,19 @@ export function NouveauRendezVous({
                       ×
                     </button>
                   </div>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <span className="shrink-0 text-xs text-doux">Fait par</span>
-                    <select
-                      value={l.praticienne}
-                      onChange={(e) => changer(l.id, { praticienne: e.target.value })}
-                      className="min-h-10 min-w-0 flex-1 rounded-lg border border-bordure bg-white px-2 text-sm"
-                      aria-label={`Qui fait ${cat.parId(l.id)?.nom}`}
-                    >
-                      <option value="">Peu importe</option>
-                      {equipe.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.nom}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="mt-1.5">
+                    <ChoixPrestataires
+                      valeur={l.praticiennes}
+                      changer={(v) => changer(l.id, { praticiennes: v })}
+                      equipe={equipe}
+                      vide={moiSeule ? "—" : "Peu importe"}
+                      premiereFixe={moiSeule}
+                      libelle="Fait par"
+                      quoi={cat.parId(l.id)?.nom ?? ""}
+                    />
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-end gap-2">
+                    <span className="text-xs text-doux">Durée</span>
                     <input
                       type="number"
                       inputMode="numeric"

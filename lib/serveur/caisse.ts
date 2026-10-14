@@ -35,27 +35,40 @@ export type LigneTicket = {
   offert?: true;
   /** Qui a fait la prestation (ou vendu le produit) : pour le chiffre de chacune et sa paie. */
   praticienne?: { id: string; nom: string };
+  /** Quand plusieurs l'ont faite ensemble (la 1re est aussi dans praticienne). */
+  praticiennes?: { id: string; nom: string }[];
 };
 
+/** Au plus 4 prestataires sur un même soin. */
+const MAX_PRESTATAIRES = 4;
+
 /**
- * Le prestataire de chaque ligne : choisi à la caisse, sinon celui du rendez-vous
- * (affectations). Seules les fiches de l'équipe sont acceptées.
+ * Les prestataires de chaque ligne : choisies à la caisse (une ou plusieurs), sinon celles du
+ * rendez-vous (affectations). Seules les fiches de l'équipe sont acceptées. Plusieurs sur une
+ * ligne : la 1re reste dans « praticienne », toutes dans « praticiennes » (parts égales).
  */
 async function avecPrestataires(lignes: LigneTicket[], brutes: unknown, rdv: FirebaseFirestore.DocumentSnapshot | null) {
-  const choisis = Array.isArray(brutes) ? brutes.map((l) => (typeof l?.praticienne === "string" ? l.praticienne : "")) : [];
+  const choisis: string[][] = Array.isArray(brutes)
+    ? brutes.map((l) => {
+        const liste = Array.isArray(l?.praticiennes) ? l.praticiennes : typeof l?.praticienne === "string" && l.praticienne ? [l.praticienne] : [];
+        return [...new Set(liste.map((x: unknown) => String(x ?? "")).filter(Boolean))] as string[];
+      })
+    : [];
   const affectations = (rdv?.get("affectations") as { prestation: string; praticiennes: string[] }[] | undefined) ?? [];
-  if (choisis.some((c) => c && !/^[\w-]{1,80}$/.test(c))) throw new Erreur("Prestataire inconnue sur une ligne du ticket.", 400);
-  const ids = new Set<string>(choisis.filter(Boolean));
+  if (choisis.some((c) => c.length > MAX_PRESTATAIRES || c.some((x) => !/^[\w-]{1,80}$/.test(x)))) throw new Erreur("Prestataire inconnue sur une ligne du ticket.", 400);
+  const ids = new Set<string>(choisis.flat());
   for (const a of affectations) for (const p of a.praticiennes) ids.add(p);
   if (ids.size === 0) return lignes;
   const fiches = await db().getAll(...[...ids].map((id) => db().doc(`praticiennes/${id}`)));
   const nom = new Map(fiches.filter((f) => f.exists).map((f) => [f.id, f.get("nom") as string]));
   return lignes.map((l, i) => {
-    const choisi = choisis[i];
-    if (choisi && !nom.has(choisi)) throw new Erreur("Prestataire inconnue sur une ligne du ticket.", 400);
-    const duRdv = affectations.find((a) => a.prestation === l.id)?.praticiennes.find((p) => nom.has(p));
-    const id = choisi || (l.type === "prestation" ? duRdv : undefined);
-    return id ? { ...l, praticienne: { id, nom: nom.get(id)! } } : l;
+    const choisi = choisis[i] ?? [];
+    if (choisi.some((c) => !nom.has(c))) throw new Erreur("Prestataire inconnue sur une ligne du ticket.", 400);
+    const duRdv = [...new Set(affectations.filter((a) => a.prestation === l.id).flatMap((a) => a.praticiennes))].filter((p) => nom.has(p)).slice(0, MAX_PRESTATAIRES);
+    const qui = choisi.length > 0 ? choisi : l.type === "prestation" ? duRdv : [];
+    if (qui.length === 0) return l;
+    const liste = qui.map((id) => ({ id, nom: nom.get(id)! }));
+    return { ...l, praticienne: liste[0], ...(liste.length > 1 ? { praticiennes: liste } : {}) };
   });
 }
 export type Paiement = { mode: Mode; montant: number };

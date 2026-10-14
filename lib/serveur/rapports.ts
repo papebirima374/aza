@@ -3,6 +3,7 @@
 // qui rapportent, chiffre de chaque praticienne, rendez-vous, clientes, avis — et l'export
 // des tickets pour le comptable.
 
+import { faitesPar } from "@/lib/caisse/faites-par";
 import { LIBELLE_MODE, MODES, MODES_DEJA_ENCAISSES, montantsNets, recetteDuTicket } from "@/lib/caisse/modes";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db } from "@/lib/serveur/firebase";
@@ -22,7 +23,7 @@ const jour = (d: string) => Date.parse(`${d}T12:00:00Z`);
 const versDate = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 const decaler = (d: string, n: number) => versDate(jour(d) + n * 86400000);
 
-type Ligne = { id: string; nom: string; type: string; quantite: number; montant: number; praticienne?: { id: string; nom: string } };
+type Ligne = { id: string; nom: string; type: string; quantite: number; montant: number; praticienne?: { id: string; nom: string }; praticiennes?: { id: string; nom: string }[] };
 type TicketLu = {
   id: string;
   reference: string;
@@ -176,7 +177,8 @@ export async function rapport(membre: Membre, duBrut?: string | null, auBrut?: s
       if (l.type !== "prestation") continue;
       const net = nets[i];
       // Le prestataire noté sur la ligne (à la caisse) d'abord, sinon celles du rendez-vous.
-      const faites = l.praticienne?.id ? [l.praticienne.id] : [...new Set(affectations.filter((a) => a.prestation === l.id).flatMap((a) => a.praticiennes))];
+      const parLigne = faitesPar(l).map((x) => x.id);
+      const faites = parLigne.length > 0 ? parLigne : [...new Set(affectations.filter((a) => a.prestation === l.id).flatMap((a) => a.praticiennes))];
       const qui = faites.length > 0 ? faites : toutes;
       if (qui.length === 0) {
         sansPraticienne += net;

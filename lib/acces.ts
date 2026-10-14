@@ -20,7 +20,8 @@ export type Acces =
   | "remises"
   | "commandes"
   | "stock"
-  | "catalogue";
+  | "catalogue"
+  | "rdvPerso";
 
 export const ACCES: { id: Acces; libelle: string; detail: string; roles: Role[] }[] = [
   { id: "caisse", libelle: "Caisse", detail: "ouvrir, encaisser, clôturer, cartes cadeaux", roles: ["direction", "manager", "accueil"] },
@@ -36,6 +37,8 @@ export const ACCES: { id: Acces; libelle: string; detail: string; roles: Role[] 
   { id: "borne", libelle: "Borne de pointage", detail: "afficher le code de pointage sur l'écran de l'institut", roles: ["direction", "manager"] },
   { id: "journal", libelle: "Journal d'activité", detail: "qui a fait quoi, et quand", roles: ["direction"] },
   { id: "catalogue", libelle: "Catalogue et prix", detail: "changer un prix, ajouter une prestation", roles: ["direction"] },
+  // Pour une prestataire : l'accueil et la direction prennent déjà tous les rendez-vous.
+  { id: "rdvPerso", libelle: "Prendre ses propres rendez-vous", detail: "une prestataire note elle-même ses rendez-vous, dans « Ma journée » (les siens seulement)", roles: [] },
 ];
 
 export type AccesPerso = Partial<Record<Acces, boolean>>;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { Rangee, ReglageImprimante, TicketTest, Trait, useImprimante, usePageAuTicket } from "@/components/gestion/Imprimante";
+import { faitesPar } from "@/lib/caisse/faites-par";
 import { LIBELLE_MODE, MODES, montantsNets, type Mode } from "@/lib/caisse/modes";
 import { dateTexte, heureTexte, type Ticket } from "@/lib/caisse/recu";
 import { formatPrix } from "@/lib/catalogue";
@@ -296,12 +297,13 @@ function recapitulatif(tickets: Journal["tickets"]) {
       g.montant += nets[i];
       if (l.offert) g.offerts += l.quantite;
       groupe.set(l.nom, g);
-      const p = l.praticienne;
-      if (p) {
+      // Plusieurs sur le même soin : chacune le compte, le montant est partagé à parts égales.
+      const qui = faitesPar(l);
+      for (const p of qui) {
         const q = parPrestataire.get(p.id) ?? { nom: p.nom, services: 0, produits: 0, montant: 0 };
         if (l.type === "prestation") q.services += l.quantite;
         else q.produits += l.quantite;
-        q.montant += nets[i];
+        q.montant += Math.round(nets[i] / qui.length);
         parPrestataire.set(p.id, q);
       }
     }
