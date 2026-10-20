@@ -1,5 +1,5 @@
 import { membreConnecte } from "@/lib/serveur/agenda";
-import { boissonsEnAttente, codeBoissons, servirBoisson } from "@/lib/serveur/boissons";
+import { boissonsEnAttente, codeBoissons, enregistrerCarte, servirBoisson } from "@/lib/serveur/boissons";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
 import { ErreurReservation } from "@/lib/serveur/reservations";
@@ -17,13 +17,14 @@ export async function GET(request: Request) {
   }
 }
 
-// POST /api/gestion/boissons { action: "servir", id } | { action: "nouveau-code" }
+// POST /api/gestion/boissons { action: "servir", id } | { action: "nouveau-code" } | { action: "menu", carte }
 export async function POST(request: Request) {
   if (!firebaseConfigure()) return Response.json({ erreur: "Gestion indisponible." }, { status: 503 });
   try {
     const membre = await membreConnecte(request);
     const c = await request.json().catch(() => null);
     if (c?.action === "servir") return Response.json(await servirBoisson(membre, String(c.id ?? "")));
+    if (c?.action === "menu") return Response.json(await enregistrerCarte(membre, c.carte));
     if (c?.action === "nouveau-code") return Response.json(await codeBoissons(membre, true));
     throw new ErreurReservation("Action inconnue.", 400);
   } catch (e) {

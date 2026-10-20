@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { MENU_BOISSONS } from "@/lib/boissons";
+import type { Rubrique } from "@/lib/boissons";
 
 // La cliente choisit sa boisson (offerte) ; l'équipe est prévenue et la lui apporte.
 // Son prénom et son numéro restent sur son téléphone pour la boisson suivante.
@@ -22,6 +22,7 @@ function memoire(): { prenom?: string; telephone?: string } {
 export function MenuBoissons() {
   const code = useSearchParams().get("c") ?? "";
   const [valide, setValide] = useState<boolean | null>(null);
+  const [carte, setCarte] = useState<Rubrique[]>([]);
   const [prenom, setPrenom] = useState(() => memoire().prenom ?? "");
   const [telephone, setTelephone] = useState(() => memoire().telephone ?? "");
   const [choix, setChoix] = useState<string | null>(null);
@@ -45,7 +46,11 @@ export function MenuBoissons() {
 
   useEffect(() => {
     fetch(`/api/boissons?code=${encodeURIComponent(code)}`)
-      .then((r) => setValide(r.ok))
+      .then(async (r) => {
+        const j = await r.json().catch(() => ({}));
+        setCarte(r.ok ? (j.carte ?? []) : []);
+        setValide(r.ok);
+      })
       .catch(() => setValide(false));
   }, [code]);
 
@@ -94,93 +99,94 @@ export function MenuBoissons() {
   }
 
   return (
-    <main className="min-h-dvh bg-[#0b0b0b] px-4 py-8 text-[#f3e3b5]">
-      <div className="mx-auto max-w-md rounded-3xl border border-[#c9a54c]/60 p-5 shadow-[0_0_40px_rgba(201,165,76,0.15)]">
-        <header className="text-center">
-          <Image src="/images/lotus-or.png" alt="" width={64} height={64} className="mx-auto h-14 w-auto" />
-          <p className="mt-2 font-serif text-4xl tracking-wide text-[#d9b65d]">ANNA ZEN</p>
-          <p className="text-sm tracking-[0.4em] text-[#d9b65d]">ATTITUDE</p>
-          <p className="mt-1 font-serif text-lg italic">Institut de Beauté &amp; Bien-être</p>
-          <h1 className="mx-auto mt-4 inline-block rounded-full border-2 border-[#c9a54c] px-8 py-1 font-serif text-4xl font-semibold text-[#e8c66a]">MENU</h1>
-          <p className="mt-3 text-sm">Une boisson vous est offerte. Touchez celle qui vous fait plaisir : on vous l&apos;apporte.</p>
+    <main className="min-h-dvh bg-creme px-4 py-6 text-encre">
+      <div className="mx-auto max-w-md overflow-hidden rounded-3xl border border-bordure bg-white shadow-lg">
+        <header className="bg-bordeaux px-5 pb-5 pt-6 text-center text-or-clair">
+          <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} priority className="mx-auto h-14 w-auto" />
+          <h1 className="mt-4 font-serif text-4xl font-semibold text-white">Menu</h1>
+          <p className="mt-1 text-sm">C&apos;est offert. Touchez ce qui vous fait plaisir : on vous l&apos;apporte.</p>
         </header>
 
-        {valide === false ? (
-          <p className="mt-6 rounded-2xl bg-[#3a1d1d] p-4 text-center font-semibold text-[#ffd7d7]">Ce lien n&apos;est plus valable. Scannez le code QR affiché à l&apos;institut.</p>
-        ) : (
-          <>
-            <div className="mt-6 grid gap-3">
-              <label className="text-sm">
-                Votre numéro <span className="text-[#bfa978]">(déjà venue ? on vous reconnaît)</span>
-                <input value={telephone} onChange={(e) => changerTelephone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="77 123 45 67" className="mt-1 block min-h-12 w-full rounded-xl border border-[#c9a54c]/60 bg-[#151515] px-3 text-base text-white placeholder:text-[#6f6550]" />
-              </label>
-              <label className="text-sm">
-                Votre prénom
-                <input value={prenom} onChange={(e) => (setPrenom(e.target.value), setReconnue(false))} maxLength={40} autoComplete="given-name" className="mt-1 block min-h-12 w-full rounded-xl border border-[#c9a54c]/60 bg-[#151515] px-3 text-base text-white" />
-                {reconnue && <span className="mt-1 block text-[#b9f0cd]">✓ Bon retour parmi nous, {prenom} !</span>}
-              </label>
-            </div>
+        <div className="p-5">
+          {valide === false ? (
+            <p className="rounded-2xl bg-aza/10 p-4 text-center font-semibold text-profond">Ce lien n&apos;est plus valable. Scannez le code QR affiché à l&apos;institut.</p>
+          ) : (
+            <>
+              <div className="grid gap-3">
+                <label className="text-sm font-semibold text-profond">
+                  Votre numéro <span className="font-normal text-doux">(déjà venue ? on vous reconnaît)</span>
+                  <input value={telephone} onChange={(e) => changerTelephone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="77 123 45 67" className="mt-1 block min-h-12 w-full rounded-xl border border-bordure bg-white px-3 text-base font-normal text-encre" />
+                </label>
+                <label className="text-sm font-semibold text-profond">
+                  Votre prénom
+                  <input value={prenom} onChange={(e) => (setPrenom(e.target.value), setReconnue(false))} maxLength={40} autoComplete="given-name" className="mt-1 block min-h-12 w-full rounded-xl border border-bordure bg-white px-3 text-base font-normal text-encre" />
+                  {reconnue && <span className="mt-1 block font-normal text-[#0d6b37]">✓ Bon retour parmi nous, {prenom} !</span>}
+                </label>
+              </div>
 
-            {envois.length > 0 && (
-              <ul className="mt-5 space-y-2" aria-live="polite">
-                {envois.map((e) => (
-                  <li key={e.id} className={`rounded-2xl p-3 text-center font-semibold ${e.statut === "servie" ? "bg-[#163322] text-[#b9f0cd]" : "bg-[#2a2310] text-[#f3e3b5]"}`}>
-                    {e.statut === "servie" ? `✅ ${e.boisson} : c'est servi. Bonne dégustation !` : `⏳ ${e.boisson} : c'est noté, on vous l'apporte.`}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {envois.length > 0 && (
-              <nav className="mt-4 rounded-2xl border border-[#c9a54c]/50 p-3" aria-label="Le site">
-                <p className="text-center text-sm">En attendant, découvrez l&apos;institut :</p>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-sm font-semibold">
-                  {[
-                    ["/prestations", "💆🏾‍♀️ Nos prestations"],
-                    ["/reservation", "📅 Prendre rendez-vous"],
-                    ["/boutique", "🛍️ La boutique"],
-                    ["/", "🏠 Le site"],
-                  ].map(([href, libelle]) => (
-                    <Link key={href} href={href} className="flex min-h-12 items-center justify-center rounded-xl bg-[#c9a54c] px-2 text-center text-[#1a1406]">
-                      {libelle}
-                    </Link>
+              {envois.length > 0 && (
+                <ul className="mt-5 space-y-2" aria-live="polite">
+                  {envois.map((e) => (
+                    <li key={e.id} className={`rounded-2xl p-3 text-center font-semibold ${e.statut === "servie" ? "bg-[#e7f5ec] text-[#0d6b37]" : "bg-or-clair/40 text-profond"}`}>
+                      {e.statut === "servie" ? `✅ ${e.boisson} : c'est servi. Bonne dégustation !` : `⏳ ${e.boisson} : c'est noté, on vous l'apporte.`}
+                    </li>
                   ))}
-                </div>
-              </nav>
-            )}
-            {erreur && (
-              <p className="mt-4 rounded-2xl bg-[#3a1d1d] p-3 text-center text-sm font-semibold text-[#ffd7d7]" role="alert">
-                {erreur}
-              </p>
-            )}
+                </ul>
+              )}
+              {envois.length > 0 && (
+                <nav className="mt-4 rounded-2xl bg-creme p-3" aria-label="Le site">
+                  <p className="text-center text-sm text-doux">En attendant, découvrez l&apos;institut :</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-sm font-bold">
+                    {[
+                      ["/prestations", "💆🏾‍♀️ Nos prestations"],
+                      ["/reservation", "📅 Prendre rendez-vous"],
+                      ["/boutique", "🛍️ La boutique"],
+                      ["/", "🏠 Le site"],
+                    ].map(([href, libelle]) => (
+                      <Link key={href} href={href} className="flex min-h-12 items-center justify-center rounded-full bg-aza px-2 text-center text-white">
+                        {libelle}
+                      </Link>
+                    ))}
+                  </div>
+                </nav>
+              )}
+              {erreur && (
+                <p className="mt-4 rounded-2xl bg-aza/10 p-3 text-center text-sm font-semibold text-profond" role="alert">
+                  {erreur}
+                </p>
+              )}
 
-            {MENU_BOISSONS.map((g) => (
-              <section key={g.groupe} className="mt-6">
-                <h2 className="rounded-full bg-gradient-to-r from-[#b88a2e] to-[#e8c66a] px-4 py-1.5 font-serif text-xl font-bold uppercase text-[#1a1406]">
-                  <span aria-hidden>{g.icone} </span>
-                  {g.groupe}
-                </h2>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {g.boissons.map((b) => (
-                    <button
-                      key={b.id}
-                      disabled={envoi || valide === null}
-                      onClick={() => commander(b.id)}
-                      className={`min-h-14 rounded-2xl border px-3 font-serif text-xl font-semibold transition disabled:opacity-50 ${choix === b.id ? "border-[#e8c66a] bg-[#2a2310]" : "border-[#c9a54c]/50 bg-[#151515] hover:bg-[#2a2310]"}`}
-                    >
-                      {b.nom}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </>
-        )}
+              {carte.map((g) => (
+                <section key={g.groupe} className="mt-6">
+                  <h2 className="flex items-center gap-2 border-b-2 border-or pb-1 font-serif text-2xl font-semibold text-profond">
+                    <span aria-hidden>{g.icone}</span>
+                    {g.groupe}
+                  </h2>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {g.boissons.map((b) => (
+                      <button
+                        key={b.id}
+                        disabled={envoi || valide === null}
+                        onClick={() => commander(b.id)}
+                        className={`min-h-14 rounded-2xl border-2 px-3 font-semibold text-profond transition disabled:opacity-50 ${choix === b.id ? "border-aza bg-aza/10" : "border-bordure bg-white hover:border-aza hover:bg-aza/5"}`}
+                      >
+                        {b.nom}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </>
+          )}
 
-        <footer className="mt-8 text-center">
-          <p className="font-serif text-2xl italic text-[#d9b65d]">Merci de votre visite</p>
-          <p className="mt-1 text-sm">et profitez pleinement de votre moment de détente chez Anna Zen Attitude.</p>
-          <Link href="/" className="mt-3 inline-block text-sm font-semibold text-[#d9b65d] underline">Visiter notre site</Link>
-        </footer>
+          <footer className="mt-8 text-center">
+            <p className="font-serif text-2xl italic text-profond">Merci de votre visite</p>
+            <p className="mt-1 text-sm text-doux">et profitez pleinement de votre moment de détente chez Anna Zen Attitude.</p>
+            <Link href="/" className="mt-3 inline-block text-sm font-semibold text-aza underline">
+              Visiter notre site
+            </Link>
+          </footer>
+        </div>
       </div>
     </main>
   );

@@ -4,13 +4,14 @@
 //
 //   boissons/{auto}       { date, heure, boisson{id,nom}, cliente{nom,telephone}, rendezVous,
 //                           praticiennesIds[], statut: "demandee"|"servie", creeLe, servie? }
-//   reglages/boissons     { code }   le code caché dans le QR (on le change s'il a circulé)
+//   reglages/boissons     { code, carte }   le code caché dans le QR (on le change s'il a
+//                         circulé) et le menu (rubriques et articles, modifiables)
 
 import { randomBytes } from "node:crypto";
 import { FieldValue } from "firebase-admin/firestore";
 import { peut } from "@/lib/acces";
 import { ROLES_AGENDA } from "@/lib/agenda/statuts";
-import { BOISSONS } from "@/lib/boissons";
+import { lireCarte } from "@/lib/boissons";
 import type { Membre } from "@/lib/serveur/agenda";
 import { trace } from "@/lib/serveur/caisse";
 import { db } from "@/lib/serveur/firebase";
@@ -28,17 +29,18 @@ export function voitToutesLesBoissons(m: Membre) {
   return ROLES_AGENDA.includes(m.role) || peut(m, "caisse");
 }
 
-async function codeValide(code: unknown) {
+/** Le réglage si le code du QR est le bon, sinon une erreur. */
+async function exigerCode(code: unknown) {
   const c = String(code ?? "");
-  if (!/^[\w-]{8,40}$/.test(c)) return false;
-  const r = await db().doc("reglages/boissons").get();
-  return r.exists && r.get("code") === c;
+  const r = /^[\w-]{8,40}$/.test(c) ? await db().doc("reglages/boissons").get() : null;
+  if (!r?.exists || r.get("code") !== c) throw new Erreur("Ce lien n'est plus valable. Scannez le code QR affiché à l'institut.", 403);
+  return r;
 }
 
 /** La page du menu : le code du QR est-il le bon ? */
 export async function verifierCode(code: unknown) {
-  if (!(await codeValide(code))) throw new Erreur("Ce lien n'est plus valable. Scannez le code QR affiché à l'institut.", 403);
-  return { ok: true };
+  const r = await exigerCode(code);
+  return { ok: true, carte: lireCarte(r.get("carte")) };
 }
 
 /**
@@ -46,7 +48,7 @@ export async function verifierCode(code: unknown) {
  * prénom, et seulement avec le code du QR imprimé, donc depuis l'institut).
  */
 export async function prenomConnu(code: unknown, brut: unknown) {
-  if (!(await codeValide(code))) throw new Erreur("Ce lien n'est plus valable. Scannez le code QR affiché à l'institut.", 403);
+  await exigerCode(code);
   const tel = telephoneCanonique(String(brut ?? ""));
   if (!/^\d{9,15}$/.test(tel)) return { prenom: null };
   const fiche = await db().doc(`clientes/${tel}`).get();
@@ -56,9 +58,11 @@ export async function prenomConnu(code: unknown, brut: unknown) {
 
 /** La cliente choisit sa boisson. */
 export async function commanderBoisson(brut: { code?: unknown; boisson?: unknown; prenom?: unknown; telephone?: unknown }) {
-  if (!(await codeValide(brut.code))) throw new Erreur("Ce lien n'est plus valable. Scannez le code QR affiché à l'institut.", 403);
-  const boisson = BOISSONS.find((b) => b.id === brut.boisson);
-  if (!boisson) throw new Erreur("Choisissez une boisson du menu.", 400);
+  const reglage = await exigerCode(brut.code);
+  const boisson = lireCarte(reglage.get("carte"))
+    .flatMap((g) => g.boissons)
+    .find((b) => b.id === brut.boisson);
+  if (!boisson) throw new Erreur("Choisissez dans le menu.", 400);
   const prenom = String(brut.prenom ?? "").trim().replace(/\s+/g, " ").slice(0, 40);
   if (prenom.length < 2) throw new Erreur("Écrivez votre prénom, pour qu'on vous trouve.", 400);
   const telephone = telephoneCanonique(String(brut.telephone ?? ""));
@@ -148,5 +152,15 @@ export async function codeBoissons(membre: Membre, changer = false) {
     code = nouveauCode();
     await ref.set({ code, changeLe: FieldValue.serverTimestamp(), par: trace(membre) }, { merge: true });
   }
-  return { code };
+  return { code, carte: lireCarte(r.get("carte")) };
+}
+
+/** La direction ou le manager change le menu (ajouter, retirer une boisson, un repas…). */
+export async function enregistrerCarte(membre: Membre, brut: unknown) {
+  if (!["direction", "manager"].includes(membre.role)) throw new Erreur("Réservé à la direction et au manager.", 403);
+  if (!Array.isArray(brut)) throw new Erreur("Menu invalide.", 400);
+  const carte = lireCarte(brut);
+  if (!carte.some((g) => g.boissons.length > 0)) throw new Erreur("Le menu doit garder au moins un article.", 400);
+  await db().doc("reglages/boissons").set({ carte, carteChangeeLe: FieldValue.serverTimestamp(), cartePar: trace(membre) }, { merge: true });
+  return { carte };
 }

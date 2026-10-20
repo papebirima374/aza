@@ -64,6 +64,24 @@ ok((await api("/api/gestion/boissons", man, { action: "servir", id: c2.corps.id 
 for (let i = 0; i < 3; i++) await api("/api/boissons", null, { code, boisson: "eau", prenom: "Binta", telephone: "770006699" });
 ok((await api("/api/boissons", null, { code, boisson: "eau", prenom: "Binta", telephone: "770006699" })).statut === 429, "au plus 3 boissons en attente par cliente");
 
+// Le menu se modifie : une rubrique « Repas », un article retiré.
+const carte0 = (await api(`/api/boissons?code=${code}`)).corps.carte;
+ok(carte0?.length === 2 && carte0[0].boissons.some((b) => b.id === "wass"), "la cliente voit le menu de départ (2 rubriques)");
+const carte1 = [
+  { ...carte0[0], boissons: carte0[0].boissons.filter((b) => b.id !== "wass") },
+  carte0[1],
+  { groupe: "Repas", icone: "🍽️", boissons: [{ id: "", nom: "Thiéboudienne" }, { id: "", nom: "Salade" }] },
+];
+ok((await api("/api/gestion/boissons", acc, { action: "menu", carte: carte1 })).statut === 403, "l'accueil ne change pas le menu");
+ok((await api("/api/gestion/boissons", man, { action: "menu", carte: [{ groupe: "Vide", icone: "☕", boissons: [] }] })).statut === 400, "un menu sans rien est refusé");
+const m1 = await api("/api/gestion/boissons", man, { action: "menu", carte: carte1 });
+ok(m1.statut === 200 && m1.corps.carte[2].boissons[0].id === "thieboudienne", "le manager ajoute la rubrique Repas", JSON.stringify(m1.corps));
+const carte2 = (await api(`/api/boissons?code=${code}`)).corps.carte;
+ok(carte2.length === 3 && !carte2[0].boissons.some((b) => b.id === "wass"), "la cliente voit le nouveau menu, sans le wass");
+ok((await api("/api/boissons", null, { code, boisson: "wass", prenom: "Awa" })).statut === 400, "un article retiré ne se commande plus");
+const r1 = await api("/api/boissons", null, { code, boisson: "thieboudienne", prenom: "Awa" });
+ok(r1.statut === 201 && r1.corps.boisson === "Thiéboudienne", "un repas ajouté se commande");
+
 const nouveau = await api("/api/gestion/boissons", dir, { action: "nouveau-code" });
 ok(nouveau.statut === 200 && nouveau.corps.code !== code, "la direction change le code");
 ok((await api(`/api/boissons?code=${code}`)).statut === 403, "l'ancien QR ne marche plus");

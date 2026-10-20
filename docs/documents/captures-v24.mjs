@@ -38,6 +38,14 @@ await d.waitForTimeout(800);
 await fermer(d);
 await d.screenshot({ path: D + "138-qr-boissons.png" });
 const lien = await d.getByRole("link", { name: "Voir le menu" }).getAttribute("href");
+// 141 : modifier le menu (ajouter une boisson, une rubrique)
+await d.getByRole("heading", { name: "Ce que propose le menu" }).evaluate((e) => e.scrollIntoView({ block: "start" }));
+await d.getByLabel("Ajouter dans Boissons fraîches").fill("Jus de bissap");
+await d.getByRole("button", { name: "Ajouter" }).nth(1).click();
+await d.getByPlaceholder(/Nouvelle rubrique/).fill("Repas");
+await d.getByRole("heading", { name: "Ce que propose le menu" }).evaluate((e) => e.scrollIntoView({ block: "start" }));
+await d.waitForTimeout(500);
+await d.screenshot({ path: D + "141-modifier-menu.png" });
 console.log("largeur réglages", await largeur(d));
 
 // 139 : la cliente choisit sa boisson
