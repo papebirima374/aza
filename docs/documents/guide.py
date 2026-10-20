@@ -236,6 +236,7 @@ pages.append(page(f"""
 <li>La caisse, l'accueil et sa prestataire voient <b>« ☕ Boissons à servir »</b>, avec un son, sur n'importe quelle page.</li>
 <li>Le son <b>revient chaque minute</b> tant que personne n'a touché <span class="bouton" style="background:#0d6b37">✓ Servie</span>.</li>
 <li>Une fois servie, la demande disparaît chez tout le monde, et la cliente lit « c'est servi » sur son téléphone.</li>
+<li>En attendant, des boutons l'emmènent sur le site : prestations, rendez-vous, boutique.</li>
 </ol>
 <p><b>Réduire</b> range le message en un petit bouton en bas de l'écran.</p></div>{figure("139-menu-cliente","Le téléphone de la cliente")}{figure("140-alerte-boisson","Ce que voit l'équipe")}</div>
 """, P))

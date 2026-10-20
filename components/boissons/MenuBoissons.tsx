@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { MENU_BOISSONS } from "@/lib/boissons";
@@ -129,6 +130,23 @@ export function MenuBoissons() {
                 ))}
               </ul>
             )}
+            {envois.length > 0 && (
+              <nav className="mt-4 rounded-2xl border border-[#c9a54c]/50 p-3" aria-label="Le site">
+                <p className="text-center text-sm">En attendant, découvrez l&apos;institut :</p>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-sm font-semibold">
+                  {[
+                    ["/prestations", "💆🏾‍♀️ Nos prestations"],
+                    ["/reservation", "📅 Prendre rendez-vous"],
+                    ["/boutique", "🛍️ La boutique"],
+                    ["/", "🏠 Le site"],
+                  ].map(([href, libelle]) => (
+                    <Link key={href} href={href} className="flex min-h-12 items-center justify-center rounded-xl bg-[#c9a54c] px-2 text-center text-[#1a1406]">
+                      {libelle}
+                    </Link>
+                  ))}
+                </div>
+              </nav>
+            )}
             {erreur && (
               <p className="mt-4 rounded-2xl bg-[#3a1d1d] p-3 text-center text-sm font-semibold text-[#ffd7d7]" role="alert">
                 {erreur}
@@ -161,6 +179,7 @@ export function MenuBoissons() {
         <footer className="mt-8 text-center">
           <p className="font-serif text-2xl italic text-[#d9b65d]">Merci de votre visite</p>
           <p className="mt-1 text-sm">et profitez pleinement de votre moment de détente chez Anna Zen Attitude.</p>
+          <Link href="/" className="mt-3 inline-block text-sm font-semibold text-[#d9b65d] underline">Visiter notre site</Link>
         </footer>
       </div>
     </main>
