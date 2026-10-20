@@ -36,7 +36,7 @@ function maintenantDakar() {
   return { date: `${p.year}-${p.month}-${p.day}`, minutes: Number(p.hour) * 60 + Number(p.minute) };
 }
 
-function sonner() {
+export function sonner() {
   try {
     const ctx = new AudioContext();
     [0, 0.22, 0.44].forEach((t) => {

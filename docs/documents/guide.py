@@ -214,6 +214,32 @@ pages.append(page(f"""
 </ul>''', "137-caisse-deux-prestataires", "Deux prestataires au comptoir")}
 """, P))
 
+pages.append(page(f"""
+<span class="etiquette">3 · L'accueil</span>
+<h2>Le menu des boissons (code QR)</h2>
+{duo('''<p>Chaque cliente peut demander sa boisson offerte depuis son téléphone : café, thé, wass, eau, Coca, Fanta, Gazelle ananas.</p>
+<ol class="etapes">
+<li>La direction (ou le manager) ouvre <b>Réglages → Boissons (QR)</b>.</li>
+<li><span class="touche">🖨️ Imprimer le code QR</span> : posez la feuille à l'accueil et dans les cabines.</li>
+<li><b>Changer le code</b> seulement si une photo du QR a circulé dehors : l'ancien ne marche plus, il faut réimprimer.</li>
+</ol>
+<div class="encadre or">Le lien ne marche qu'avec le code imprimé : personne ne peut commander depuis chez soi.</div>''', "138-qr-boissons", "Le code QR à imprimer")}
+""", P))
+
+pages.append(page(f"""
+<span class="etiquette">3 · L'accueil</span>
+<h2>Une cliente demande une boisson</h2>
+<div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
+<ol class="etapes">
+<li>La cliente scanne le QR, écrit son prénom et son numéro, puis touche sa boisson.</li>
+<li>Avec son numéro, on retrouve son rendez-vous du jour : <b>sa prestataire</b> est prévenue aussi.</li>
+<li>La caisse, l'accueil et sa prestataire voient <b>« ☕ Boissons à servir »</b>, avec un son, sur n'importe quelle page.</li>
+<li>Le son <b>revient chaque minute</b> tant que personne n'a touché <span class="bouton" style="background:#0d6b37">✓ Servie</span>.</li>
+<li>Une fois servie, la demande disparaît chez tout le monde, et la cliente lit « c'est servi » sur son téléphone.</li>
+</ol>
+<p><b>Réduire</b> range le message en un petit bouton en bas de l'écran.</p></div>{figure("139-menu-cliente","Le téléphone de la cliente")}{figure("140-alerte-boisson","Ce que voit l'équipe")}</div>
+""", P))
+
 # 3. Agenda
 pages.append(page(f"""
 <span class="etiquette">3 · L'accueil</span>

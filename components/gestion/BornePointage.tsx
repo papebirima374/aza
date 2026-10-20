@@ -12,7 +12,7 @@ import { heurePointage } from "@/lib/pointage";
 
 type Borne = { code: string; expireDans: number; periode: number; derniers: { id: string; nom: string; type: "entree" | "sortie"; heure: number }[] };
 
-function Qr({ texte }: { texte: string }) {
+export function Qr({ texte, libelle = "QR code de pointage" }: { texte: string; libelle?: string }) {
   const q = qrcode(0, "M");
   q.addData(texte);
   q.make();
@@ -20,7 +20,7 @@ function Qr({ texte }: { texte: string }) {
   let d = "";
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (q.isDark(y, x)) d += `M${x} ${y}h1v1h-1z`;
   return (
-    <svg viewBox={`-2 -2 ${n + 4} ${n + 4}`} className="h-auto w-full" role="img" aria-label="QR code de pointage" shapeRendering="crispEdges">
+    <svg viewBox={`-2 -2 ${n + 4} ${n + 4}`} className="h-auto w-full" role="img" aria-label={libelle} shapeRendering="crispEdges">
       <rect x={-2} y={-2} width={n + 4} height={n + 4} fill="#fff" />
       <path d={d} fill="#000" />
     </svg>

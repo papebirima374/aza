@@ -8,6 +8,7 @@ import { onAuthStateChanged, sendPasswordResetEmail, signInWithCustomToken, sign
 import { doc, getDoc } from "firebase/firestore";
 import type { Role } from "@/lib/agenda/statuts";
 import { firebaseClient } from "@/lib/client/firebase";
+import { AlerteBoissons } from "@/components/gestion/AlerteBoissons";
 import { AlerteHeure } from "@/components/gestion/AlerteHeure";
 import { CentreNotifications } from "@/components/gestion/CentreNotifications";
 import { PastilleCaisse, SuiviCaisse } from "@/components/gestion/SuiviCaisse";
@@ -190,6 +191,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       {children}
+      {compte && <AlerteBoissons compte={compte} />}
       </AlerteHeure>
       </SuiviCaisse>
     </ContexteCompte.Provider>

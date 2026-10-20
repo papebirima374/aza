@@ -2,6 +2,7 @@
 
 import { lireRegles, type ReglesFidelite } from "@/lib/caisse/fidelite";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CodeBoissons } from "@/components/gestion/CodeBoissons";
 import { Donnees } from "@/components/gestion/Donnees";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { formatPrix, UNIVERS } from "@/lib/catalogue";
@@ -128,6 +129,7 @@ export function Reglages() {
           ["#durees", `Durées (${renseignees}/${total})`],
           ["#regles", "Règles"],
           ["#fidelite", "Fidélité"],
+          ["#boissons", "Boissons (QR)"],
           ...(compte.role === "direction" ? [["#donnees", "Sauvegarde"]] : []),
         ].map(([href, libelle]) => (
           <a key={href} href={href} className="rounded-full bg-creme px-3 py-1.5 text-profond hover:bg-bordure">
@@ -182,6 +184,7 @@ export function Reglages() {
           direction={compte.role === "direction"}
           enregistrer={(v) => envoyer({ action: "fidelite", ...v }, v.actif ? "Carte de fidélité enregistrée et active." : "Carte de fidélité enregistrée (désactivée).")}
         />
+        <CodeBoissons />
         {compte.role === "direction" && <Donnees />}
       </div>
     </div>
