@@ -231,7 +231,7 @@ pages.append(page(f"""
 <h2>Une cliente demande une boisson</h2>
 <div class="duo" style="grid-template-columns:1fr 58mm 58mm;"><div>
 <ol class="etapes">
-<li>La cliente scanne le QR, écrit son prénom et son numéro, puis touche sa boisson.</li>
+<li>La cliente scanne le QR, tape son numéro (déjà venue : son prénom s'écrit tout seul), puis touche sa boisson.</li>
 <li>Avec son numéro, on retrouve son rendez-vous du jour : <b>sa prestataire</b> est prévenue aussi.</li>
 <li>La caisse, l'accueil et sa prestataire voient <b>« ☕ Boissons à servir »</b>, avec un son, sur n'importe quelle page.</li>
 <li>Le son <b>revient chaque minute</b> tant que personne n'a touché <span class="bouton" style="background:#0d6b37">✓ Servie</span>.</li>

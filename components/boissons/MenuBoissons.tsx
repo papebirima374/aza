@@ -27,6 +27,20 @@ export function MenuBoissons() {
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState("");
   const [envois, setEnvois] = useState<Envoi[]>([]);
+  const [reconnue, setReconnue] = useState(false);
+
+  // Une cliente déjà venue : son numéro complet suffit, son prénom se met tout seul.
+  async function changerTelephone(v: string) {
+    setTelephone(v);
+    const chiffres = v.replace(/\D/g, "");
+    if (chiffres.length < 9 || (prenom && !reconnue)) return;
+    const r = await fetch(`/api/boissons?code=${encodeURIComponent(code)}&tel=${encodeURIComponent(v)}`).catch(() => null);
+    const j = r?.ok ? await r.json() : null;
+    if (j?.prenom) {
+      setPrenom(j.prenom);
+      setReconnue(true);
+    }
+  }
 
   useEffect(() => {
     fetch(`/api/boissons?code=${encodeURIComponent(code)}`)
@@ -96,12 +110,13 @@ export function MenuBoissons() {
           <>
             <div className="mt-6 grid gap-3">
               <label className="text-sm">
-                Votre prénom
-                <input value={prenom} onChange={(e) => setPrenom(e.target.value)} maxLength={40} autoComplete="given-name" className="mt-1 block min-h-12 w-full rounded-xl border border-[#c9a54c]/60 bg-[#151515] px-3 text-base text-white" />
+                Votre numéro <span className="text-[#bfa978]">(déjà venue ? on vous reconnaît)</span>
+                <input value={telephone} onChange={(e) => changerTelephone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="77 123 45 67" className="mt-1 block min-h-12 w-full rounded-xl border border-[#c9a54c]/60 bg-[#151515] px-3 text-base text-white placeholder:text-[#6f6550]" />
               </label>
               <label className="text-sm">
-                Votre numéro <span className="text-[#bfa978]">(pour prévenir votre prestataire)</span>
-                <input value={telephone} onChange={(e) => setTelephone(e.target.value)} inputMode="tel" autoComplete="tel" placeholder="77 123 45 67" className="mt-1 block min-h-12 w-full rounded-xl border border-[#c9a54c]/60 bg-[#151515] px-3 text-base text-white placeholder:text-[#6f6550]" />
+                Votre prénom
+                <input value={prenom} onChange={(e) => (setPrenom(e.target.value), setReconnue(false))} maxLength={40} autoComplete="given-name" className="mt-1 block min-h-12 w-full rounded-xl border border-[#c9a54c]/60 bg-[#151515] px-3 text-base text-white" />
+                {reconnue && <span className="mt-1 block text-[#b9f0cd]">✓ Bon retour parmi nous, {prenom} !</span>}
               </label>
             </div>
 

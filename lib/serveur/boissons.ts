@@ -41,6 +41,19 @@ export async function verifierCode(code: unknown) {
   return { ok: true };
 }
 
+/**
+ * Une cliente déjà connue tape son numéro : on lui propose son prénom (seulement le
+ * prénom, et seulement avec le code du QR imprimé, donc depuis l'institut).
+ */
+export async function prenomConnu(code: unknown, brut: unknown) {
+  if (!(await codeValide(code))) throw new Erreur("Ce lien n'est plus valable. Scannez le code QR affiché à l'institut.", 403);
+  const tel = telephoneCanonique(String(brut ?? ""));
+  if (!/^\d{9,15}$/.test(tel)) return { prenom: null };
+  const fiche = await db().doc(`clientes/${tel}`).get();
+  const nom = fiche.exists ? String(fiche.get("nom") ?? "").trim() : "";
+  return { prenom: nom ? nom.split(/\s+/)[0] : null };
+}
+
 /** La cliente choisit sa boisson. */
 export async function commanderBoisson(brut: { code?: unknown; boisson?: unknown; prenom?: unknown; telephone?: unknown }) {
   if (!(await codeValide(brut.code))) throw new Erreur("Ce lien n'est plus valable. Scannez le code QR affiché à l'institut.", 403);

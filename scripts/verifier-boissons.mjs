@@ -39,6 +39,9 @@ ok((await api("/api/boissons", null, { code: "fauxcode123", boisson: "the", pren
 ok((await api("/api/boissons", null, { code, boisson: "whisky", prenom: "Awa" })).statut === 400, "une boisson hors menu est refusée");
 ok((await api("/api/boissons", null, { code, boisson: "the", prenom: "" })).statut === 400, "le prénom est demandé");
 
+ok((await api(`/api/boissons?code=${code}&tel=77%20000%2066%2001`)).corps.prenom === "Cliente", "une cliente connue : son prénom vient tout seul avec son numéro");
+ok((await api(`/api/boissons?code=${code}&tel=770009999`)).corps.prenom === null, "un numéro inconnu : rien");
+ok((await api("/api/boissons?code=fauxcode123&tel=770006601")).statut === 403, "sans le bon code, on ne retrouve personne");
 const c1 = await api("/api/boissons", null, { code, boisson: "the", prenom: "Awa", telephone: "770006601" });
 ok(c1.statut === 201 && c1.corps.boisson === "Thé", "la cliente demande un thé", JSON.stringify(c1.corps));
 const c2 = await api("/api/boissons", null, { code, boisson: "coca", prenom: "Fatou" });
