@@ -21,7 +21,7 @@ export async function GET(request: Request) {
     const q = new URL(request.url).searchParams;
     if (q.get("ticket")) return Response.json(await lireTicket(membre, q.get("ticket")!), sansCache);
     if (q.get("rdv")) return Response.json(await lireRendezVous(membre, q.get("rdv")!), sansCache);
-    if (q.get("a-encaisser")) return Response.json(await aEncaisser(membre), sansCache);
+    if (q.get("a-encaisser")) return Response.json(await aEncaisser(membre, q.get("jour") ?? undefined), sansCache);
     if (q.get("equipe")) return Response.json(await equipeCaisse(membre), sansCache);
     if (q.get("sessions")) return Response.json(await sessionsCaisse(membre, q.get("du") ?? undefined, q.get("au") ?? undefined), sansCache);
     if (q.get("fidelite")) return Response.json(await fideliteCliente(membre, q.get("fidelite")!), sansCache);
@@ -38,12 +38,13 @@ export async function POST(request: Request) {
     const c = await request.json().catch(() => ({}));
     switch (c.action) {
       case "ouvrir": {
-        const r = await ouvrirCaisse(membre, c.fond);
-        await noter(membre, "caisse", `Caisse ouverte, fond de caisse ${prix(c.fond)}`);
+        const r = await ouvrirCaisse(membre, c.fond, c.jour);
+        await noter(membre, "caisse", `Caisse ${r.rattrapage ? `de rattrapage du ${r.date} ` : ""}ouverte, fond de caisse ${prix(c.fond)}`);
         return Response.json(r, { status: 201 });
       }
       case "encaisser": {
         const r = await encaisser(membre, {
+            jour: c.jour,
             lignes: c.lignes,
             paiements: c.paiements,
             remise: c.remise,

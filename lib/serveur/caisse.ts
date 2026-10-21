@@ -130,11 +130,31 @@ function momentDeLaVente(faitLe: unknown) {
   return maintenantDakar();
 }
 
-export async function ouvrirCaisse(membre: Membre, fondBrut: unknown) {
+/** Jours en arrière où la direction ou le manager peut ouvrir une caisse de rattrapage. */
+const JOURS_RATTRAPAGE = 7;
+
+/** Rattrapage : la direction ou le manager saisit après coup les ventes d'un jour passé
+ *  (le dimanche, personne ne tient la caisse). Ce jour-là, ou aujourd'hui. */
+export function rattrapagePermis(membre: Membre, date: string) {
+  const auj = maintenantDakar().date;
+  const limite = new Date(Date.parse(`${auj}T00:00:00Z`) - JOURS_RATTRAPAGE * 86_400_000).toISOString().slice(0, 10);
+  return (membre.role === "direction" || membre.role === "manager") && date < auj && date >= limite;
+}
+
+function jourDeCaisse(membre: Membre, brut: unknown) {
+  const auj = maintenantDakar().date;
+  const jour = typeof brut === "string" && /^\d{4}-\d{2}-\d{2}$/.test(brut) ? brut : auj;
+  if (jour === auj) return auj;
+  if (!rattrapagePermis(membre, jour)) throw new Erreur(`Seuls la direction et le manager rattrapent la caisse d'un jour passé (${JOURS_RATTRAPAGE} jours au plus).`, 403);
+  return jour;
+}
+
+export async function ouvrirCaisse(membre: Membre, fondBrut: unknown, jourBrut?: unknown) {
   exigerAcces(membre, "caisse");
   const fond = entier(fondBrut);
   if (!Number.isFinite(fond) || fond < 0 || fond > 10_000_000) throw new Erreur("Fond de caisse invalide.", 400);
-  const { date } = maintenantDakar();
+  const date = jourDeCaisse(membre, jourBrut);
+  const rattrapage = date !== maintenantDakar().date;
   const base = db();
   const id = await base.runTransaction(async (tx) => {
     const liste = await mesCaisses(tx, membre, date);
@@ -143,10 +163,10 @@ export async function ouvrirCaisse(membre: Membre, fondBrut: unknown) {
     const session = liste.reduce((n, c) => Math.max(n, sessionDe(c)), 0) + 1;
     const ref = base.doc(`caisses/${idCaisse(date, membre.uid, session)}`);
     if ((await tx.get(ref)).exists) throw new Erreur("Réessayez dans un instant.", 409);
-    tx.set(ref, { date, uid: membre.uid, session, statut: "ouverte", fond, ouvertPar: trace(membre), ouvertLe: FieldValue.serverTimestamp() });
+    tx.set(ref, { date, uid: membre.uid, session, statut: "ouverte", fond, ouvertPar: trace(membre), ouvertLe: FieldValue.serverTimestamp(), ...(rattrapage ? { rattrapage: true } : {}) });
     return ref.id;
   });
-  return { ok: true, date, caisse: id };
+  return { ok: true, date, caisse: id, rattrapage };
 }
 
 function lignesValides(brutes: unknown, catalogue: Catalogue, cadeauPermis = false): LigneTicket[] {
@@ -223,6 +243,8 @@ export function paiementsValides(bruts: unknown, carteCadeauPermise = false, opt
 }
 
 export type Encaissement = {
+  /** Jour de la vente (rattrapage d'un jour passé) ; aujourd'hui par défaut. */
+  jour?: unknown;
   lignes: unknown;
   paiements: unknown;
   remise?: { montant?: unknown; motif?: unknown };
@@ -283,8 +305,12 @@ export async function encaisser(membre: Membre, e: Encaissement) {
 
   const base = db();
   const idLocal = e.idLocal && /^[A-Za-z0-9-]{8,64}$/.test(e.idLocal) ? e.idLocal : null;
-  const { date, minutes } = idLocal ? momentDeLaVente(e.faitLe) : maintenantDakar();
-  const horsLigne = Boolean(idLocal) && Number(e.faitLe) < Date.now() - 60_000;
+  // Rattrapage : le ticket porte le jour passé ; l'heure est celle de la saisie.
+  const jourPasse = e.jour !== undefined && e.jour !== maintenantDakar().date ? jourDeCaisse(membre, e.jour) : null;
+  const moment = idLocal ? momentDeLaVente(e.faitLe) : maintenantDakar();
+  const date = jourPasse ?? moment.date;
+  const minutes = moment.minutes;
+  const horsLigne = !jourPasse && Boolean(idLocal) && Number(e.faitLe) < Date.now() - 60_000;
   const rdvRef = e.rendezVous ? base.doc(`rendezVous/${e.rendezVous}`) : null;
   const ticketRef = idLocal ? base.doc(`tickets/l-${idLocal}`) : base.collection("tickets").doc();
   const compteurRef = base.doc("compteurs/tickets");
@@ -303,6 +329,7 @@ export async function encaisser(membre: Membre, e: Encaissement) {
     if (rdv) {
       if (!rdv.exists) throw new Erreur("Rendez-vous introuvable.", 404);
       if (rdv.get("statut") !== "termine") throw new Erreur("Ce rendez-vous n'est pas marqué « Terminé » (ou il est déjà encaissé).", 409);
+      if (jourPasse && rdv.get("date") !== jourPasse) throw new Erreur("Ce rendez-vous n'est pas de ce jour-là.", 409);
       cliente = rdv.get("cliente");
       const acompte = rdv.get("acompte") as { montant: number; utilise?: string } | undefined;
       if (parAcompte > 0 && (!acompte || acompte.utilise || parAcompte > acompte.montant)) throw new Erreur("Acompte inconnu ou déjà utilisé pour ce rendez-vous.", 409);
@@ -352,6 +379,7 @@ export async function encaisser(membre: Membre, e: Encaissement) {
       type: "vente",
       date,
       heure: minutes,
+      ...(jourPasse ? { saisiLe: maintenantDakar().date } : {}),
       lignes,
       sousTotal,
       ...(remiseMontant > 0 ? { remise: { montant: remiseMontant, motif: remiseMotif } } : {}),
@@ -705,6 +733,8 @@ export async function journal(membre: Membre, dateBrute?: string) {
   return {
     date,
     aujourdhui: date === maintenantDakar().date,
+    // Jour passé que ce compte peut rattraper (caisse ouverte après coup, ventes datées de ce jour).
+    rattrapage: rattrapagePermis(membre, date) && peut(membre, "caisse"),
     // Sa caisse (même forme qu'avant le passage aux caisses par personne).
     caisse: mienne,
     caisses: tout ? caisses : mienne ? [mienne] : [],
@@ -783,9 +813,9 @@ export async function equipeCaisse(membre: Membre) {
 }
 
 /** Rendez-vous terminés du jour, prêts à passer en caisse. */
-export async function aEncaisser(membre: Membre) {
+export async function aEncaisser(membre: Membre, jourBrut?: unknown) {
   exigerAcces(membre, "caisse");
-  const { date } = maintenantDakar();
+  const date = jourDeCaisse(membre, jourBrut);
   const snap = await db().collection("rendezVous").where("date", "==", date).where("statut", "==", "termine").get();
   return snap.docs
     .map((d) => ({ id: d.id, debut: d.get("debut") as number, cliente: d.get("cliente"), prestations: d.get("prestations"), total: d.get("total"), affectations: d.get("affectations") ?? [], acompte: d.get("acompte") ?? null }))
