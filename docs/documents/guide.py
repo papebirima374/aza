@@ -125,7 +125,7 @@ pages.append(page(f"""
 <li>Une <b>allergie</b> s'affiche en rouge : lisez-la avant le soin.</li>
 <li>🔊 lit le rendez-vous à voix haute ; « 🔊 Écouter » lit toute la journée.</li>
 <li>Quand vous commencez : <span class="bouton" style="background:#0d6b37">▶️ Je commence</span>.</li>
-<li>Quand vous avez fini : <span class="bouton">✅ J'ai fini</span>. La caisse est prévenue aussitôt.</li>
+<li>Quand vous avez fini : <span class="bouton">✅ J'ai fini</span>. La caisse est prévenue aussitôt. Pas avant : si c'est touché par erreur, l'accueil corrige.</li>
 </ol>
 <div class="encadre">Vous n'avez rien d'autre à faire : l'accueil encaisse la cliente.</div></div>
 {figure("17-ma-journee","Avant le soin")}{figure("18-ma-journee-fini","Après « J'ai fini »")}</div>
@@ -263,6 +263,7 @@ pages.append(page(f"""
 <li><b>Avec qui</b> : la praticienne. <span class="touche">Changer</span> propose seulement celles qui savent faire ce soin, marquées « libre ✓ » ou grisées si elles sont prises. Touchez-en une : c'est fait, et c'est noté au journal.</li>
 <li>Les boutons de statut : <span class="touche">Confirmé</span> <span class="touche">Arrivée</span> <span class="touche">Annulé</span> (motif obligatoire) <span class="touche">Absente</span>.</li>
 <li>Un rendez-vous « Terminé » affiche <span class="bouton" style="background:#7E0A4C">Encaisser</span>.</li>
+<li><b>« Terminé » par erreur ?</b> Tant qu'il n'est pas encaissé : <span class="touche">Remettre « En cours »</span> si le soin continue, ou <span class="touche">Annulé</span> (motif obligatoire) si la cliente ne l'a pas fait. Il sort alors de la caisse et n'est pas compté.</li>
 <li>En bas, le <b>journal</b> : qui a fait quoi, et quand.</li>
 </ul></div>{figure("14-rdv-detail","Le détail")}{figure("14b-rdv-changer","Changer de praticienne")}</div>
 <div class="encadre or"><b>Annulé ou absente</b> libère l'heure : elle redevient réservable. Après 2 absences, la cliente devra payer un acompte pour réserver en ligne.</div>
@@ -404,7 +405,7 @@ pages.append(page(f"""
 <li><span class="bouton" style="background:#128C4A">Envoyer par WhatsApp</span> : le reçu part sur le WhatsApp de la cliente.</li>
 </ol>
 <p>Le ticket et le message WhatsApp portent la <b>carte de fidélité</b> et un <b>QR code « Votre avis compte »</b> : la cliente note sa visite en deux touches (voir la partie 9).</p>
-<div class="encadre"><b>Un ticket ne se supprime jamais.</b> En cas d'erreur, la direction ou le manager touche « Annuler par un avoir » dans la liste des tickets : un avoir est créé avec le motif, les produits reviennent en stock et le rendez-vous redevient « Terminé ». Le remboursement sort du tiroir qui avait reçu l'argent (si cette caisse est encore ouverte).</div>
+<div class="encadre"><b>Un ticket ne se supprime jamais.</b> En cas d'erreur, la direction ou le manager touche « Annuler par un avoir » dans la liste des tickets : un avoir est créé avec le motif, les produits reviennent en stock et le rendez-vous redevient « Terminé » : encaissez-le de nouveau, ou annulez-le depuis l'agenda si la prestation n'a pas été faite. Le remboursement sort du tiroir qui avait reçu l'argent (si cette caisse est encore ouverte).</div>
 </div>{figure("22-caisse-confirmation","Ticket enregistré")}{figure("87-ticket-80mm","Le ticket 80 mm")}</div>
 """, P))
 
