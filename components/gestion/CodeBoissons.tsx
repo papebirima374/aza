@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ICONES_RUBRIQUE, MAX_ARTICLES, MAX_RUBRIQUES, type Rubrique } from "@/lib/boissons";
+import { AfficheBoissons } from "@/components/gestion/AfficheBoissons";
 import { Qr } from "@/components/gestion/BornePointage";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 
@@ -39,16 +40,16 @@ export function CodeBoissons() {
   const lien = code ? `${window.location.origin}/boissons?c=${code}` : "";
   return (
     <section id="boissons" className="scroll-mt-20 rounded-2xl border border-bordure p-5">
-      <style>{`@media print { body * { visibility: hidden } #affiche-boissons, #affiche-boissons * { visibility: visible } #affiche-boissons { position: fixed; inset: 0; padding: 2cm } }`}</style>
       <h2 className="font-serif text-2xl font-semibold text-profond">Menu offert aux clientes (code QR)</h2>
       <p className="mt-1 text-sm text-doux">
-        Imprimez ce code et posez-le dans l&apos;institut. La cliente le scanne, choisit sa boisson offerte : la caisse, l&apos;accueil et sa prestataire sont prévenues jusqu&apos;à ce que
+        Imprimez l&apos;affiche A4 (ou choisissez « Enregistrer en PDF » pour l&apos;envoyer à l&apos;imprimeur) et posez-la dans l&apos;institut. La cliente le scanne, choisit sa boisson offerte : la caisse, l&apos;accueil et sa prestataire sont prévenues jusqu&apos;à ce que
         quelqu&apos;un appuie sur « Servie ».
       </p>
       {erreur && <p className="mt-3 rounded-xl bg-aza/10 p-3 text-sm font-semibold text-profond">{erreur}</p>}
       {code && (
         <>
-          <div id="affiche-boissons" className="mx-auto mt-4 max-w-xs text-center">
+          <AfficheBoissons lien={lien} carte={carte} />
+          <div className="mx-auto mt-4 max-w-xs text-center">
             <p className="font-serif text-2xl font-semibold text-profond">☕ Une boisson offerte</p>
             <p className="text-sm text-doux">Scannez avec l&apos;appareil photo de votre téléphone</p>
             <div className="mt-2">
@@ -58,7 +59,7 @@ export function CodeBoissons() {
           </div>
           <div className="mt-4 flex flex-wrap justify-center gap-2">
             <button onClick={() => window.print()} className="min-h-11 rounded-full bg-aza px-5 font-bold text-white">
-              🖨️ Imprimer le code QR
+              🖨️ Imprimer l&apos;affiche A4 (ou PDF)
             </button>
             <a href={lien} target="_blank" rel="noopener" className="flex min-h-11 items-center rounded-full border border-bordure px-5 font-semibold text-profond">
               Voir le menu

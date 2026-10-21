@@ -38,6 +38,8 @@ type CaisseJour = {
 type Journal = {
   date: string;
   aujourdhui: boolean;
+  /** Jour passé que je peux rattraper (direction, manager) : caisse ouverte après coup. */
+  rattrapage?: boolean;
   /** Ma caisse du jour. */
   caisse: CaisseJour | null;
   /** Toutes les caisses du jour (direction, manager, comptable) ; sinon la mienne. */
@@ -94,7 +96,8 @@ export function Caisse() {
   const params = useSearchParams();
   const [date, setDate] = useState(aujourdhui);
   const [journal, setJournal] = useState<Journal | null>(null);
-  const aEncaisser = useAEncaisser();
+  const suiviDuJour = useAEncaisser();
+  const [aEncaisserPasse, setAEncaisserPasse] = useState<RdvAEncaisser[]>([]);
   const [brouillon, setBrouillon] = useState<Brouillon | null>(null);
   const [fait, setFait] = useState<{ id: string; reference: string; rendu: number; horsLigne?: boolean } | null>(null);
   const file = useFileCaisse();
@@ -172,7 +175,22 @@ export function Caisse() {
     }
   }
 
-  const ouverte = journal?.aujourdhui && journal.caisse?.statut === "ouverte";
+  // Rattrapage : un jour passé (le dimanche) saisi après coup, comme si c'était aujourd'hui.
+  const rattrapage = Boolean(journal && !journal.aujourdhui && journal.rattrapage);
+  const actif = Boolean(journal?.aujourdhui || rattrapage);
+  const ouverte = actif && journal?.caisse?.statut === "ouverte";
+  const aEncaisser = rattrapage ? aEncaisserPasse : suiviDuJour;
+  useEffect(() => {
+    if (!rattrapage || !ouverte) return;
+    let vivant = true;
+    appel(`?a-encaisser=1&jour=${date}`)
+      .then((l: RdvAEncaisser[]) => vivant && setAEncaisserPasse(l))
+      .catch(() => {});
+    return () => {
+      vivant = false;
+    };
+  }, [appel, rattrapage, ouverte, date, version]);
+  const sienne = rattrapage && journal?.caisse ? { caisse: journal.caisse.id } : {};
   // Point de vente : caisse ouverte → écran fixe (services | comptoir), le reste dans un panneau.
   const pointDeVente = Boolean(ouverte && tientLaCaisse);
   const [panneau, setPanneau] = useState<"tickets" | "cloture" | "caisses" | null>(null);
@@ -257,8 +275,19 @@ export function Caisse() {
           {fait && <Confirmation fait={fait} ticket={journal.tickets.find((t) => t.id === fait.id)} fermer={() => setFait(null)} />}
 
           {/* Ma caisse : chacun ouvre la sienne (son fond), encaisse dedans, la clôture le soir. */}
-          {journal.aujourdhui && tientLaCaisse && (!journal.caisse || journal.caisse.statut === "cloturee") && (
-            <Ouvrir nouvelle={Boolean(journal.caisse)} ouvrir={(fond) => action({ action: "ouvrir", fond })} />
+          {rattrapage && (
+            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl bg-[#fff4d6] px-4 py-3 text-sm">
+              <span className="mr-auto">
+                ⏪ <b>Rattrapage du {dateTexte(date)}</b> : les tickets sont datés de ce jour. Clôturez cette caisse, puis revenez à aujourd&apos;hui.
+              </span>
+              <button onClick={() => setDate(aujourdhui())} className="min-h-12 rounded-full border border-bordure bg-white px-4 font-semibold text-profond">
+                Revenir à aujourd&apos;hui
+              </button>
+            </div>
+          )}
+
+          {actif && tientLaCaisse && (!journal.caisse || journal.caisse.statut === "cloturee") && (
+            <Ouvrir nouvelle={Boolean(journal.caisse)} rattrapage={rattrapage} ouvrir={(fond) => action({ action: "ouvrir", fond, ...(rattrapage ? { jour: date } : {}) })} />
           )}
 
           {pointDeVente && (
@@ -295,7 +324,7 @@ export function Caisse() {
                   const faitLe = Date.now();
                   setErreur("");
                   try {
-                    const res = await appel("", { action: "encaisser", ...corps, idLocal, faitLe });
+                    const res = await appel("", { action: "encaisser", ...corps, idLocal, faitLe, ...(rattrapage ? { jour: date } : {}) });
                     setVersion((v) => v + 1);
                     setNumeroVente((n) => n + 1);
                     setBrouillon(null);
@@ -374,7 +403,7 @@ export function Caisse() {
                     caisse={journal.caisse}
                     date={journal.date}
                     attente={file.attente.length}
-                    cloturer={(compte, justification) => action({ action: "cloturer", compte, justification })}
+                    cloturer={(compte, justification) => action({ action: "cloturer", compte, justification, ...sienne })}
                   />
                 )}
                 {panneau === "caisses" && journal.voitTout && (
@@ -406,7 +435,7 @@ export function Caisse() {
               caisse={journal.caisse}
               date={journal.date}
               attente={file.attente.length}
-              cloturer={ouverte && tientLaCaisse ? (compte, justification) => action({ action: "cloturer", compte, justification }) : undefined}
+              cloturer={ouverte && tientLaCaisse ? (compte, justification) => action({ action: "cloturer", compte, justification, ...sienne }) : undefined}
             />
           )}
 
@@ -419,7 +448,7 @@ export function Caisse() {
             />
           )}
 
-          {!journal.caisse && !journal.voitTout && !(journal.aujourdhui && tientLaCaisse) && (
+          {!journal.caisse && !journal.voitTout && !(actif && tientLaCaisse) && (
             <p className="mt-8 rounded-2xl border border-bordure p-6 text-center text-doux">Pas de caisse ouverte ce jour-là.</p>
           )}
         </>
@@ -428,13 +457,15 @@ export function Caisse() {
   );
 }
 
-function Ouvrir({ ouvrir, nouvelle }: { ouvrir: (fond: number) => void; nouvelle: boolean }) {
+function Ouvrir({ ouvrir, nouvelle, rattrapage }: { ouvrir: (fond: number) => void; nouvelle: boolean; rattrapage: boolean }) {
   const [fond, setFond] = useState("");
   return (
     <section className="mt-6 rounded-2xl border border-bordure p-5">
       <h2 className="font-serif text-2xl font-semibold text-profond">{nouvelle ? "Ouvrir une nouvelle caisse" : "Ouvrir ma caisse"}</h2>
       <p className="mt-1 text-sm text-doux">
-        {nouvelle
+        {rattrapage
+          ? "Caisse d'un jour passé : ouvrez-la avec le fond de ce jour-là, encaissez ses prestations (elles seront datées de ce jour), puis clôturez-la."
+          : nouvelle
           ? "Votre caisse précédente est clôturée (elle reste dans les Sessions de caisse). Vous pouvez en ouvrir une autre aujourd'hui : comptez le fond de caisse, puis ouvrez."
           : "Chacun a sa caisse. Comptez les espèces de votre tiroir (le fond de caisse), puis ouvrez."}
       </p>

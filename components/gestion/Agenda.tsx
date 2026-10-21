@@ -413,7 +413,7 @@ function Detail({ rdv, equipe, fermer }: { rdv: RendezVous; equipe: { id: string
                   s === "annule" || s === "absente" ? "border border-bordure text-profond" : "bg-aza text-white hover:bg-aza-fonce"
                 }`}
               >
-                {LIBELLES[s]}
+                {rdv.statut === "termine" && s === "en-cours" ? "Remettre « En cours »" : LIBELLES[s]}
               </button>
             ))}
           </div>

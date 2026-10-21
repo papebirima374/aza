@@ -75,5 +75,16 @@ ok(
   "le journal garde qui a annulé, quand et pourquoi",
 );
 
+// « Terminé » par erreur : on revient en arrière ou on annule, tant que ce n'est pas encaissé.
+const rdv3 = await reserver({ date: DATE, debut: 900, prestations: [MASSAGE], nom: "Cliente agenda", telephone: "77 888 88 88" });
+const id3 = rdv3.corps.id;
+for (const s of ["arrivee", "en-cours", "termine"]) await statut(id3, { statut: s }, accueil);
+ok((await statut(id3, { statut: "en-cours" }, coiffeuse)).statut === 403, "une praticienne ne revient pas sur « Terminé » (pas le sien)");
+ok((await statut(id3, { statut: "en-cours" }, accueil)).statut === 200, "« Terminé » par erreur : l'accueil le remet « En cours »");
+ok((await statut(id3, { statut: "termine" }, accueil)).statut === 200, "puis de nouveau « Terminé »");
+ok((await statut(id3, { statut: "annule" }, accueil)).statut === 400, "annuler un rendez-vous terminé demande un motif");
+ok((await statut(id3, { statut: "annule", motif: "Prestation pas faite" }, accueil)).statut === 200, "un rendez-vous terminé mais pas encaissé s'annule");
+ok((await creneaux(DATE, MASSAGE)).creneaux.some((c) => c.debut === 900), "15h est de nouveau proposé");
+
 console.log(echecs === 0 ? "\nTout est bon." : `\n${echecs} contrôle(s) en échec.`);
 process.exit(echecs === 0 ? 0 : 1);

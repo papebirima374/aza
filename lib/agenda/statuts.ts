@@ -16,13 +16,15 @@ export const LIBELLES: Record<Statut, string> = {
   absente: "Absente",
 };
 
-/** Étapes possibles depuis chaque statut. « Encaissé » viendra de la caisse (M-05). */
+/** Étapes possibles depuis chaque statut. « Encaissé » viendra de la caisse (M-05).
+ *  Tant qu'il n'est pas encaissé, un rendez-vous « Terminé » par erreur se corrige :
+ *  remis « En cours » (la prestation n'était pas finie) ou annulé (la cliente est partie). */
 const SUIVANTS: Record<Statut, Statut[]> = {
   reserve: ["confirme", "arrivee", "annule", "absente"],
   confirme: ["arrivee", "annule", "absente"],
   arrivee: ["en-cours", "annule"],
-  "en-cours": ["termine"],
-  termine: [],
+  "en-cours": ["termine", "annule"],
+  termine: ["en-cours", "annule"],
   encaisse: [],
   annule: [],
   absente: [],
@@ -38,6 +40,7 @@ export function statutsPermis(actuel: Statut, role: Role, estSonRendezVous: bool
   if ((role === "praticienne" || role === "prestataire") && estSonRendezVous) {
     // « Je commence » vaut arrivée : la praticienne n'attend pas que l'accueil l'ait notée.
     if (actuel === "reserve" || actuel === "confirme" || actuel === "arrivee") return ["en-cours"];
+    // Revenir sur « J'ai fini » ou annuler reste l'affaire de l'accueil.
     return suivants.filter((s) => s === "termine");
   }
   return [];
