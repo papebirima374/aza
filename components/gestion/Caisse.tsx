@@ -350,7 +350,7 @@ export function Caisse() {
           {ouverte && tientLaCaisse && brouillon && brouillon.lignes.length > 0 && !comptoirVisible && (
             <a
               href="#comptoir"
-              className="fixed inset-x-3 bottom-3 z-30 flex min-h-14 items-center justify-between rounded-2xl bg-profond px-5 font-bold text-white shadow-xl lg:hidden"
+              className="fixed inset-x-3 bottom-20 z-30 sm:bottom-3 flex min-h-14 items-center justify-between rounded-2xl bg-profond px-5 font-bold text-white shadow-xl lg:hidden"
             >
               <span>
                 🧾 {brouillon.lignes.reduce((n, l) => n + l.quantite, 0)} article{brouillon.lignes.reduce((n, l) => n + l.quantite, 0) > 1 ? "s" : ""}

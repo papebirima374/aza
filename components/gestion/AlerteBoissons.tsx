@@ -64,12 +64,12 @@ export function AlerteBoissons({ compte }: { compte: Compte }) {
   if (!actif || liste.length === 0) return null;
   if (reduit)
     return (
-      <button onClick={() => setReduit(false)} className="fixed bottom-4 right-4 z-50 min-h-12 rounded-full bg-[#b7791f] px-4 font-bold text-white shadow-2xl print:hidden">
+      <button onClick={() => setReduit(false)} className="fixed bottom-20 right-4 z-50 sm:bottom-4 min-h-12 rounded-full bg-[#b7791f] px-4 font-bold text-white shadow-2xl print:hidden">
         ☕ {liste.length} à servir
       </button>
     );
   return (
-    <div className="fixed inset-x-3 bottom-4 z-50 mx-auto max-w-md rounded-2xl border-2 border-[#b7791f] bg-white p-4 shadow-2xl print:hidden" role="alert">
+    <div className="fixed inset-x-3 bottom-20 z-50 sm:bottom-4 mx-auto max-w-md rounded-2xl border-2 border-[#b7791f] bg-white p-4 shadow-2xl print:hidden" role="alert">
       <div className="flex items-start justify-between gap-2">
         <p className="text-lg font-bold">☕ À servir pour les clientes</p>
         <button onClick={() => setReduit(true)} className="rounded-full px-2 text-sm font-semibold text-doux underline">

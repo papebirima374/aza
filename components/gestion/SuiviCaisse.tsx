@@ -167,7 +167,7 @@ export function SuiviCaisse({ compte, children }: { compte: Compte | null; child
       <ContexteFile.Provider value={file}>
       {children}
       {actif && (!enLigne || attente.length > 0) && (
-        <div className={`fixed inset-x-0 bottom-0 z-40 px-3 py-2 text-center text-sm font-bold text-white print:hidden ${enLigne ? "bg-[#a34d00]" : "bg-encre"}`} role="status">
+        <div className={`fixed inset-x-0 bottom-16 z-40 sm:bottom-0 px-3 py-2 text-center text-sm font-bold text-white print:hidden ${enLigne ? "bg-[#a34d00]" : "bg-encre"}`} role="status">
           {!enLigne && "📴 Pas de connexion — les encaissements sont gardés sur cet appareil. "}
           {attente.length > 0 &&
             `⏳ ${attente.length} vente${attente.length > 1 ? "s" : ""} en attente d'envoi${envoi ? " (envoi…)" : ""}${attente.some((v) => v.refus) ? " — à vérifier dans Caisse" : ""}`}

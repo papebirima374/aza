@@ -11,6 +11,7 @@ import { firebaseClient } from "@/lib/client/firebase";
 import { AlerteBoissons } from "@/components/gestion/AlerteBoissons";
 import { AlerteHeure } from "@/components/gestion/AlerteHeure";
 import { CentreNotifications } from "@/components/gestion/CentreNotifications";
+import { MenuTelephone } from "@/components/gestion/MenuTelephone";
 import { PastilleCaisse, SuiviCaisse } from "@/components/gestion/SuiviCaisse";
 import { PastilleStock } from "@/components/gestion/PastilleStock";
 import { PastilleCommandes } from "@/components/gestion/PastilleCommandes";
@@ -133,7 +134,7 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
       {/* Téléphone : logo + Déconnexion en haut, onglets sur une 2e ligne. Écran large : une ligne. */}
       <header className="sticky top-0 z-30 flex print:hidden flex-wrap items-center gap-x-4 gap-y-1.5 border-b border-bordure bg-bordeaux px-4 py-2 text-or-clair sm:h-14 sm:flex-nowrap sm:py-0">
         <Image src="/images/logo-or.png" alt="Anna Zen Attitude" width={790} height={257} className="h-8 w-auto" />
-        <nav className="order-last -mx-1 flex w-full items-center gap-1 overflow-x-auto text-sm font-semibold sm:order-none sm:mx-0 sm:w-auto sm:overflow-visible" aria-label="Gestion">
+        <nav className="order-last -mx-1 hidden w-full items-center sm:flex gap-1 overflow-x-auto text-sm font-semibold sm:order-none sm:mx-0 sm:w-auto sm:overflow-visible" aria-label="Gestion">
           {[
             { href: premierePagePilotage(compte), libelle: "Tableau de bord", visible: Boolean(compte && premierePagePilotage(compte)) },
             { href: "/gestion", libelle: telephonePerso ? "Ma journée" : "Agenda", visible: true },
@@ -191,6 +192,9 @@ export function EspaceGestion({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       {children}
+      {/* Téléphone : la place de la barre du bas. */}
+      {compte && <div className="h-20 sm:hidden print:hidden" aria-hidden />}
+      {compte && <MenuTelephone compte={compte} chemin={chemin} />}
       {compte && <AlerteBoissons compte={compte} />}
       </AlerteHeure>
       </SuiviCaisse>
