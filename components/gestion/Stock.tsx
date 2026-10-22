@@ -58,6 +58,9 @@ export function Stock() {
   const peutModifier = peut(compte, "stock");
   const [donnees, setDonnees] = useState<Donnees | null>(null);
   const [onglet, setOnglet] = useState<"revente" | "cabine" | "soins">("revente");
+  const [recherche, setRecherche] = useState("");
+  const [aCommander, setACommander] = useState(false);
+  const [ouvert, setOuvert] = useState<string | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null);
   const [version, setVersion] = useState(0);
 
@@ -109,6 +112,7 @@ export function Stock() {
   if (!donnees) return <p className="p-8 text-center text-doux">{message?.texte ?? "Chargement du stock…"}</p>;
   const alertes = donnees.articles.filter((a) => a.alerteSeuil || a.alertePeremption);
   const liste = donnees.articles.filter((a) => a.type === onglet);
+  const visibles = liste.filter((a) => (!aCommander || a.alerteSeuil || a.alertePeremption) && (!recherche.trim() || correspond(a.nom, recherche)));
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
@@ -178,11 +182,56 @@ export function Stock() {
         <Consommations donnees={donnees} peutModifier={peutModifier} envoyer={envoyer} />
       ) : (
         <>
-          <ul className="mt-4 space-y-3">
-            {liste.length === 0 && <li className="rounded-2xl border border-bordure p-5 text-center text-doux">Aucun article pour l&apos;instant.</li>}
-            {liste.map((a) => (
-              <CarteArticle key={a.id} a={a} equipe={donnees.equipe ?? []} peutModifier={peutModifier} produits={donnees.produitsCatalogue} liees={donnees.articles} envoyer={envoyer} />
-            ))}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <input
+              type="search"
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              placeholder="🔍 Chercher"
+              className="min-h-11 min-w-0 flex-1 rounded-full border border-bordure px-4"
+              aria-label="Chercher un article"
+            />
+            <button
+              onClick={() => setACommander(!aCommander)}
+              aria-pressed={aCommander}
+              className={`min-h-11 rounded-full px-4 text-sm font-semibold ${aCommander ? "bg-aza text-white" : "border border-bordure text-profond"}`}
+            >
+              ⚠️ À commander ({liste.filter((a) => a.alerteSeuil || a.alertePeremption).length})
+            </button>
+          </div>
+          {/* Des petites boîtes : nom et quantité. On touche une boîte pour ses actions. */}
+          <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {visibles.length === 0 && (
+              <li className="col-span-full rounded-2xl border border-bordure p-5 text-center text-doux">{liste.length === 0 ? "Aucun article pour l'instant." : "Aucun article ne correspond."}</li>
+            )}
+            {visibles.map((a) =>
+              ouvert === a.id ? (
+                <CarteArticle
+                  key={a.id}
+                  a={a}
+                  equipe={donnees.equipe ?? []}
+                  peutModifier={peutModifier}
+                  produits={donnees.produitsCatalogue}
+                  liees={donnees.articles}
+                  envoyer={envoyer}
+                  fermer={() => setOuvert(null)}
+                />
+              ) : (
+                <li key={a.id}>
+                  <button
+                    onClick={() => setOuvert(a.id)}
+                    className={`flex h-full min-h-24 w-full flex-col justify-between rounded-2xl border-2 bg-white p-3 text-left ${a.quantite < 0 ? "border-[#b3261e]" : a.alerteSeuil ? "border-aza/60" : a.alertePeremption ? "border-[#b7791f]" : "border-bordure"}`}
+                  >
+                    <span className="line-clamp-2 text-sm font-bold leading-tight">{a.nom}</span>
+                    <span className={`mt-2 flex items-baseline gap-1 ${a.quantite < 0 ? "text-[#b3261e]" : a.alerteSeuil ? "text-aza-fonce" : "text-[#0d6b37]"}`}>
+                      <span className="font-serif text-3xl font-semibold leading-none">{nombre(a.quantite)}</span>
+                      <span className="text-xs font-semibold">{a.unite}</span>
+                      {(a.alerteSeuil || a.alertePeremption) && <span className="ml-auto text-sm" aria-label="À commander ou bientôt périmé">⚠️</span>}
+                    </span>
+                  </button>
+                </li>
+              ),
+            )}
           </ul>
           {peutModifier && <NouvelArticle type={onglet} produits={donnees.produitsCatalogue} liees={donnees.articles} envoyer={envoyer} />}
         </>
@@ -193,11 +242,16 @@ export function Stock() {
 
 type Envoyer = (corps: object, ok: string) => Promise<boolean>;
 
-function CarteArticle({ a, equipe, peutModifier, produits, liees, envoyer }: { a: Article; equipe: { id: string; nom: string }[]; peutModifier: boolean; produits: Donnees["produitsCatalogue"]; liees: Article[]; envoyer: Envoyer }) {
+function CarteArticle({ a, equipe, peutModifier, produits, liees, envoyer, fermer }: { a: Article; equipe: { id: string; nom: string }[]; peutModifier: boolean; fermer?: () => void; produits: Donnees["produitsCatalogue"]; liees: Article[]; envoyer: Envoyer }) {
   const [action, setAction] = useState<"" | "reception" | "sortie" | "perte" | "inventaire" | "modifier" | "boutique" | "historique">("");
   const bas = a.quantite <= a.seuil;
   return (
-    <li className={`rounded-2xl border-2 p-4 ${a.quantite < 0 ? "border-[#b3261e]" : bas ? "border-aza/50" : "border-bordure"}`}>
+    <li className={`col-span-full rounded-2xl border-2 bg-white p-4 shadow-md ${a.quantite < 0 ? "border-[#b3261e]" : bas ? "border-aza/50" : "border-bordure"}`}>
+      {fermer && (
+        <button onClick={fermer} className="float-right -mt-1 -mr-1 ml-2 h-10 w-10 rounded-full text-2xl leading-none text-doux hover:bg-creme" aria-label="Fermer">
+          ×
+        </button>
+      )}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-lg font-bold">{a.nom}</p>
