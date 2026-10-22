@@ -99,7 +99,7 @@ export function MenuTelephone({ compte, chemin }: { compte: Compte; chemin: stri
   return (
     <>
       {ouvert && (
-        <div className="fixed inset-x-0 top-0 bottom-16 z-40 overflow-y-auto bg-bordeaux/95 px-4 pt-5 pb-6 text-or-clair backdrop-blur sm:hidden print:hidden" role="dialog" aria-label="Toutes les pages">
+        <div className="fixed inset-x-0 top-0 bottom-14 z-40 overflow-y-auto bg-bordeaux/95 px-4 pt-5 pb-6 text-or-clair backdrop-blur sm:hidden print:hidden" role="dialog" aria-label="Toutes les pages">
           <div className="flex items-center justify-between">
             <p className="font-serif text-2xl font-semibold text-white">Bonjour, {compte.nom.split(" ")[0]}</p>
             <button onClick={() => setOuvertSur(null)} className="h-10 w-10 rounded-full text-3xl leading-none" aria-label="Fermer le menu">
@@ -109,26 +109,26 @@ export function MenuTelephone({ compte, chemin }: { compte: Compte; chemin: stri
           {groupes.map((g) => (
             <section key={g} className="mt-5">
               <h2 className="text-xs font-bold tracking-[0.2em] text-or uppercase">{g}</h2>
-              <div className="mt-2 grid grid-cols-3 gap-2">
+              <div className="mt-2 grid grid-cols-4 gap-2 min-[480px]:grid-cols-5">
                 {toutes
                   .filter((e) => e.groupe === g)
                   .map((e) => (
                     <Link
                       key={e.href + e.libelle}
                       href={e.href}
-                      className={`relative flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl px-1 py-3 text-center text-xs font-semibold ${actif(e, chemin) ? "bg-aza text-white" : "bg-white/10 text-white"}`}
+                      className={`relative flex min-h-[4.5rem] flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-center text-[11px] leading-tight font-semibold ${actif(e, chemin) ? "bg-aza text-white" : "bg-white/10 text-white"}`}
                     >
-                      <Icone nom={e.icone} className="h-7 w-7" />
+                      <Icone nom={e.icone} className="h-5 w-5" />
                       {e.libelle}
-                      {e.pastille && <span className="absolute top-1.5 right-1.5">{e.pastille}</span>}
+                      {e.pastille && <span className="absolute top-0.5 right-0.5 scale-90">{e.pastille}</span>}
                     </Link>
                   ))}
                 {g === "Compte" && (
                   <button
                     onClick={() => (compte.role !== "praticienne" && compte.role !== "prestataire") || window.confirm("Se déconnecter ? Pour revenir, il faudra votre numéro et votre mot de passe.") ? signOut(firebaseClient().auth) : undefined}
-                    className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-2xl bg-white/10 px-1 py-3 text-center text-xs font-semibold text-white"
+                    className="flex min-h-[4.5rem] flex-col items-center justify-center gap-1 rounded-xl bg-white/10 px-1 py-2 text-center text-[11px] leading-tight font-semibold text-white"
                   >
-                    <Icone nom="sortir" className="h-7 w-7" />
+                    <Icone nom="sortir" className="h-5 w-5" />
                     Déconnexion
                   </button>
                 )}
@@ -138,13 +138,13 @@ export function MenuTelephone({ compte, chemin }: { compte: Compte; chemin: stri
         </div>
       )}
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex h-16 border-t border-white/10 bg-bordeaux pb-[env(safe-area-inset-bottom)] text-or-clair sm:hidden print:hidden" aria-label="Pages principales">
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex h-14 border-t border-white/10 bg-bordeaux pb-[env(safe-area-inset-bottom)] text-or-clair sm:hidden print:hidden" aria-label="Pages principales">
         {bas.map((e) => {
           const ici = actif(e, chemin) && !ouvert;
           return (
             <Link key={e.href + e.libelle} href={e.href} className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${ici ? "text-white" : ""}`} aria-current={ici ? "page" : undefined}>
               {ici && <span className="absolute top-0 h-0.5 w-10 rounded-full bg-aza" aria-hidden />}
-              <Icone nom={e.icone} />
+              <Icone nom={e.icone} className="h-5 w-5" />
               <span className="max-w-full truncate px-1">{e.libelle === "Tableau de bord" ? "Bord" : e.libelle}</span>
               {e.pastille && <span className="absolute top-1 right-[calc(50%-1.6rem)]">{e.pastille}</span>}
             </Link>
@@ -152,7 +152,7 @@ export function MenuTelephone({ compte, chemin }: { compte: Compte; chemin: stri
         })}
         <button onClick={() => setOuvertSur(ouvert ? null : chemin)} aria-expanded={ouvert} className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold ${ouvert ? "text-white" : ""}`}>
           {ouvert && <span className="absolute top-0 h-0.5 w-10 rounded-full bg-aza" aria-hidden />}
-          <Icone nom="menu" />
+          <Icone nom="menu" className="h-5 w-5" />
           Menu
         </button>
       </nav>
