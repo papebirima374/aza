@@ -6,6 +6,9 @@
 //   mouvementsStock/{auto} { article, type, quantite (+ entrée / − sortie), stockApres, cout?, motif?, ticket?, par, le }
 //   consommations/{prestationId} { lignes: [{ article, quantite }] }   — ce qu'un soin consomme
 //
+// Bon de sortie : un produit pris dans la réserve pour l'institut (une prestataire prend un pot
+// de cire, un flacon de shampoing…), numéroté BS-0001, BS-0002… avec qui l'a pris et pour qui.
+//
 // Les sorties se font automatiquement à l'encaissement (même transaction que le ticket) :
 // un produit vendu sort du stock « revente », un soin fait sort ce qu'il consomme du stock
 // « cabine ». Un avoir remet tout en stock. Le stock peut passer sous zéro (on ne bloque
@@ -52,13 +55,14 @@ export async function lireStock(membre: Membre) {
     base.collection("consommations").get(),
     catalogueServeur(true),
   ]);
+  const equipe = await base.collection("praticiennes").where("actif", "==", true).get();
   // Sorties des 30 derniers jours → jours de couverture restants.
   const sorties = new Map<string, number>();
   const derniers = new Map<string, unknown[]>();
   for (const d of mouvements.docs.sort((a, b) => (b.get("le") as Timestamp).toMillis() - (a.get("le") as Timestamp).toMillis())) {
     const a = d.get("article") as string;
     const q = d.get("quantite") as number;
-    if (["vente", "consommation"].includes(d.get("type"))) sorties.set(a, (sorties.get(a) ?? 0) - q);
+    if (["vente", "consommation", "sortie"].includes(d.get("type"))) sorties.set(a, (sorties.get(a) ?? 0) - q);
     const l = derniers.get(a) ?? [];
     if (l.length < 15) l.push({ ...d.data(), le: (d.get("le") as Timestamp).toMillis() });
     derniers.set(a, l);
@@ -97,6 +101,11 @@ export async function lireStock(membre: Membre) {
     articles: liste,
     valeur: { revente: Math.round(valeur.revente), cabine: Math.round(valeur.cabine) },
     consommations: Object.fromEntries(consommations.docs.map((d) => [d.id, d.get("lignes") ?? []])),
+    // Pour le bon de sortie : à qui le produit est remis.
+    equipe: equipe.docs
+      .map((d) => ({ id: d.id, nom: d.get("nom") as string, ordre: (d.get("ordre") as number | undefined) ?? 9999 }))
+      .sort((a, b) => a.ordre - b.ordre || a.nom.localeCompare(b.nom))
+      .map(({ id, nom }) => ({ id, nom })),
     // Lignes « produit » du catalogue, pour relier un article de revente à la caisse.
     produitsCatalogue: cat.prestations.filter((p) => p.note === "Produit").map((p) => ({ id: p.id, nom: p.nom, prix: p.prix, famille: p.famille })),
   };
@@ -142,7 +151,14 @@ export async function modifierStock(membre: Membre, c: Record<string, unknown>) 
         const nouveau = await base.collection("articles").add({ ...donnees, quantite: 0, coutMoyen: 0, actif: true, peremption: null });
         return { ok: true, id: nouveau.id };
       }
-      if (!(await ref(c.id).get()).exists) throw new Erreur("Article introuvable.", 404);
+      const actuel = await ref(c.id).get();
+      if (!actuel.exists) throw new Erreur("Article introuvable.", 404);
+      // Passer de « cabine » à « à vendre » : plus aucun soin ne doit le consommer automatiquement.
+      if (type === "revente" && actuel.get("type") === "cabine") {
+        const soins = await base.collection("consommations").get();
+        if (soins.docs.some((d) => ((d.get("lignes") as { article: string }[] | undefined) ?? []).some((l) => l.article === c.id)))
+          throw new Erreur("Cet article est utilisé dans l'onglet « Soins » : retirez-le d'abord des soins, puis changez-le de place.", 409);
+      }
       await ref(c.id).set(donnees, { merge: true });
       return { ok: true };
     }
@@ -153,9 +169,16 @@ export async function modifierStock(membre: Membre, c: Record<string, unknown>) 
     }
     case "reception":
     case "perte":
+    case "sortie":
     case "inventaire": {
+      const pourId = c.action === "sortie" && c.pour ? String(c.pour) : null;
+      if (pourId && !/^[\w-]{1,80}$/.test(pourId)) throw new Erreur("Prestataire inconnue.", 400);
       return base.runTransaction(async (tx) => {
         const a = await tx.get(ref(c.id));
+        // Lectures avant écritures : le compteur des bons et la prestataire.
+        const compteurRef = base.doc("compteurs/bonsSortie");
+        const [compteur, fiche] = c.action === "sortie" ? await Promise.all([tx.get(compteurRef), pourId ? tx.get(base.doc(`praticiennes/${pourId}`)) : null]) : [null, null];
+        if (pourId && !fiche?.exists) throw new Erreur("Prestataire inconnue.", 400);
         if (!a.exists || a.get("actif") === false) throw new Erreur("Article introuvable.", 404);
         const avant = (a.get("quantite") as number) ?? 0;
         const cmp = (a.get("coutMoyen") as number) ?? 0;
@@ -177,6 +200,19 @@ export async function modifierStock(membre: Membre, c: Record<string, unknown>) 
           if (motif.length < 3) throw new Erreur("Indiquez le motif (casse, périmé, vol…).", 400);
           maj.quantite = arrondi(avant - q);
           mouvement = { type: "perte", quantite: -q, motif, cout: cmp };
+        } else if (c.action === "sortie") {
+          const q = quantiteValide(c.quantite);
+          const n = ((compteur?.get("dernier") as number | undefined) ?? 0) + 1;
+          tx.set(compteurRef, { dernier: n }, { merge: true });
+          maj.quantite = arrondi(avant - q);
+          mouvement = {
+            type: "sortie",
+            quantite: -q,
+            cout: cmp,
+            reference: `BS-${String(n).padStart(4, "0")}`,
+            ...(fiche ? { pour: { id: fiche.id, nom: fiche.get("nom") as string } } : {}),
+            motif: String(c.motif ?? "").trim().slice(0, 200),
+          };
         } else {
           const compte = quantiteValide(c.compte, "Quantité comptée", true);
           const ecart = arrondi(compte - avant);
@@ -193,7 +229,7 @@ export async function modifierStock(membre: Membre, c: Record<string, unknown>) 
           par: qui(membre),
           le: Timestamp.now(),
         });
-        return { ok: true, quantite: maj.quantite };
+        return { ok: true, quantite: maj.quantite, ...(mouvement.reference ? { reference: mouvement.reference } : {}) };
       });
     }
     case "boutique": {

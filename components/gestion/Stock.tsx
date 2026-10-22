@@ -13,7 +13,7 @@ import { peut } from "@/lib/acces";
 // consomme en cabine pendant les soins. Les ventes et les soins encaissés sortent tout
 // seuls du stock ; ici on reçoit la marchandise, on note les pertes, on fait l'inventaire.
 
-type Mouvement = { type: string; quantite: number; stockApres: number; motif?: string; reference?: string; par: { nom: string }; le: number };
+type Mouvement = { type: string; quantite: number; stockApres: number; motif?: string; reference?: string; pour?: { nom: string }; par: { nom: string }; le: number };
 type Article = {
   id: string;
   nom: string;
@@ -37,6 +37,7 @@ type Donnees = {
   valeur: { revente: number; cabine: number };
   consommations: Record<string, { article: string; quantite: number }[]>;
   produitsCatalogue: { id: string; nom: string; prix: number; famille: string }[];
+  equipe: { id: string; nom: string }[];
 };
 
 const UNITES = ["pièce", "flacon", "tube", "pot", "boîte", "sachet", "ml", "g"];
@@ -45,6 +46,7 @@ const LIBELLE_MOUVEMENT: Record<string, string> = {
   vente: "🛍️ Vente",
   consommation: "💆 Soin",
   perte: "➖ Perte",
+  sortie: "📤 Bon de sortie",
   inventaire: "🔢 Inventaire",
   annulation: "↩️ Ticket annulé",
 };
@@ -166,9 +168,9 @@ export function Stock() {
       </div>
       <p className="mt-2 text-xs text-doux">
         {onglet === "revente"
-          ? "Produits vendus aux clientes : ils sortent du stock tout seuls à l'encaissement."
+          ? "Produits vendus aux clientes : ils sortent du stock tout seuls à l'encaissement. Si l'institut en utilise un en cabine, faites un « 📤 Bon de sortie »."
           : onglet === "cabine"
-            ? "Produits utilisés pendant les soins (cire, vernis, coloration…). Ils sortent tout seuls quand le soin est encaissé, selon l'onglet « Soins »."
+            ? "Produits utilisés pendant les soins (cire, vernis, coloration…). Quand une prestataire en prend un, faites un « 📤 Bon de sortie ». (Ou réglez-les dans l'onglet « Soins » pour qu'ils sortent tout seuls — pas les deux pour le même produit.)"
             : "Pour chaque soin, ce qu'il consomme dans le stock cabine. Exemple : une épilation jambes = 0,1 pot de cire."}
       </p>
 
@@ -179,7 +181,7 @@ export function Stock() {
           <ul className="mt-4 space-y-3">
             {liste.length === 0 && <li className="rounded-2xl border border-bordure p-5 text-center text-doux">Aucun article pour l&apos;instant.</li>}
             {liste.map((a) => (
-              <CarteArticle key={a.id} a={a} peutModifier={peutModifier} produits={donnees.produitsCatalogue} liees={donnees.articles} envoyer={envoyer} />
+              <CarteArticle key={a.id} a={a} equipe={donnees.equipe ?? []} peutModifier={peutModifier} produits={donnees.produitsCatalogue} liees={donnees.articles} envoyer={envoyer} />
             ))}
           </ul>
           {peutModifier && <NouvelArticle type={onglet} produits={donnees.produitsCatalogue} liees={donnees.articles} envoyer={envoyer} />}
@@ -191,8 +193,8 @@ export function Stock() {
 
 type Envoyer = (corps: object, ok: string) => Promise<boolean>;
 
-function CarteArticle({ a, peutModifier, produits, liees, envoyer }: { a: Article; peutModifier: boolean; produits: Donnees["produitsCatalogue"]; liees: Article[]; envoyer: Envoyer }) {
-  const [action, setAction] = useState<"" | "reception" | "perte" | "inventaire" | "modifier" | "boutique" | "historique">("");
+function CarteArticle({ a, equipe, peutModifier, produits, liees, envoyer }: { a: Article; equipe: { id: string; nom: string }[]; peutModifier: boolean; produits: Donnees["produitsCatalogue"]; liees: Article[]; envoyer: Envoyer }) {
+  const [action, setAction] = useState<"" | "reception" | "sortie" | "perte" | "inventaire" | "modifier" | "boutique" | "historique">("");
   const bas = a.quantite <= a.seuil;
   return (
     <li className={`rounded-2xl border-2 p-4 ${a.quantite < 0 ? "border-[#b3261e]" : bas ? "border-aza/50" : "border-bordure"}`}>
@@ -221,6 +223,7 @@ function CarteArticle({ a, peutModifier, produits, liees, envoyer }: { a: Articl
           (
             [
               ["reception", "📦 Réception"],
+              ["sortie", "📤 Bon de sortie"],
               ["perte", "➖ Perte"],
               ["inventaire", "🔢 Inventaire"],
               ["modifier", "✏️ Modifier"],
@@ -241,6 +244,7 @@ function CarteArticle({ a, peutModifier, produits, liees, envoyer }: { a: Articl
       </div>
 
       {action === "reception" && <FormReception a={a} envoyer={envoyer} fermer={() => setAction("")} />}
+      {action === "sortie" && <FormSortie a={a} equipe={equipe} envoyer={envoyer} fermer={() => setAction("")} />}
       {action === "perte" && <FormPerte a={a} envoyer={envoyer} fermer={() => setAction("")} />}
       {action === "inventaire" && <FormInventaire a={a} envoyer={envoyer} fermer={() => setAction("")} />}
       {action === "modifier" && <FormArticle article={a} type={a.type} produits={produits} liees={liees} envoyer={envoyer} fermer={() => setAction("")} />}
@@ -253,6 +257,7 @@ function CarteArticle({ a, peutModifier, produits, liees, envoyer }: { a: Articl
               <span>
                 {new Date(m.le).toLocaleDateString("fr-FR", { day: "numeric", month: "short" })} · {LIBELLE_MOUVEMENT[m.type] ?? m.type}
                 {m.reference ? ` ${m.reference}` : ""}
+                {m.pour ? ` pour ${m.pour.nom}` : ""}
                 {m.motif ? ` — ${m.motif}` : ""} <span className="text-doux">({m.par.nom})</span>
               </span>
               <span className={`shrink-0 font-semibold ${m.quantite < 0 ? "text-aza-fonce" : "text-[#0d6b37]"}`}>
@@ -322,6 +327,52 @@ function FormReception({ a, envoyer, fermer }: { a: Article; envoyer: Envoyer; f
         libelle="Ajouter au stock"
         fermer={fermer}
         valider={() => go({ action: "reception", id: a.id, quantite, cout: cout || 0, peremption }, `${a.nom} : +${nombre(q)} ${a.unite}.`)}
+      />
+    </div>
+  );
+}
+
+function FormSortie({ a, equipe, envoyer, fermer }: { a: Article; equipe: { id: string; nom: string }[]; envoyer: Envoyer; fermer: () => void }) {
+  const [quantite, setQuantite] = useState("1");
+  const [pour, setPour] = useState("");
+  const [motif, setMotif] = useState("");
+  const { envoi, go } = useEnvoi(envoyer, fermer);
+  const q = Number(quantite.replace(",", "."));
+  return (
+    <div className="mt-3 rounded-xl bg-creme p-3">
+      <p className="text-sm font-semibold">📤 Bon de sortie : produit pris pour l&apos;institut (pas vendu)</p>
+      <div className="mt-2 grid gap-2 sm:grid-cols-[8rem_1fr_1fr]">
+        <label className="text-xs font-semibold">
+          Quantité ({a.unite})
+          <input inputMode="decimal" value={quantite} onChange={(e) => setQuantite(e.target.value)} className={champ} />
+        </label>
+        <label className="text-xs font-semibold">
+          Remis à
+          <select value={pour} onChange={(e) => setPour(e.target.value)} className={champ}>
+            <option value="">L&apos;institut (usage général)</option>
+            {equipe.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nom}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs font-semibold">
+          Pour quoi (facultatif)
+          <input value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="ex. cabine 2, ménage" className={champ} />
+        </label>
+      </div>
+      <Boutons
+        pret={q > 0}
+        envoi={envoi}
+        libelle="Enregistrer le bon de sortie"
+        fermer={fermer}
+        valider={() =>
+          go(
+            { action: "sortie", id: a.id, quantite, pour: pour || undefined, motif },
+            `${a.nom} : −${nombre(q)} ${a.unite}${pour ? ` remis à ${equipe.find((p) => p.id === pour)?.nom}` : ""}. Le bon est dans l'historique.`,
+          )
+        }
       />
     </div>
   );
@@ -404,14 +455,25 @@ function FormArticle(props: {
   const [unite, setUnite] = useState(a?.unite ?? "pièce");
   const [seuil, setSeuil] = useState(String(a?.seuil ?? ""));
   const [produit, setProduit] = useState(a?.produit ?? "");
+  // Un article rangé au mauvais endroit (cabine ↔ à vendre) se corrige ici.
+  const [type, setType] = useState(props.type);
   const { envoi, go } = useEnvoi(props.envoyer, props.fermer);
   const prises = new Set(props.liees.filter((x) => x.id !== a?.id && x.produit).map((x) => x.produit));
   return (
     <div className="mt-3 rounded-xl bg-creme p-3">
       <div className="grid gap-2 sm:grid-cols-2">
+        {a && (
+          <label className="text-xs font-semibold sm:col-span-2">
+            Rangé dans
+            <select value={type} onChange={(e) => setType(e.target.value as "revente" | "cabine")} className={`${champ} bg-white`}>
+              <option value="revente">🛍️ À vendre (vendu à la caisse ; un bon de sortie si l&apos;institut en utilise)</option>
+              <option value="cabine">🧴 Cabine (utilisé par l&apos;institut, jamais vendu)</option>
+            </select>
+          </label>
+        )}
         <label className="text-xs font-semibold">
           Nom
-          <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder={props.type === "revente" ? "ex. Huile Cantu 200 ml" : "ex. Cire tiède"} className={champ} />
+          <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder={type === "revente" ? "ex. Huile Cantu 200 ml" : "ex. Cire tiède"} className={champ} />
         </label>
         <label className="text-xs font-semibold">
           Compté en
@@ -425,7 +487,7 @@ function FormArticle(props: {
           M&apos;alerter quand il en reste
           <input inputMode="decimal" value={seuil} onChange={(e) => setSeuil(e.target.value)} placeholder="ex. 3" className={champ} />
         </label>
-        {props.type === "revente" && (
+        {type === "revente" && (
           <label className="text-xs font-semibold">
             Ligne de caisse (prix de vente)
             <select value={produit} onChange={(e) => setProduit(e.target.value)} className={`${champ} bg-white`}>
@@ -440,7 +502,7 @@ function FormArticle(props: {
           </label>
         )}
       </div>
-      {props.type === "revente" && (
+      {type === "revente" && (
         <p className="mt-2 text-xs text-doux">Le produit n&apos;est pas dans la liste ? Ajoutez-le d&apos;abord dans Catalogue (cochez « C&apos;est un produit »).</p>
       )}
       <Boutons
@@ -450,8 +512,8 @@ function FormArticle(props: {
         fermer={props.fermer}
         valider={() =>
           go(
-            { action: a ? "modifier" : "creer", id: a?.id, nom, type: props.type, unite, seuil: seuil || 0, produit: produit || undefined },
-            a ? `${nom.trim()} modifié.` : `${nom.trim()} créé. Faites une « Réception » pour indiquer la quantité en stock.`,
+            { action: a ? "modifier" : "creer", id: a?.id, nom, type, unite, seuil: seuil || 0, produit: produit || undefined },
+            a ? (type !== props.type ? `${nom.trim()} : déplacé dans « ${type === "revente" ? "À vendre" : "Cabine"} ».` : `${nom.trim()} modifié.`) : `${nom.trim()} créé. Faites une « Réception » pour indiquer la quantité en stock.`,
           )
         }
       />

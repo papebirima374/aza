@@ -71,6 +71,24 @@ ok((await article(t.corps.id)).quantite === 20 && (await article(cire.corps.id))
 ok((await stock(manager, { action: "perte", id: t.corps.id, quantite: 1, motif: "" })).statut === 400, "perte sans motif : refusée");
 await stock(manager, { action: "perte", id: t.corps.id, quantite: 1, motif: "boîte abîmée" });
 ok((await article(t.corps.id)).quantite === 19, "perte d'une boîte : 19");
+
+// Bon de sortie : un produit pris pour l'institut (pas vendu), numéroté, avec à qui il est remis.
+const bs1 = await stock(manager, { action: "sortie", id: t.corps.id, quantite: 2, pour: "test-coiffeuse-1", motif: "cabine 2" });
+ok(bs1.statut === 200 && /^BS-\d{4}$/.test(bs1.corps.reference ?? ""), "bon de sortie enregistré, numéroté (" + bs1.corps.reference + ")");
+const bs2 = await stock(manager, { action: "sortie", id: t.corps.id, quantite: 1 });
+ok(bs2.statut === 200 && Number(bs2.corps.reference?.slice(3)) === Number(bs1.corps.reference?.slice(3)) + 1, "le bon suivant a le numéro suivant");
+const apresBs = await article(t.corps.id);
+ok(apresBs.quantite === 16, "bons de sortie : 19 − 2 − 1 = 16");
+const mvBs = apresBs.mouvements.find((m) => m.reference === bs1.corps.reference);
+ok(mvBs?.type === "sortie" && mvBs.pour?.nom && mvBs.motif === "cabine 2", "l'historique garde le bon, la prestataire et le motif");
+ok((await stock(manager, { action: "sortie", id: t.corps.id, quantite: 1, pour: "inconnue" })).statut === 400, "bon de sortie pour une prestataire inconnue : refusé");
+ok((await stock(accueil, { action: "sortie", id: t.corps.id, quantite: 1 })).statut === 403, "sans l'accès « Gérer le stock », pas de bon de sortie");
+await stock(manager, { action: "inventaire", id: t.corps.id, compte: 19, motif: "remise après test des bons" });
+
+// Un article rangé au mauvais endroit se déplace (cabine → à vendre), sauf s'il sert dans un soin.
+const range = await stock(manager, { action: "creer", nom: "Pot gommage test", type: "cabine", unite: "pot", seuil: 0 });
+ok((await stock(manager, { action: "modifier", id: range.corps.id, nom: "Pot gommage test", type: "revente", unite: "pot", seuil: 0 })).statut === 200 && (await article(range.corps.id)).type === "revente", "un article de cabine passe dans « À vendre »");
+await stock(manager, { action: "retirer", id: range.corps.id });
 const inv = await stock(manager, { action: "inventaire", id: t.corps.id, compte: 17 });
 a = await article(t.corps.id);
 ok(inv.statut === 200 && a.quantite === 17 && a.mouvements[0].ecart === -2, "inventaire : 17 comptées, écart −2 noté");
