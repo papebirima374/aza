@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Petales } from "@/components/Petales";
 import { IconeHorloge, IconeLieu, IconeTelephone, IconeWhatsApp } from "@/components/Icones";
 import { formatPrix, UNIVERS } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
@@ -55,19 +56,20 @@ export default async function Accueil() {
           alt=""
           width={244}
           height={257}
-          className="pointer-events-none absolute -right-16 -bottom-10 w-80 opacity-10 md:w-[28rem]"
+          className="aza-flotte pointer-events-none absolute -right-16 -bottom-10 w-80 opacity-10 md:w-[28rem]"
         />
+        <Petales />
         <div className="relative mx-auto max-w-6xl px-4 py-20 md:py-28">
-          <p className="text-sm font-semibold tracking-[0.2em] text-or uppercase">Point-E · Dakar</p>
-          <h1 className="mt-4 max-w-2xl font-serif text-5xl leading-tight font-semibold md:text-6xl">
+          <p className="aza-entree text-sm font-semibold tracking-[0.2em] text-or uppercase">Point-E · Dakar</p>
+          <h1 style={{ ["--d" as string]: "0.15s" }} className="aza-entree mt-4 max-w-2xl font-serif text-5xl leading-tight font-semibold md:text-6xl">
             Offrez-vous une pause <span className="whitespace-nowrap">bien-être</span>
           </h1>
-          <p className="mt-5 max-w-xl text-lg text-or-clair">
+          <p style={{ ["--d" as string]: "0.35s" }} className="aza-entree mt-5 max-w-xl text-lg text-or-clair">
             Soins du visage et du corps, onglerie, épilation, tresses, tissages et locks : plus de{" "}
             {Math.floor(cat.prestations.filter((p) => p.note !== "Produit").length / 10) * 10} prestations, dans une atmosphère de sérénité.
           </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/reservation" className="rounded-full bg-aza px-7 py-3.5 font-bold text-white hover:bg-aza-fonce">
+          <div style={{ ["--d" as string]: "0.55s" }} className="aza-entree mt-8 flex flex-wrap gap-3">
+            <Link href="/reservation" className="aza-brille rounded-full bg-aza px-7 py-3.5 font-bold text-white hover:bg-aza-fonce">
               Prendre rendez-vous
             </Link>
             <Link href="/prestations" className="rounded-full border border-or-clair/50 px-7 py-3.5 font-semibold hover:bg-white/10">

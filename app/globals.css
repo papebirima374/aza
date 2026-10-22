@@ -51,3 +51,60 @@ body {
   outline: 2px solid var(--color-aza);
   outline-offset: 2px;
 }
+
+/* ——— Animations du site public (douces ; coupées si le téléphone demande moins de mouvement) ——— */
+@keyframes aza-entree {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes aza-flotte {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-14px) rotate(3deg); }
+}
+@keyframes aza-brille {
+  0% { transform: translateX(-120%) skewX(-20deg); }
+  60%, 100% { transform: translateX(220%) skewX(-20deg); }
+}
+@keyframes aza-petale {
+  0% { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.9; }
+  100% { transform: translate3d(var(--derive, 40px), 110vh, 0) rotate(540deg); opacity: 0; }
+}
+@keyframes aza-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(240 52 154 / 0.45); }
+  50% { box-shadow: 0 0 0 12px rgb(240 52 154 / 0); }
+}
+
+/* Le bandeau : le texte arrive, l'un après l'autre. */
+.aza-entree { animation: aza-entree 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: var(--d, 0s); }
+.aza-flotte { animation: aza-flotte 7s ease-in-out infinite; }
+/* Bouton rose : un reflet passe, et il « respire ». */
+.aza-brille { position: relative; overflow: hidden; animation: aza-pulse 2.8s ease-in-out infinite; }
+.aza-brille::after {
+  content: ""; position: absolute; inset: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.45), transparent);
+  animation: aza-brille 3.5s ease-in-out infinite;
+}
+.aza-petale {
+  position: absolute; top: 0; width: 14px; height: 10px; border-radius: 100% 0 100% 0;
+  background: linear-gradient(135deg, #ffd1e8, #f0349a); opacity: 0;
+  animation: aza-petale linear infinite;
+}
+.aza-petale:nth-child(3n) { background: linear-gradient(135deg, #f6e3bf, #c79a5b); }
+
+/* En descendant la page : chaque bloc apparaît doucement (posé par Revelation.tsx). */
+.aza-anim .aza-a-reveler { opacity: 0; transform: translateY(26px); transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1); transition-delay: var(--d, 0s); }
+.aza-anim .aza-a-reveler.aza-vu { opacity: 1; transform: none; }
+
+/* Cartes et photos : elles se soulèvent au toucher / au survol. */
+main .group, main section li { transition: transform 0.35s ease, box-shadow 0.35s ease; }
+main .group:hover, main section li.bg-white:hover { transform: translateY(-4px); box-shadow: 0 14px 30px -12px rgb(126 10 76 / 0.35); }
+main .group img { transition: transform 0.8s ease; }
+main .group:hover img { transform: scale(1.06); }
+
+@media (prefers-reduced-motion: reduce) {
+  .aza-entree, .aza-flotte, .aza-brille, .aza-brille::after, .aza-petale { animation: none !important; }
+  .aza-petale { display: none; }
+  .aza-anim .aza-a-reveler { opacity: 1; transform: none; transition: none; }
+  main .group:hover, main section li.bg-white:hover, main .group:hover img { transform: none; }
+}
