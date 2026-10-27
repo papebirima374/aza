@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const membre = await membreConnecte(request);
     const c = await request.json().catch(() => ({}));
     const r = await modifierPhotosSite(membre, c ?? {});
-    await noter(membre, "site", `Photo du site ${c?.action === "retirer" ? "retirée" : "ajoutée"}${c?.emplacement ? ` (${String(c.emplacement)})` : ""}`, "/gestion/photos");
+    await noter(membre, "site", `Photo du site ${c?.action === "retirer" ? "retirée" : "ajoutée"}${c?.prestation ? ` (prestation ${String(c.prestation).slice(0, 80)})` : c?.emplacement ? ` (${String(c.emplacement)})` : ""}`, "/gestion/photos");
     return Response.json(r);
   } catch (e) {
     return reponseErreur(e);
