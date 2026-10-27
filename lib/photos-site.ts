@@ -15,6 +15,13 @@ export type Emplacement = (typeof EMPLACEMENTS)[number]["id"] | `galerie-${strin
 
 export const urlPhotoSite = (id: string) => `/api/site/photo/${id}`;
 
+// Partage d'une photo : sa page /photo/{clé} (aperçu WhatsApp en JPEG). La clé est
+// l'identifiant de la photo, ou « ongles-01 »… pour les photos d'exemple fournies.
+export function clePhoto(src: string): string | null {
+  return /^\/api\/site\/photo\/([A-Za-z0-9]+)$/.exec(src)?.[1] ?? /^\/images\/onglerie\/(ongles-\d{2})\.webp$/.exec(src)?.[1] ?? null;
+}
+export const srcExemple = (cle: string) => (/^ongles-\d{2}$/.test(cle) ? `/images/onglerie/${cle}.webp` : null);
+
 /** Les galeries du site, créées et nommées par la direction (une page /galerie/{id} chacune). */
 export type Galerie = { id: string; nom: string };
 export const MAX_GALERIES = 20;
