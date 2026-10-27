@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Petales } from "@/components/Petales";
+import { SectionsGalerie } from "@/components/SectionsGalerie";
 import { IconeHorloge, IconeLieu, IconeTelephone, IconeWhatsApp } from "@/components/Icones";
 import { formatPrix, UNIVERS } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
@@ -139,25 +140,21 @@ export default async function Accueil() {
         </div>
       </section>
 
-      {/* En images : les réalisations de l'institut (photos ajoutées par la direction) */}
-      {galerie.length > 0 && (
-        <section className="mx-auto max-w-6xl px-4 pt-16">
-          <h2 className="font-serif text-4xl font-semibold text-profond">En images</h2>
-          <ul className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+      {/* En images : une galerie par section (photos ajoutées par la direction) */}
+      <section className="mx-auto max-w-6xl px-4 pt-16">
+        <h2 className="font-serif text-4xl font-semibold text-profond">En images</h2>
+        <p className="mt-2 text-doux">Touchez une section pour voir toutes ses photos, et demandez le service qui vous plaît sur WhatsApp.</p>
+        <SectionsGalerie photos={photos} />
+        {galerie.length > 0 && (
+          <ul className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
             {galerie.map((p) => (
               <li key={p.src}>
-                <figure>
-                  <Image src={p.src} alt={p.legende || "Réalisation Anna Zen Attitude"} width={600} height={600} sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw" loading="lazy" className="aspect-square w-full rounded-2xl object-cover" />
-                  {p.legende && <figcaption className="mt-1 text-sm text-doux">{p.legende}</figcaption>}
-                </figure>
+                <Image src={p.src} alt={p.legende || "Réalisation Anna Zen Attitude"} width={600} height={600} sizes="(min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw" loading="lazy" className="aspect-square w-full rounded-2xl object-cover" />
               </li>
             ))}
           </ul>
-          <a href={INSTITUT.instagram} target="_blank" rel="noopener" className="mt-6 inline-block font-semibold text-aza underline">
-            Plus de photos sur Instagram {INSTITUT.instagramPseudo}
-          </a>
-        </section>
-      )}
+        )}
+      </section>
 
       {/* Réassurance */}
       <section className="mx-auto max-w-6xl px-4 py-16">
