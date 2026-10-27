@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { IconeWhatsApp } from "@/components/Icones";
 import { INSTITUT, lienWhatsApp } from "@/lib/institut";
+import { clePhoto } from "@/lib/photos-site";
 import { texteWhatsApp } from "@/lib/whatsapp";
 
 // Galerie d'une section : toucher une photo l'agrandit ; chaque photo se demande sur
@@ -11,7 +12,11 @@ import { texteWhatsApp } from "@/lib/whatsapp";
 
 type Photo = { src: string; legende: string };
 
-const absolu = (src: string) => INSTITUT.site + src;
+// Le lien partagé est la page de la photo (avec son aperçu), pas l'image elle-même.
+const absolu = (src: string) => {
+  const cle = clePhoto(src);
+  return cle ? `${INSTITUT.site}/photo/${cle}` : INSTITUT.site + src;
+};
 
 export function GaleriePhotos({ photos, section }: { photos: Photo[]; section: string }) {
   const [ouverte, setOuverte] = useState<number | null>(null);
