@@ -5,7 +5,7 @@ import { LignePrestation } from "@/components/LignePrestation";
 import { formatPrix, UNIVERS, universParId } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import Image from "next/image";
-import { type Emplacement, photosEmplacement } from "@/lib/photos-site";
+import { type Emplacement, photosDesPrestations, photosEmplacement } from "@/lib/photos-site";
 import { photosDuSite } from "@/lib/serveur/photos-site";
 import { INSTITUT } from "@/lib/institut";
 
@@ -36,6 +36,7 @@ export default async function PageUnivers({ params }: PageProps<"/prestations/[u
   const [cat, photos] = await Promise.all([catalogueServeur(false, true), photosDuSite()]);
   const familles = cat.famillesDe(u.id);
   const photo = photosEmplacement(photos, `univers-${u.id}` as Emplacement)[0];
+  const vignettes = photosDesPrestations(photos);
 
   // Données « Service » pour Google : chaque prestation avec son prix.
   const donnees = {
@@ -92,7 +93,7 @@ export default async function PageUnivers({ params }: PageProps<"/prestations/[u
               </div>
               <ul className="mt-2">
                 {f.prestations.map((p) => (
-                  <LignePrestation key={p.id} p={p} />
+                  <LignePrestation key={p.id} p={p} photo={vignettes[p.id]} />
                 ))}
               </ul>
             </section>

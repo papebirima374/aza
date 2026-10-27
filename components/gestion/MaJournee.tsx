@@ -107,7 +107,7 @@ export function MaJournee() {
     setNouveau(true);
   }
 
-  const visibles = (rdvs ?? []).filter((r) => r.statut !== "annule");
+  const visibles = (rdvs ?? []).filter((r) => r.statut !== "annule" && r.statut !== "absente");
   const aFaire = visibles.filter((r) => !["termine", "encaisse", "absente"].includes(r.statut));
 
   return (

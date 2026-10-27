@@ -160,18 +160,23 @@ export function Agenda() {
   const ouverture = plages.length ? Math.min(...plages.map((p) => p.debut)) : 9 * 60;
   const fermeture = plages.length ? Math.max(...plages.map((p) => p.fin)) : 19 * 60;
   const colonnes = vue === "postes" && gere ? postes : praticiennes;
+  // Annulés et absentes ne prennent plus de place dans l'agenda (on peut les revoir d'un bouton).
+  const [voirAnnules, setVoirAnnules] = useState(false);
+  const retires = (r: { statut: string }) => r.statut === "annule" || r.statut === "absente";
+  const nbRetires = rdvs.filter(retires).length;
+  const affiches = voirAnnules ? rdvs : rdvs.filter((r) => !retires(r));
   const actifs = rdvs.filter((r) => r.statut !== "annule");
   const selection = rdvs.find((r) => r.id === ouvert) ?? null;
 
   const blocs = useMemo(
     () =>
-      rdvs.flatMap((r) =>
+      affiches.flatMap((r) =>
         r.affectations.flatMap((a) => {
           const cles = vue === "postes" && gere ? [a.poste] : a.praticiennes;
           return cles.map((colonne) => ({ r, a, colonne }));
         }),
       ),
-    [rdvs, vue, gere],
+    [affiches, vue, gere],
   );
 
   return (
@@ -198,6 +203,11 @@ export function Agenda() {
         <span className="rounded-full bg-creme px-3 py-1 text-sm font-semibold text-profond">
           {actifs.length} rendez-vous
         </span>
+        {nbRetires > 0 && (
+          <button onClick={() => setVoirAnnules((v) => !v)} className="min-h-10 rounded-full border border-bordure px-3 text-xs font-semibold text-doux">
+            {voirAnnules ? "Cacher les annulés" : `Voir les annulés et absentes (${nbRetires})`}
+          </button>
+        )}
         {gere && (
           <button
             onClick={() => setNouveau(true)}

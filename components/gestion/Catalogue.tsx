@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { ImporterListe } from "@/components/gestion/ImporterListe";
+import { PhotoPrestation } from "@/components/gestion/PhotoPrestation";
+import { urlPhotoSite } from "@/lib/photos-site";
 import { formatPrix, UNIVERS, type Famille, type Prestation } from "@/lib/catalogue";
 import { rafraichirCatalogue, useCatalogue } from "@/lib/client/catalogue";
 import { correspond } from "@/lib/recherche";
@@ -15,12 +17,53 @@ import { peut } from "@/lib/acces";
 
 type Ligne = Prestation & { masque?: boolean; ajoute?: boolean; horsSite?: boolean };
 
+// Photos des prestations (direction, manager) : la vignette de chaque ligne, et l'écran pour la changer.
+const Photos = createContext<{ photos: Record<string, string>; ouvrir: (p: Ligne) => void } | null>(null);
+
 export function Catalogue() {
   const compte = useCompte();
   const cat = useCatalogue(true);
   const [requete, setRequete] = useState("");
   const [ouvertes, setOuvertes] = useState<string[]>([]);
   const [message, setMessage] = useState<{ ok: boolean; texte: string } | null>(null);
+  const gerePhotos = compte.role === "direction" || compte.role === "manager";
+  const [photos, setPhotos] = useState<Record<string, string>>({});
+  const [photoDe, setPhotoDe] = useState<Ligne | null>(null);
+
+  const appelPhotos = useCallback(
+    async (corps?: object) => {
+      const r = await fetch("/api/gestion/photos-site", {
+        method: corps ? "POST" : "GET",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${await compte.user.getIdToken()}` },
+        body: corps ? JSON.stringify(corps) : undefined,
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.erreur ?? "Erreur");
+      return j;
+    },
+    [compte.user],
+  );
+  const lirePhotos = useCallback(async () => {
+    const liste = (await appelPhotos()) as { id: string; emplacement: string; prestation?: string }[];
+    setPhotos(Object.fromEntries(liste.filter((x) => x.emplacement === "prestation" && x.prestation).map((x) => [x.prestation!, x.id])));
+  }, [appelPhotos]);
+  useEffect(() => {
+    if (!gerePhotos) return;
+    const t = setTimeout(() => lirePhotos().catch(() => {}), 0);
+    return () => clearTimeout(t);
+  }, [gerePhotos, lirePhotos]);
+
+  async function photo(corps: object, ok: string) {
+    try {
+      await appelPhotos(corps);
+      await lirePhotos();
+      setMessage({ ok: true, texte: ok });
+      return true;
+    } catch (e) {
+      setMessage({ ok: false, texte: (e as Error).message });
+      return false;
+    }
+  }
 
   useEffect(() => {
     if (!message) return;
@@ -50,63 +93,76 @@ export function Catalogue() {
   const recherche = requete.trim().length >= 2;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-4xl font-semibold text-profond">Catalogue et prix</h1>
-        <Link href="/gestion/photos" className="min-h-11 rounded-full border border-bordure px-4 py-2.5 text-sm font-bold text-profond">
-          🖼️ Photos du site
-        </Link>
-        <Link href="/gestion/collection" className="min-h-11 rounded-full border border-bordure px-4 py-2.5 text-sm font-bold text-profond">
-          👗 Collection Couture
-        </Link>
+    <Photos.Provider value={gerePhotos ? { photos, ouvrir: setPhotoDe } : null}>
+      {photoDe && (
+        <PhotoPrestation
+          nom={photoDe.nom}
+          actuelle={photos[photoDe.id] ? urlPhotoSite(photos[photoDe.id]) : undefined}
+          fermer={() => setPhotoDe(null)}
+          enregistrer={(image) =>
+            photo({ action: "ajouter", emplacement: "prestation", prestation: photoDe.id, image, accord: true }, `Photo de « ${photoDe.nom} » enregistrée : elle sera sur le site dans moins d'une minute.`)
+          }
+          retirer={() => photo({ action: "retirer", id: photos[photoDe.id] }, `Photo de « ${photoDe.nom} » retirée.`)}
+        />
+      )}
+      <div className="mx-auto max-w-3xl px-4 py-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-serif text-4xl font-semibold text-profond">Catalogue et prix</h1>
+          <Link href="/gestion/photos" className="min-h-11 rounded-full border border-bordure px-4 py-2.5 text-sm font-bold text-profond">
+            🖼️ Photos du site
+          </Link>
+          <Link href="/gestion/collection" className="min-h-11 rounded-full border border-bordure px-4 py-2.5 text-sm font-bold text-profond">
+            👗 Collection Couture
+          </Link>
+        </div>
+        <p className="mt-1 text-doux">
+          Changez un prix, masquez une ligne ou ajoutez une prestation ou un produit. C&apos;est appliqué partout (site, réservation, caisse) en
+          moins d&apos;une minute. Décochez « Sur le site » pour qu&apos;une ligne reste en caisse sans paraître sur le site.
+        </p>
+
+        <div className="sticky top-[5.75rem] z-20 mt-3 min-h-0 sm:top-14">
+          {message && (
+            <p className={`rounded-xl p-3 text-sm font-semibold ${message.ok ? "bg-[#e7f5ec] text-[#0d6b37]" : "bg-aza/10 text-profond"}`} role="status">
+              {message.texte}
+            </p>
+          )}
+        </div>
+
+        <input
+          type="search"
+          value={requete}
+          onChange={(e) => setRequete(e.target.value)}
+          placeholder="Chercher une prestation ou un produit…"
+          className="mt-4 w-full rounded-xl border border-bordure px-4 py-3"
+        />
+
+        <ImporterListe />
+
+        <div className="mt-4 space-y-5">
+          {[...UNIVERS.map((u) => ({ id: u.id, nom: u.nom, boutique: false })), { id: "boutique", nom: "Produits (vente en caisse et boutique)", boutique: true }].map((u) => {
+            const familles = cat.familles
+              .filter((f) => (u.boutique ? Boolean(f.boutique) : !f.boutique && f.univers === u.id))
+              .map((f) => ({ ...f, prestations: f.prestations.filter((p) => !recherche || correspond(`${p.nom} ${f.nom}`, requete)) }))
+              .filter((f) => !recherche || f.prestations.length > 0);
+            if (familles.length === 0) return null;
+            return (
+              <div key={u.id}>
+                <p className="text-xs font-bold tracking-wide text-doux uppercase">{u.nom}</p>
+                {familles.map((f) => (
+                  <BlocFamille
+                    key={f.id}
+                    f={f}
+                    ouverte={recherche || ouvertes.includes(f.id)}
+                    basculer={() => setOuvertes((o) => (o.includes(f.id) ? o.filter((x) => x !== f.id) : [...o, f.id]))}
+                    envoyer={envoyer}
+                  />
+                ))}
+              </div>
+            );
+          })}
+        </div>
       </div>
-      <p className="mt-1 text-doux">
-        Changez un prix, masquez une ligne ou ajoutez une prestation ou un produit. C&apos;est appliqué partout (site, réservation, caisse) en
-        moins d&apos;une minute. Décochez « Sur le site » pour qu&apos;une ligne reste en caisse sans paraître sur le site.
-      </p>
-
-      <div className="sticky top-[5.75rem] z-20 mt-3 min-h-0 sm:top-14">
-        {message && (
-          <p className={`rounded-xl p-3 text-sm font-semibold ${message.ok ? "bg-[#e7f5ec] text-[#0d6b37]" : "bg-aza/10 text-profond"}`} role="status">
-            {message.texte}
-          </p>
-        )}
-      </div>
-
-      <input
-        type="search"
-        value={requete}
-        onChange={(e) => setRequete(e.target.value)}
-        placeholder="Chercher une prestation ou un produit…"
-        className="mt-4 w-full rounded-xl border border-bordure px-4 py-3"
-      />
-
-      <ImporterListe />
-
-      <div className="mt-4 space-y-5">
-        {[...UNIVERS.map((u) => ({ id: u.id, nom: u.nom, boutique: false })), { id: "boutique", nom: "Produits (vente en caisse et boutique)", boutique: true }].map((u) => {
-          const familles = cat.familles
-            .filter((f) => (u.boutique ? Boolean(f.boutique) : !f.boutique && f.univers === u.id))
-            .map((f) => ({ ...f, prestations: f.prestations.filter((p) => !recherche || correspond(`${p.nom} ${f.nom}`, requete)) }))
-            .filter((f) => !recherche || f.prestations.length > 0);
-          if (familles.length === 0) return null;
-          return (
-            <div key={u.id}>
-              <p className="text-xs font-bold tracking-wide text-doux uppercase">{u.nom}</p>
-              {familles.map((f) => (
-                <BlocFamille
-                  key={f.id}
-                  f={f}
-                  ouverte={recherche || ouvertes.includes(f.id)}
-                  basculer={() => setOuvertes((o) => (o.includes(f.id) ? o.filter((x) => x !== f.id) : [...o, f.id]))}
-                  envoyer={envoyer}
-                />
-              ))}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    </Photos.Provider>
   );
 }
 
@@ -176,6 +232,8 @@ function BlocFamille(props: { f: Famille; ouverte: boolean; basculer: () => void
 }
 
 function LignePrix({ p, envoyer }: { p: Ligne; envoyer: (c: object, ok: string) => Promise<boolean> }) {
+  const photos = useContext(Photos);
+  const photo = photos?.photos[p.id];
   const [prix, setPrix] = useState(String(p.prix));
   const [envoi, setEnvoi] = useState(false);
   const nouveau = Math.round(Number(prix.replace(/\s/g, "")));
@@ -191,7 +249,22 @@ function LignePrix({ p, envoyer }: { p: Ligne; envoyer: (c: object, ok: string) 
   return (
     <li className={`px-3 py-2 ${p.masque ? "bg-creme/60" : ""}`}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-        <span className="min-w-0 flex-1 basis-full sm:basis-40">
+        {photos && (
+          <button
+            onClick={() => photos.ouvrir(p)}
+            className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-bordure bg-creme text-lg"
+            aria-label={photo ? `Changer la photo de ${p.nom}` : `Ajouter une photo à ${p.nom}`}
+            title={photo ? "Changer la photo" : "Ajouter une photo"}
+          >
+            {photo ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={urlPhotoSite(photo)} alt="" className="h-full w-full object-cover" loading="lazy" />
+            ) : (
+              "📷"
+            )}
+          </button>
+        )}
+        <span className="min-w-0 flex-1 basis-[calc(100%-3.5rem)] sm:basis-40">
           <span className={`text-sm leading-tight font-semibold ${p.masque ? "text-doux line-through" : ""}`}>{p.nom}</span>
           {(p.note === "Produit" || p.masque || p.horsSite) && (
             <span className="ml-1.5 inline-flex flex-wrap gap-1 align-middle text-[11px]">

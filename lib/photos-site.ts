@@ -23,6 +23,11 @@ export const PHOTOS_FOURNIES: Partial<Record<Emplacement, { src: string; legende
   galerie: ONGLES.map((src) => ({ src, legende: "" })),
 };
 
+/** La photo de chaque prestation (identifiant du catalogue → adresse de l'image). */
+export function photosDesPrestations(photos: { id: string; emplacement: string; prestation?: string }[]): Record<string, string> {
+  return Object.fromEntries(photos.filter((p) => p.emplacement === "prestation" && p.prestation).map((p) => [p.prestation!, urlPhotoSite(p.id)]));
+}
+
 // Les photos à montrer pour un emplacement : celles de la direction, sinon celles fournies.
 export function photosEmplacement(photos: { id: string; emplacement: string; legende: string }[], emplacement: Emplacement) {
   const ajoutees = photos.filter((p) => p.emplacement === emplacement).map((p) => ({ src: urlPhotoSite(p.id), legende: p.legende }));
