@@ -8,6 +8,7 @@ import { catalogueServeur } from "@/lib/serveur/catalogue";
 import { type Emplacement, photosEmplacement, urlPhotoSite } from "@/lib/photos-site";
 import { PHOTOS_GROUPE } from "@/lib/couture";
 import { modelesCouture } from "@/lib/serveur/collection";
+import { lireGaleries } from "@/lib/serveur/galeries";
 import { photosDuSite } from "@/lib/serveur/photos-site";
 import { avisPublics } from "@/lib/serveur/avis";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
@@ -29,11 +30,12 @@ const PHARES = [
 export const revalidate = 60;
 
 export default async function Accueil() {
-  const [cat, photos, couture, avis] = await Promise.all([
+  const [cat, photos, couture, avis, galeries] = await Promise.all([
     catalogueServeur(false, true),
     photosDuSite(),
     modelesCouture(),
     firebaseConfigure() ? avisPublics().then((a) => a.avis).catch(() => []) : [],
+    lireGaleries(),
   ]);
   // La maison Anna Zen : une photo de groupe, puis les modèles les plus récents.
   const vitrineCouture = [PHOTOS_GROUPE[0], ...couture.flatMap((m) => m.photos.slice(0, 1))].slice(0, 4);
@@ -144,7 +146,7 @@ export default async function Accueil() {
       <section className="mx-auto max-w-6xl px-4 pt-16">
         <h2 className="font-serif text-4xl font-semibold text-profond">En images</h2>
         <p className="mt-2 text-doux">Touchez une section pour voir toutes ses photos, et demandez le service qui vous plaît sur WhatsApp.</p>
-        <SectionsGalerie photos={photos} />
+        <SectionsGalerie galeries={galeries} photos={photos} />
         {galerie.length > 0 && (
           <ul className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
             {galerie.map((p) => (
