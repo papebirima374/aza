@@ -129,9 +129,10 @@ export function NouveauRendezVous({
   const changer = (id: string, champ: Partial<Ligne>) => setLignes((ls) => ls.map((x) => (x.id === id ? { ...x, ...champ } : x)));
 
   const debut = depuisChamp(champHeure);
-  // Déjà faite : proposé d'office pour une heure passée (on peut toujours décocher).
+  // Déjà faite : jamais d'office (une cliente pas encore venue n'arrive pas en caisse).
+  // Une heure passée le rappelle seulement ; c'est à l'accueil de cocher.
   const passee = date < ici.date || (date === ici.date && debut !== null && debut <= ici.minutes);
-  const dejaFaite = dejaChoisi ?? passee;
+  const dejaFaite = dejaChoisi ?? false;
 
   // Aide facultative : les heures libres de la journée.
   async function chercherHeures() {
@@ -337,6 +338,7 @@ export function NouveauRendezVous({
             <input type="checkbox" checked={dejaFaite} onChange={(e) => setDejaChoisi(e.target.checked)} className="h-5 w-5" />
             <span className="text-sm">
               <b>Prestation déjà faite</b> — la cliente est passée : elle va directement dans « À encaisser ».
+              {passee && !dejaFaite && <span className="block text-doux">Heure passée : cochez seulement si la cliente a vraiment eu sa prestation.</span>}
             </span>
           </label>
           {lignes.length > 0 && !dejaFaite && (
