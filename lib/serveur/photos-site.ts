@@ -6,7 +6,8 @@
 //   photosSiteData/{id}    { data (base64), type }                   — l'image elle-même
 
 import { FieldValue } from "firebase-admin/firestore";
-import { EMPLACEMENTS, type Emplacement } from "@/lib/photos-site";
+import { EMPLACEMENTS, PHOTOS_PAR_GALERIE, type Emplacement } from "@/lib/photos-site";
+import { lireGaleries } from "@/lib/serveur/galeries";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db, firebaseConfigure } from "@/lib/serveur/firebase";
@@ -42,7 +43,8 @@ export async function modifierPhotosSite(membre: Membre, c: Record<string, unkno
     const emplacement = String(c.emplacement ?? "") as PhotoSite["emplacement"];
     const prestation = emplacement === "prestation" ? String(c.prestation ?? "") : "";
     if (prestation && !(await catalogueServeur()).parId(prestation)) throw new Erreur("Prestation inconnue.", 400);
-    const e = prestation ? { max: 1 } : EMPLACEMENTS.find((x) => x.id === emplacement);
+    const galerie = emplacement.startsWith("galerie-") ? (await lireGaleries()).find((g) => `galerie-${g.id}` === emplacement) : null;
+    const e = prestation ? { max: 1 } : galerie ? { max: PHOTOS_PAR_GALERIE } : EMPLACEMENTS.find((x) => x.id === emplacement);
     if (!e) throw new Erreur("Emplacement inconnu.", 400);
     if (c.accord !== true) throw new Erreur("Confirmez l'accord des personnes visibles sur la photo.", 400);
     const m = /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/.exec(String(c.image ?? ""));

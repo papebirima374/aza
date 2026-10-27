@@ -5,7 +5,8 @@ import { LignePrestation } from "@/components/LignePrestation";
 import { formatPrix, UNIVERS, universParId } from "@/lib/catalogue";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import Image from "next/image";
-import { type Emplacement, GALERIES, type Galerie, photosDesPrestations, photosEmplacement } from "@/lib/photos-site";
+import { type Emplacement, photosDesPrestations, photosEmplacement } from "@/lib/photos-site";
+import { lireGaleries } from "@/lib/serveur/galeries";
 import { photosDuSite } from "@/lib/serveur/photos-site";
 import { INSTITUT } from "@/lib/institut";
 
@@ -33,7 +34,7 @@ export async function generateMetadata({ params }: PageProps<"/prestations/[univ
 export default async function PageUnivers({ params }: PageProps<"/prestations/[univers]">) {
   const u = universParId((await params).univers);
   if (!u) notFound();
-  const [cat, photos] = await Promise.all([catalogueServeur(false, true), photosDuSite()]);
+  const [cat, photos, galeries] = await Promise.all([catalogueServeur(false, true), photosDuSite(), lireGaleries()]);
   const familles = cat.famillesDe(u.id);
   const photo = photosEmplacement(photos, `univers-${u.id}` as Emplacement)[0];
   const vignettes = photosDesPrestations(photos);
@@ -72,7 +73,7 @@ export default async function PageUnivers({ params }: PageProps<"/prestations/[u
           </Link>
           <h1 className="mt-3 font-serif text-5xl font-semibold">{u.nom}</h1>
           <p className="mt-4 max-w-2xl text-or-clair">{u.description}</p>
-          {GALERIES.includes(u.id as Galerie) && (
+          {galeries.some((g) => g.id === u.id) && (
             <Link href={`/galerie/${u.id}`} className="mt-5 inline-flex min-h-12 items-center rounded-full bg-white/10 px-5 font-semibold text-white hover:bg-white/20">
               📸 Voir la galerie photos
             </Link>
