@@ -433,6 +433,7 @@ function Detail({ rdv, equipe, fermer }: { rdv: RendezVous; equipe: { id: string
             Encaisser {formatPrix(rdv.total)}
           </Link>
         )}
+        {["reserve", "confirme", "arrivee", "en-cours", "termine"].includes(rdv.statut) && peut(compte, "caisse") && <DejaEncaisse rdv={rdv} />}
         {erreur && (
           <p className="mt-3 text-sm font-semibold text-aza-fonce" role="alert">
             {erreur}
@@ -751,5 +752,61 @@ function AcompteRdv({ rdv, demande }: { rdv: RendezVous; demande: boolean }) {
         </button>
       </div>
     </section>
+  );
+}
+
+// La cliente a payé en vente directe à la caisse (sans passer par ce rendez-vous) : on relie
+// son ticket au rendez-vous, qui passe « Encaissé » — sans encaisser une seconde fois.
+function DejaEncaisse({ rdv }: { rdv: RendezVous }) {
+  const compte = useCompte();
+  const [tickets, setTickets] = useState<{ id: string; reference: string; heure: number; total: number; cliente: string | null }[] | null>(null);
+  const [erreur, setErreur] = useState("");
+  const appel = async (q: string, corps?: object) => {
+    const r = await fetch(`/api/gestion/caisse${q}`, {
+      method: corps ? "POST" : "GET",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${await compte.user.getIdToken()}` },
+      body: corps ? JSON.stringify(corps) : undefined,
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.erreur ?? "Refusé.");
+    return j;
+  };
+  if (!tickets)
+    return (
+      <button
+        onClick={() => appel(`?tickets-libres=${rdv.id}`).then(setTickets, (e: Error) => setErreur(e.message))}
+        className="mt-3 min-h-11 text-sm font-semibold text-profond underline"
+      >
+        Déjà encaissée directement en caisse ?{erreur && <span className="block text-aza-fonce">{erreur}</span>}
+      </button>
+    );
+  return (
+    <div className="mt-3 rounded-xl border border-bordure p-3 text-sm">
+      <p className="font-semibold text-profond">Touchez son ticket pour le relier à ce rendez-vous :</p>
+      {tickets.length === 0 && <p className="mt-1 text-doux">Aucun ticket de ce jour à relier (ventes sans rendez-vous, à son nom ou sans nom).</p>}
+      <ul className="mt-2 space-y-1">
+        {tickets.map((t) => (
+          <li key={t.id}>
+            <button
+              onClick={() =>
+                window.confirm(`Relier le ticket ${t.reference} (${formatPrix(t.total)}) à ce rendez-vous ? Il passera « Encaissé ».`) &&
+                appel("", { action: "lier", rendezVous: rdv.id, ticket: t.id }).catch((e: Error) => setErreur(e.message))
+              }
+              className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg bg-creme px-3 text-left"
+            >
+              <span>
+                {t.reference} · {heure(t.heure)}
+                {t.cliente ? ` · ${t.cliente}` : ""}
+              </span>
+              <b className="prix">{formatPrix(t.total)}</b>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {erreur && <p className="mt-2 font-semibold text-aza-fonce">{erreur}</p>}
+      <button onClick={() => setTickets(null)} className="mt-2 text-xs font-semibold text-doux underline">
+        Fermer
+      </button>
+    </div>
   );
 }

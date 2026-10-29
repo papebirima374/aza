@@ -154,7 +154,7 @@ export function Caisse() {
     appel(`?rdv=${rdvDemande}`)
       .then((r: RdvAEncaisser & { statut: string }) => {
         if (!actif) return;
-        if (r.statut !== "termine") setErreur("Ce rendez-vous n'est pas « Terminé » (ou il est déjà encaissé).");
+        if (!["reserve", "confirme", "arrivee", "en-cours", "termine"].includes(r.statut)) setErreur("Ce rendez-vous est déjà encaissé ou annulé.");
         else setBrouillon({ rendezVous: r.id, cliente: r.cliente, lignes: lignesDuRdv(r), acompte: acompteDispo(r) });
       })
       .catch((e: Error) => actif && setErreur(e.message));
@@ -562,6 +562,26 @@ function Editeur(props: {
     };
   }, [telCliente, compte.user]);
   const fidConnue = fid && telCliente.replace(/\D/g, "").length >= 9 ? fid : null;
+  // Vente directe pour une cliente qui a un rendez-vous aujourd'hui : on propose de l'y relier,
+  // sinon le rendez-vous resterait « à faire » dans l'agenda alors qu'elle a payé.
+  const [rdvsCliente, setRdvsCliente] = useState<(RdvAEncaisser & { statut: string })[]>([]);
+  useEffect(() => {
+    if (b.rendezVous || telCliente.replace(/\D/g, "").length < 9) return;
+    let actif = true;
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/gestion/caisse?rdv-cliente=${encodeURIComponent(telCliente)}`, { headers: { Authorization: `Bearer ${await compte.user.getIdToken()}` } });
+        if (r.ok && actif) setRdvsCliente(await r.json());
+      } catch {
+        // hors connexion : pas de proposition
+      }
+    }, 400);
+    return () => {
+      actif = false;
+      clearTimeout(t);
+    };
+  }, [b.rendezVous, telCliente, compte.user]);
+  const rdvPropose = !b.rendezVous && telCliente.replace(/\D/g, "").length >= 9 ? rdvsCliente[0] : undefined;
 
   const resultatsCadeau = useMemo(
     () => (rechercheCadeau.trim().length < 2 ? [] : cat.prestations.filter((p) => correspond(`${p.nom} ${p.famille}`, rechercheCadeau)).slice(0, 6)),
@@ -625,6 +645,28 @@ function Editeur(props: {
       </div>
 
       {b.rendezVous && <AlerteCliente rdv={b.rendezVous} />}
+      {rdvPropose && (
+        <div className="mt-3 rounded-xl border border-or bg-[#fbf6ef] p-3 text-sm">
+          <p>
+            📅 <b>{rdvPropose.cliente.nom}</b> a un rendez-vous aujourd&apos;hui à <b>{heureTexte(rdvPropose.debut)}</b> ({rdvPropose.prestations.map((p) => p.nom).join(", ")}).
+          </p>
+          <button
+            onClick={() =>
+              props.setBrouillon({
+                ...b,
+                rendezVous: rdvPropose.id,
+                cliente: rdvPropose.cliente,
+                lignes: b.lignes.length ? b.lignes : lignesDuRdv(rdvPropose),
+                acompte: acompteDispo(rdvPropose),
+              })
+            }
+            className="mt-2 min-h-11 rounded-full bg-profond px-4 font-bold text-white"
+          >
+            Encaisser avec ce rendez-vous
+          </button>
+          <p className="mt-1 text-xs text-doux">Le rendez-vous passera « Encaissé » dans l&apos;agenda.</p>
+        </div>
+      )}
       <ul className="mt-3 divide-y divide-bordure rounded-xl border border-bordure lg:max-h-[36vh] lg:overflow-y-auto">
         {lignes.length === 0 && <li className="p-3 text-sm text-doux">Touchez une prestation ou un produit à gauche (ou cherchez-le) : il s&apos;ajoute ici.</li>}
         {lignes.map((l, i) => (

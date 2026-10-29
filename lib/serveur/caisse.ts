@@ -328,7 +328,9 @@ export async function encaisser(membre: Membre, e: Encaissement) {
     let cliente: { id: string; nom: string; telephone: string } | null = null;
     if (rdv) {
       if (!rdv.exists) throw new Erreur("Rendez-vous introuvable.", 404);
-      if (rdv.get("statut") !== "termine") throw new Erreur("Ce rendez-vous n'est pas marqué « Terminé » (ou il est déjà encaissé).", 409);
+      // La cliente règle souvent avant que le soin soit marqué « Terminé » : tout rendez-vous
+      // pas encore encaissé, annulé ni absent s'encaisse.
+      if (!EN_ATTENTE.includes(rdv.get("statut"))) throw new Erreur("Ce rendez-vous est déjà encaissé ou annulé.", 409);
       if (jourPasse && rdv.get("date") !== jourPasse) throw new Erreur("Ce rendez-vous n'est pas de ce jour-là.", 409);
       cliente = rdv.get("cliente");
       const acompte = rdv.get("acompte") as { montant: number; utilise?: string } | undefined;
@@ -827,6 +829,60 @@ export async function lireTicket(membre: Membre, id: string) {
   const t = await db().doc(`tickets/${id}`).get();
   if (!t.exists) throw new Erreur("Ticket introuvable.", 404);
   return { id: t.id, ...t.data(), creeLe: undefined };
+}
+
+/** Rendez-vous pas encore encaissés (ni annulés, ni absents). */
+const EN_ATTENTE = ["reserve", "confirme", "arrivee", "en-cours", "termine"];
+
+/** Les rendez-vous du jour de cette cliente, pas encore encaissés : la caisse propose d'y relier la vente. */
+export async function rendezVousDeCliente(membre: Membre, telephone: string, jourBrut?: unknown) {
+  exigerAcces(membre, "caisse");
+  if (!telephoneValide(telephone)) return [];
+  const date = jourDeCaisse(membre, jourBrut);
+  const snap = await db().collection("rendezVous").where("date", "==", date).where("cliente.id", "==", telephoneCanonique(telephone)).get();
+  return snap.docs
+    .filter((d) => EN_ATTENTE.includes(d.get("statut")))
+    .map((d) => ({ id: d.id, debut: d.get("debut") as number, statut: d.get("statut") as string, cliente: d.get("cliente"), prestations: d.get("prestations"), total: d.get("total"), affectations: d.get("affectations") ?? [], acompte: d.get("acompte") ?? null }))
+    .sort((a, b) => a.debut - b.debut);
+}
+
+/** Tickets du jour du rendez-vous, faits en vente directe (sans rendez-vous) pour cette cliente ou sans nom. */
+export async function ticketsSansRendezVous(membre: Membre, rdvId: string) {
+  exigerAcces(membre, "caisse");
+  const base = db();
+  const rdv = await base.doc(`rendezVous/${rdvId}`).get();
+  if (!rdv.exists) throw new Erreur("Rendez-vous introuvable.", 404);
+  const cliente = rdv.get("cliente.id") as string | undefined;
+  const snap = await base.collection("tickets").where("date", "==", rdv.get("date")).get();
+  return snap.docs
+    .filter((d) => d.get("type") === "vente" && !d.get("annule") && !d.get("rendezVous"))
+    .filter((d) => !d.get("cliente") || d.get("cliente.id") === cliente)
+    .map((d) => ({ id: d.id, reference: d.get("reference") as string, heure: d.get("heure") as number, total: d.get("total") as number, cliente: (d.get("cliente.nom") as string | undefined) ?? null }))
+    .sort((a, b) => b.heure - a.heure);
+}
+
+/** La cliente a déjà été encaissée en vente directe : on relie ce ticket au rendez-vous, qui passe « Encaissé ». */
+export async function lierTicket(membre: Membre, rdvId: string, ticketId: string) {
+  exigerAcces(membre, "caisse");
+  const base = db();
+  const rdvRef = base.doc(`rendezVous/${rdvId}`);
+  const ticketRef = base.doc(`tickets/${ticketId}`);
+  return base.runTransaction(async (tx) => {
+    const [rdv, ticket] = await Promise.all([tx.get(rdvRef), tx.get(ticketRef)]);
+    if (!rdv.exists) throw new Erreur("Rendez-vous introuvable.", 404);
+    if (!EN_ATTENTE.includes(rdv.get("statut"))) throw new Erreur("Ce rendez-vous est déjà encaissé ou annulé.", 409);
+    if (!ticket.exists || ticket.get("type") !== "vente" || ticket.get("annule")) throw new Erreur("Ticket introuvable.", 404);
+    if (ticket.get("rendezVous")) throw new Erreur("Ce ticket est déjà relié à un rendez-vous.", 409);
+    if (ticket.get("date") !== rdv.get("date")) throw new Erreur("Ce ticket n'est pas du jour du rendez-vous.", 409);
+    if (ticket.get("cliente") && ticket.get("cliente.id") !== rdv.get("cliente.id")) throw new Erreur("Ce ticket est au nom d'une autre cliente.", 409);
+    tx.update(ticketRef, { rendezVous: rdvId, ...(ticket.get("cliente") ? {} : { cliente: rdv.get("cliente") }) });
+    tx.update(rdvRef, {
+      statut: "encaisse",
+      ticket: ticketId,
+      historique: FieldValue.arrayUnion({ statut: "encaisse", le: Timestamp.now(), par: membre.uid, nom: membre.nom, motif: `${ticket.get("reference")} (vente directe en caisse, reliée ensuite)` }),
+    });
+    return { ok: true, reference: ticket.get("reference") as string };
+  });
 }
 
 export async function lireRendezVous(membre: Membre, id: string) {
