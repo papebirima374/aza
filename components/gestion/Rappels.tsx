@@ -27,8 +27,6 @@ function message(r: Rdv, date: string) {
     `Bonjour ${r.cliente.nom} 🌸`,
     `C'est ${INSTITUT.nom}. Nous vous attendons demain, ${jour}, à ${heure(r.debut)} pour : ${r.prestations.join(" + ")}.`,
     `Adresse : ${INSTITUT.adresse.rue}, ${INSTITUT.adresse.repere.toLowerCase()}.`,
-    r.acompteRequis ? "Un acompte est demandé pour cette prestation (Wave ou Orange Money)." : "",
-    "Merci de répondre OUI pour confirmer, ou de nous prévenir si vous ne pouvez pas venir.",
   ]
     .filter(Boolean)
     .join("\n");
