@@ -6,7 +6,7 @@ import { useCompte } from "@/components/gestion/EspaceGestion";
 import { ImporterListe } from "@/components/gestion/ImporterListe";
 import { PhotoPrestation } from "@/components/gestion/PhotoPrestation";
 import { urlPhotoSite } from "@/lib/photos-site";
-import { formatPrix, UNIVERS, type Famille, type Prestation } from "@/lib/catalogue";
+import { formatPrix, UNIVERS, type Famille, type Prestation, type UniversId } from "@/lib/catalogue";
 import { rafraichirCatalogue, useCatalogue } from "@/lib/client/catalogue";
 import { correspond } from "@/lib/recherche";
 import { peut } from "@/lib/acces";
@@ -144,7 +144,7 @@ export function Catalogue() {
               .filter((f) => (u.boutique ? Boolean(f.boutique) : !f.boutique && f.univers === u.id))
               .map((f) => ({ ...f, prestations: f.prestations.filter((p) => !recherche || correspond(`${p.nom} ${f.nom}`, requete)) }))
               .filter((f) => !recherche || f.prestations.length > 0);
-            if (familles.length === 0) return null;
+            if (familles.length === 0 && recherche) return null;
             return (
               <div key={u.id}>
                 <p className="text-xs font-bold tracking-wide text-doux uppercase">{u.nom}</p>
@@ -157,12 +157,62 @@ export function Catalogue() {
                     envoyer={envoyer}
                   />
                 ))}
+                {!recherche && <NouvelleFamille univers={u.boutique ? undefined : (u.id as UniversId)} nomGroupe={u.nom} envoyer={envoyer} />}
               </div>
             );
           })}
         </div>
       </div>
     </Photos.Provider>
+  );
+}
+
+// Une nouvelle famille dans ce groupe (ex. « Maquillage » dans L'Institut) ; on y ajoute ensuite ses lignes.
+function NouvelleFamille({ univers, nomGroupe, envoyer }: { univers?: UniversId; nomGroupe: string; envoyer: (c: object, ok: string) => Promise<boolean> }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [nom, setNom] = useState("");
+  const [choix, setChoix] = useState<UniversId>(univers ?? "institut");
+  const [envoi, setEnvoi] = useState(false);
+  if (!ouvert)
+    return (
+      <button onClick={() => setOuvert(true)} className="mt-2 min-h-11 w-full rounded-xl border border-dashed border-bordure px-3 text-left text-sm font-bold text-profond">
+        + Nouvelle famille {univers ? `dans ${nomGroupe}` : "de produits"}
+      </button>
+    );
+  return (
+    <div className="mt-2 rounded-xl border border-dashed border-bordure p-3">
+      <p className="text-sm font-bold text-profond">Nouvelle famille {univers ? `dans ${nomGroupe}` : "de produits"}</p>
+      <input value={nom} onChange={(e) => setNom(e.target.value)} maxLength={60} placeholder="ex. Maquillage" className="mt-2 min-h-11 w-full rounded-lg border border-bordure px-3" autoFocus />
+      {!univers && (
+        <select value={choix} onChange={(e) => setChoix(e.target.value as UniversId)} className="mt-2 min-h-11 w-full rounded-lg border border-bordure bg-white px-2" aria-label="Rayon">
+          {UNIVERS.map((u) => (
+            <option key={u.id} value={u.id}>
+              Rayon : {u.nom}
+            </option>
+          ))}
+        </select>
+      )}
+      <div className="mt-2 flex gap-2">
+        <button
+          disabled={nom.trim().length < 2 || envoi}
+          onClick={async () => {
+            setEnvoi(true);
+            const ok = await envoyer({ action: "famille", nom, univers: univers ?? choix, boutique: !univers }, `Famille « ${nom.trim()} » créée : ouvrez-la pour y ajouter ses lignes.`);
+            setEnvoi(false);
+            if (ok) {
+              setNom("");
+              setOuvert(false);
+            }
+          }}
+          className="min-h-11 rounded-full bg-profond px-5 text-sm font-bold text-white disabled:opacity-40"
+        >
+          Créer la famille
+        </button>
+        <button onClick={() => setOuvert(false)} className="min-h-11 rounded-full border border-bordure px-4 text-sm font-semibold text-profond">
+          Annuler
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -224,6 +274,17 @@ function BlocFamille(props: { f: Famille; ouverte: boolean; basculer: () => void
               </li>
             )}
           </ul>
+          {f.ajoutee && (
+            <button
+              onClick={() => {
+                const nom = window.prompt("Nouveau nom de la famille :", f.nom)?.trim();
+                if (nom && nom !== f.nom) props.envoyer({ action: "renommer-famille", id: f.id, nom }, `Famille renommée : « ${nom} ».`);
+              }}
+              className="mx-3 mt-2 min-h-10 rounded-full border border-bordure px-3 text-xs font-semibold text-profond"
+            >
+              ✏️ Renommer la famille
+            </button>
+          )}
           <Ajouter key={f.id} familleId={f.id} nomFamille={f.nom} boutique={Boolean(f.boutique)} envoyer={props.envoyer} />
         </>
       )}

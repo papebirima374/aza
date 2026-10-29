@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { ACCES, accesDuRole, peut, type AccesPerso } from "@/lib/acces";
 import type { Role } from "@/lib/agenda/statuts";
-import { FAMILLES, UNIVERS } from "@/lib/catalogue";
+import { UNIVERS } from "@/lib/catalogue";
+import { useCatalogue } from "@/lib/client/catalogue";
 import { telephoneCanonique } from "@/lib/telephone";
 import { texteWhatsApp } from "@/lib/whatsapp";
 
@@ -29,6 +30,7 @@ const LIBELLE: Record<Role, string> = Object.fromEntries(ROLES.map((r) => [r.id,
 
 export function Equipe() {
   const compte = useCompte();
+  const cat = useCatalogue(true);
   const [liste, setListe] = useState<Ligne[]>([]);
   const [erreur, setErreur] = useState("");
   const [nom, setNom] = useState("");
@@ -121,7 +123,7 @@ export function Equipe() {
                       </p>
                     )}
                     {m.competences.length > 0 && (
-                      <p className="mt-0.5 text-xs text-doux">{m.competences.map((c) => FAMILLES.find((f) => f.id === c)?.nom ?? c).join(" · ")}</p>
+                      <p className="mt-0.5 text-xs text-doux">{m.competences.map((c) => cat.familles.find((f) => f.id === c)?.nom ?? c).join(" · ")}</p>
                     )}
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -252,6 +254,7 @@ function AussiPrestataire({ aussi, setAussi }: { aussi: boolean; setAussi: (v: b
 }
 
 function ChoixCompetences({ competences, setCompetences }: { competences: string[]; setCompetences: (f: (c: string[]) => string[]) => void }) {
+  const cat = useCatalogue(true);
   return (
     <fieldset className="mt-4">
       <legend className="text-sm font-semibold">Ce qu&apos;elle sait faire</legend>
@@ -259,7 +262,7 @@ function ChoixCompetences({ competences, setCompetences }: { competences: string
         <div key={u.id} className="mt-2">
           <p className="text-xs font-bold tracking-wide text-doux uppercase">{u.nom}</p>
           <div className="mt-1 flex flex-wrap gap-2">
-            {FAMILLES.filter((f) => f.univers === u.id && !f.boutique).map((f) => (
+            {cat.familles.filter((f) => f.univers === u.id && !f.boutique).map((f) => (
               <label
                 key={f.id}
                 className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm ${competences.includes(f.id) ? "border-profond bg-profond text-white" : "border-bordure"}`}

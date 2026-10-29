@@ -4,7 +4,7 @@
 // « qui a modifié un prix ».
 
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { construireCatalogue, FAMILLES, nouvelIdentifiant, type Catalogue, type ModifCatalogue } from "@/lib/catalogue";
+import { construireCatalogue, nouvelIdentifiant, nouvelleFamilleId, UNIVERS, type Catalogue, type ModifCatalogue, type UniversId } from "@/lib/catalogue";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db, firebaseConfigure } from "@/lib/serveur/firebase";
 import { exigerAcces } from "@/lib/serveur/acces";
@@ -25,6 +25,7 @@ export async function lireModifs(): Promise<Record<string, ModifCatalogue>> {
       ...(x.masque ? { masque: true } : {}),
       ...(x.horsSite ? { horsSite: true } : {}),
       ...(x.ajoute ? { ajoute: true, nom: x.nom, familleId: x.familleId, ...(x.note ? { note: x.note } : {}) } : {}),
+      ...(x.famille ? { famille: true, nom: x.nom, univers: x.univers, ...(x.boutique ? { boutique: true } : {}) } : {}),
     };
   }
   memoire = { le: Date.now(), modifs };
@@ -66,7 +67,7 @@ export async function modifierCatalogue(membre: Membre, c: Record<string, unknow
     }
     case "ajouter": {
       const familleId = String(c.familleId ?? "");
-      if (!FAMILLES.some((f) => f.id === familleId)) throw new ErreurReservation("Famille inconnue.", 400);
+      if (!tout.familles.some((f) => f.id === familleId)) throw new ErreurReservation("Famille inconnue.", 400);
       const nom = String(c.nom ?? "").trim().slice(0, 80);
       if (nom.length < 2) throw new ErreurReservation("Donnez un nom.", 400);
       const prix = entier(c.prix);
@@ -96,6 +97,28 @@ export async function modifierCatalogue(membre: Membre, c: Record<string, unknow
     }
     case "importer": {
       resultat = await importer(c.lignes, c.essai !== false, tout, trace);
+      break;
+    }
+    case "famille": {
+      // Nouvelle famille (ex. « Maquillage ») dans un univers, ou parmi les produits.
+      const nom = String(c.nom ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
+      if (nom.length < 2) throw new ErreurReservation("Donnez un nom à la famille.", 400);
+      const univers = String(c.univers ?? "") as UniversId;
+      if (!UNIVERS.some((u) => u.id === univers)) throw new ErreurReservation("Choisissez l'univers de la famille.", 400);
+      const boutique = c.boutique === true;
+      if (tout.familles.some((f) => Boolean(f.boutique) === boutique && nomCompare(f.nom) === nomCompare(nom))) throw new ErreurReservation("Cette famille existe déjà.", 409);
+      const id = nouvelleFamilleId(nom);
+      await base.doc(`catalogue/${id}`).set({ famille: true, nom, univers, ...(boutique ? { boutique: true } : {}), ...trace({ action: "famille-creee" }) });
+      resultat = { ok: true, id };
+      break;
+    }
+    case "renommer-famille": {
+      const id = String(c.id ?? "");
+      const f = tout.familles.find((x) => x.id === id);
+      if (!f?.ajoutee) throw new ErreurReservation("Seules les familles créées ici peuvent être renommées (la plaquette reste la référence).", 400);
+      const nom = String(c.nom ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
+      if (nom.length < 2) throw new ErreurReservation("Donnez un nom à la famille.", 400);
+      await base.doc(`catalogue/${id}`).set({ nom, ...trace({ action: "famille-renommee", avant: f.nom, apres: nom }) }, { merge: true });
       break;
     }
     case "renommer": {
@@ -152,7 +175,7 @@ async function importer(brut: unknown, essai: boolean, tout: Catalogue, trace: (
     const familleId = String(x?.familleId ?? "");
     const prix = Math.round(Number(x?.prix));
     if (nom.length < 2) return res.refusees.push({ ligne: i + 1, raison: "nom manquant" });
-    if (!FAMILLES.some((f) => f.id === familleId)) return res.refusees.push({ ligne: i + 1, raison: `famille inconnue « ${familleId} »` });
+    if (!tout.familles.some((f) => f.id === familleId)) return res.refusees.push({ ligne: i + 1, raison: `famille inconnue « ${familleId} »` });
     if (!Number.isFinite(prix) || prix < 1 || prix > 10_000_000) return res.refusees.push({ ligne: i + 1, raison: `prix invalide (${nom})` });
     const ligne: LigneImport = { nom, familleId, prix, produit: x?.produit === true, site: x?.site !== false };
     const cle = `${familleId}|${nomCompare(nom)}`;

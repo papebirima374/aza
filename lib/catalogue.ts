@@ -21,6 +21,8 @@ export type Famille = {
   prestations: Prestation[];
   /** Famille de la boutique seulement (Anna Zen Couture) : absente des pages prestations et de la réservation. */
   boutique?: true;
+  /** Famille créée par la direction (absente de la plaquette) : elle peut la renommer. */
+  ajoutee?: true;
 };
 
 export type Univers = {
@@ -449,6 +451,10 @@ export type ModifCatalogue = {
   note?: string;
   /** Pas sur le site public (ni pages, ni réservation, ni boutique) ; reste en caisse et à l'agenda. */
   horsSite?: boolean;
+  /** Ce document est une famille créée par la direction (nom, univers, boutique ?). */
+  famille?: boolean;
+  univers?: UniversId;
+  boutique?: boolean;
 };
 
 export type PrestationComplete = Prestation & { famille: string; familleId: string; univers: UniversId; masque?: boolean; ajoute?: boolean; horsSite?: boolean };
@@ -465,7 +471,12 @@ export type Catalogue = {
  * `pourLeSite` : sans les lignes que la direction a retirées du site (case « Sur le site »).
  */
 export function construireCatalogue(modifs: Record<string, ModifCatalogue> = {}, avecMasquees = false, pourLeSite = false): Catalogue {
-  const familles: Famille[] = FAMILLES.map((f) => {
+  // Les familles créées par la direction viennent après celles de la plaquette.
+  const creees: Famille[] = Object.entries(modifs)
+    .filter(([, m]) => m.famille && m.nom && m.univers && UNIVERS.some((u) => u.id === m.univers))
+    .map(([id, m]) => ({ id, nom: m.nom!, univers: m.univers!, prestations: [], ajoutee: true as const, ...(m.boutique ? { boutique: true as const } : {}) }))
+    .sort((a, b) => a.nom.localeCompare(b.nom, "fr"));
+  const familles: Famille[] = [...FAMILLES, ...creees].map((f) => {
     const base = f.prestations.map((p) => {
       const m = modifs[p.id];
       return { ...p, ...(m?.prix !== undefined ? { prix: m.prix } : {}), ...(m?.masque ? { masque: true } : {}), ...(m?.horsSite ? { horsSite: true } : {}) };
@@ -495,6 +506,11 @@ export function construireCatalogue(modifs: Record<string, ModifCatalogue> = {},
     parId: (id) => index.get(id),
     famillesDe: (u) => familles.filter((f) => f.univers === u && !f.boutique && f.prestations.length > 0),
   };
+}
+
+/** Identifiant d'une famille créée : « f-nom-xxxx » (ne se confond jamais avec une ligne, qui porte « -- »). */
+export function nouvelleFamilleId(nom: string): string {
+  return `f-${slug(nom).slice(0, 30)}-${Math.random().toString(36).slice(2, 6)}`;
 }
 
 /** Identifiant d'une ligne ajoutée : famille + nom, plus un suffixe pour ne jamais écraser. */
