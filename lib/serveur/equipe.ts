@@ -3,9 +3,9 @@
 
 import { FieldValue } from "firebase-admin/firestore";
 import type { Role } from "@/lib/agenda/statuts";
-import { FAMILLES } from "@/lib/catalogue";
 import { INSTITUT } from "@/lib/institut";
 import type { Membre } from "@/lib/serveur/agenda";
+import { catalogueServeur } from "@/lib/serveur/catalogue";
 import { auth, db } from "@/lib/serveur/firebase";
 import { ErreurReservation } from "@/lib/serveur/reservations";
 import { randomInt } from "node:crypto";
@@ -222,7 +222,7 @@ export async function modifierMembre(membre: Membre, uid: string, m: Modificatio
   const aussi = ROLES_CUMUL.includes(role) && (m.aussiPrestataire ?? doc.get("aussiPrestataire") === true);
   maj.aussiPrestataire = aussi;
   const intervenante = role === "praticienne" || role === "prestataire" || aussi;
-  const familles = new Set(FAMILLES.map((f) => f.id));
+  const familles = new Set((await catalogueServeur(true)).familles.map((f) => f.id));
   let ficheId = doc.get("praticienne") as string | undefined;
   const fiche: Record<string, unknown> = { nom, actif: intervenante && actif, externe: role === "prestataire" };
   if (m.competences !== undefined) fiche.competences = m.competences.filter((c) => familles.has(c));
@@ -284,7 +284,7 @@ export async function creerMembre(membre: Membre, n: NouveauMembre) {
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ErreurReservation("Email invalide.", 400);
   const aussi = ROLES_CUMUL.includes(n.role) && n.aussiPrestataire === true;
   const intervenante = n.role === "praticienne" || n.role === "prestataire" || aussi;
-  const familles = new Set(FAMILLES.map((f) => f.id));
+  const familles = new Set((await catalogueServeur(true)).familles.map((f) => f.id));
   const competences = (n.competences ?? []).filter((c) => familles.has(c));
   if (intervenante && competences.length === 0) throw new ErreurReservation("Cochez au moins une compétence.", 400);
   const tel = telephoneCanonique(telephone);

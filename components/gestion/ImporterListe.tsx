@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
-import { FAMILLES, formatPrix } from "@/lib/catalogue";
+import { formatPrix, type Famille } from "@/lib/catalogue";
+import { useCatalogue } from "@/lib/client/catalogue";
 import { rafraichirCatalogue } from "@/lib/client/catalogue";
 import { lireLignesCsv, simpleCsv } from "@/lib/client/csv";
 
@@ -20,7 +21,7 @@ type Rapport = {
   importees?: number;
 };
 
-export function lireCsv(texte: string): { lignes: Ligne[]; erreurs: string[] } {
+export function lireCsv(texte: string, liste: Famille[]): { lignes: Ligne[]; erreurs: string[] } {
   const { entete, lignes: brutes } = lireLignesCsv(texte);
   if (entete.length === 0) return { lignes: [], erreurs: ["Le fichier est vide."] };
   const avecEntete = entete.includes("nom") && entete.some((x) => x.startsWith("famille"));
@@ -30,7 +31,7 @@ export function lireCsv(texte: string): { lignes: Ligne[]; erreurs: string[] } {
   };
   const [cNom, cFam, cPrix, cType, cSite] = [col("nom", 0), col("famille", 1), col("prix", 2), col("type", 3), col("sur le site", 4)];
   const familles = new Map<string, string>();
-  for (const f of FAMILLES) {
+  for (const f of liste) {
     familles.set(simpleCsv(f.id), f.id);
     familles.set(simpleCsv(f.nom), f.id);
   }
@@ -51,10 +52,11 @@ export function lireCsv(texte: string): { lignes: Ligne[]; erreurs: string[] } {
   return { lignes, erreurs };
 }
 
-const nomFamille = (id: string) => FAMILLES.find((f) => f.id === id)?.nom ?? id;
 
 export function ImporterListe() {
   const compte = useCompte();
+  const cat = useCatalogue(true);
+  const nomFamille = (id: string) => cat.familles.find((f) => f.id === id)?.nom ?? id;
   const [ouvert, setOuvert] = useState(false);
   const [lignes, setLignes] = useState<Ligne[] | null>(null);
   const [erreurs, setErreurs] = useState<string[]>([]);
@@ -89,7 +91,7 @@ export function ImporterListe() {
     setRapport(null);
     setMessage("");
     if (!fichier) return;
-    const { lignes: l, erreurs: e } = lireCsv(await fichier.text());
+    const { lignes: l, erreurs: e } = lireCsv(await fichier.text(), cat.familles);
     setLignes(l);
     setErreurs(e);
     if (l.length) await appel(true, l);
