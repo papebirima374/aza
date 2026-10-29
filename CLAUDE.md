@@ -52,7 +52,7 @@ recopier dans la vraie base. Les vraies durées se saisissent dans l'écran Rég
 émulateurs (firestore + auth) + seed + `node scripts/verifier-reservation.mjs`,
 `node scripts/verifier-agenda.mjs`, `node scripts/verifier-comptoir.mjs`,
 `node scripts/verifier-equipe.mjs` (vide la base : reseeder après), `npm run test:regles`,
-et `node scripts/verifier-reglages.mjs` (site lancé SANS `RESERVATION_EN_LIGNE`). Modification des comptes : `node scripts/verifier-modifier-membre.mjs`. Caisse d'un jour passé : `node scripts/verifier-rattrapage.mjs`.
+et `node scripts/verifier-reglages.mjs` (site lancé SANS `RESERVATION_EN_LIGNE`). Modification des comptes : `node scripts/verifier-modifier-membre.mjs`. Caisse d'un jour passé : `node scripts/verifier-rattrapage.mjs`. Vente directe reliée à un rendez-vous : `node scripts/verifier-lier-ticket.mjs`.
 
 ## Version de Node
 `package.json` demande Node **22.x** (`engines`). firebase-admin est gardé en **13.x**

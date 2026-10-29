@@ -1,5 +1,23 @@
 import { membreConnecte } from "@/lib/serveur/agenda";
-import { aEncaisser, annulerTicket, enregistrerAcompte, equipeCaisse, sessionsCaisse, fideliteCliente, encaisserCommande, reglerCredit, cloturerCaisse, encaisser, journal, lireRendezVous, lireTicket, ouvrirCaisse } from "@/lib/serveur/caisse";
+import {
+  aEncaisser,
+  annulerTicket,
+  enregistrerAcompte,
+  equipeCaisse,
+  sessionsCaisse,
+  fideliteCliente,
+  encaisserCommande,
+  reglerCredit,
+  cloturerCaisse,
+  encaisser,
+  journal,
+  lierTicket,
+  lireRendezVous,
+  lireTicket,
+  ouvrirCaisse,
+  rendezVousDeCliente,
+  ticketsSansRendezVous,
+} from "@/lib/serveur/caisse";
 import { noter, nomDe, prix } from "@/lib/serveur/activite";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
 import { reponseErreur } from "@/lib/serveur/reponses";
@@ -21,6 +39,8 @@ export async function GET(request: Request) {
     const q = new URL(request.url).searchParams;
     if (q.get("ticket")) return Response.json(await lireTicket(membre, q.get("ticket")!), sansCache);
     if (q.get("rdv")) return Response.json(await lireRendezVous(membre, q.get("rdv")!), sansCache);
+    if (q.get("rdv-cliente")) return Response.json(await rendezVousDeCliente(membre, q.get("rdv-cliente")!, q.get("jour") ?? undefined), sansCache);
+    if (q.get("tickets-libres")) return Response.json(await ticketsSansRendezVous(membre, q.get("tickets-libres")!), sansCache);
     if (q.get("a-encaisser")) return Response.json(await aEncaisser(membre, q.get("jour") ?? undefined), sansCache);
     if (q.get("equipe")) return Response.json(await equipeCaisse(membre), sansCache);
     if (q.get("sessions")) return Response.json(await sessionsCaisse(membre, q.get("du") ?? undefined, q.get("au") ?? undefined), sansCache);
@@ -86,6 +106,11 @@ export async function POST(request: Request) {
         const r = await enregistrerAcompte(membre, String(c.rendezVous ?? "-"), c.montant, c.mode);
         await noter(membre, "caisse", `Acompte ${r.reference} reçu de ${r.cliente} : ${prix(r.montant)}`, "/gestion/caisse");
         return Response.json(r, { status: 201 });
+      }
+      case "lier": {
+        const r = await lierTicket(membre, String(c.rendezVous ?? "-"), String(c.ticket ?? "-"));
+        await noter(membre, "caisse", `Ticket ${r.reference} relié au rendez-vous de ${await nomDe(`rendezVous/${c.rendezVous}`, "cliente")}`, `/gestion/caisse/ticket/${c.ticket}`);
+        return Response.json(r);
       }
       case "cloturer": {
         const r = await cloturerCaisse(membre, c.compte, c.justification, c.caisse);
