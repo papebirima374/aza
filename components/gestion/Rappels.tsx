@@ -7,7 +7,8 @@ import { telephoneCanonique } from "@/lib/telephone";
 import { texteWhatsApp } from "@/lib/whatsapp";
 
 // « Rappels de demain » : un bouton par cliente, le message WhatsApp est déjà écrit.
-// Quand la cliente répond OUI, on touche « Confirmé ».
+// Quand la cliente confirme sa venue (message ou appel), on touche « Confirmé ».
+// Le message ne parle pas d'acompte : l'accueil le voit ici (« Acompte demandé »).
 
 type Rdv = {
   id: string;
@@ -27,9 +28,7 @@ function message(r: Rdv, date: string) {
     `Bonjour ${r.cliente.nom} 🌸`,
     `C'est ${INSTITUT.nom}. Nous vous attendons demain, ${jour}, à ${heure(r.debut)} pour : ${r.prestations.join(" + ")}.`,
     `Adresse : ${INSTITUT.adresse.rue}, ${INSTITUT.adresse.repere.toLowerCase()}.`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  ].join("\n");
 }
 
 function lien(r: Rdv, date: string) {
@@ -86,7 +85,7 @@ export function Rappels() {
               </button>
             </div>
             <p className="mt-1 text-sm text-doux">
-              Touchez « Envoyer » : WhatsApp s&apos;ouvre avec le message prêt. Quand la cliente répond OUI, touchez « Confirmé ».
+              Touchez « Envoyer » : WhatsApp s&apos;ouvre avec le message prêt. Quand la cliente confirme sa venue, touchez « Confirmé ».
             </p>
             {donnees.rendezVous.length === 0 && <p className="mt-6 text-center text-doux">Aucun rendez-vous demain.</p>}
             <ul className="mt-4 space-y-3">
@@ -96,6 +95,7 @@ export function Rappels() {
                     {heure(r.debut)} · {r.cliente.nom}
                   </p>
                   <p className="text-sm text-doux">{r.prestations.join(" + ")}</p>
+                  {r.acompteRequis && <p className="mt-1 inline-block rounded-full bg-or/20 px-2 py-0.5 text-xs font-semibold text-[#8a6534]">💰 Acompte demandé (pas encore versé)</p>}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <a
                       href={lien(r, donnees.date)}

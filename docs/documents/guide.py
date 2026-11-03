@@ -322,9 +322,9 @@ pages.append(page(f"""
 {duo('''<p>Chaque jour, prévenez les clientes du lendemain : c'est ce qui fait baisser les absences.</p>
 <ol class="etapes">
 <li>Dans l'Agenda, touchez le bouton vert <b>📲 Rappels de demain</b>.</li>
-<li>Pour chaque cliente, <span class="bouton" style="background:#128C4A">📲 Envoyer</span> : WhatsApp s'ouvre avec le message prêt (heure, prestation, adresse, « répondez OUI »). Envoyez-le.</li>
+<li>Pour chaque cliente, <span class="bouton" style="background:#128C4A">📲 Envoyer</span> : WhatsApp s'ouvre avec le message prêt (heure, prestation, adresse). Envoyez-le.</li>
 <li>Le site note « ✓ envoyé par … ».</li>
-<li>Quand elle répond OUI, touchez <span class="touche">Confirmé</span>.</li>
+<li>Quand elle confirme sa venue, touchez <span class="touche">Confirmé</span>. « 💰 Acompte demandé » signale celles qui doivent encore un acompte.</li>
 </ol>
 <div class="encadre or">L'envoi entièrement automatique demandera un compte WhatsApp Business API (service payant de Meta, à ouvrir avec les papiers de l'institut).</div>''', "16-rappels", "Rappels de demain")}
 """, P))

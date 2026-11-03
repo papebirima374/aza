@@ -32,7 +32,8 @@ export async function listerRappels(membre: Membre, dateBrute?: string) {
         statut: d.get("statut") as string,
         cliente: d.get("cliente") as { nom: string; telephone: string },
         prestations: (d.get("prestations") as { nom: string }[]).map((p) => p.nom),
-        acompteRequis: Boolean(d.get("acompteRequis")),
+        // Acompte demandé et pas encore versé : signalé à l'accueil (pas dans le message).
+        acompteRequis: Boolean(d.get("acompteRequis")) && !d.get("acompte"),
         rappel: d.get("rappel") ? { par: d.get("rappel.par.nom") as string, le: (d.get("rappel.le") as Timestamp).toMillis() } : null,
       }))
       .sort((a, b) => a.debut - b.debut),

@@ -69,7 +69,7 @@ pages.append(page(f"""
 <li><b>La cloche 🔔</b> : en haut de chaque écran, tout ce qui attend une action (retards, encaissements, rendez-vous en ligne, commandes, avis, stock, anniversaires, caisses oubliées).</li>
 <li><b>À l'heure dite</b> : si la cliente n'est pas arrivée, l'accueil et la prestataire sont prévenues, avec un message WhatsApp prêt pour la cliente.</li>
 <li><b>Sur place</b> : « Changer » confie la cliente à une autre praticienne libre et compétente.</li>
-<li><b>La veille</b> : un message WhatsApp prêt pour chaque cliente, « Confirmé » quand elle répond OUI.</li>
+<li><b>La veille</b> : un message WhatsApp prêt pour chaque cliente, « Confirmé » quand elle confirme sa venue.</li>
 <li>Statuts : réservé → confirmé → arrivée → en cours → terminé → encaissé, avec le journal de chaque changement.</li>
 </ul>""", P))
 
