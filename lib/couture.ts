@@ -13,6 +13,29 @@ export const MODELES_BASE = Array.from({ length: 29 }, (_, i) => {
 export const PHOTOS_GROUPE = ["/images/couture/groupe-1.webp", "/images/couture/groupe-2.webp", "/images/couture/groupe-3.webp"];
 export const LOGO_COUTURE = "/images/couture/logo-couture.webp";
 
+/** Adresse d'une collection dans la boutique : « Power Dakar » → « power-dakar ». */
+export const slugCollection = (nom: string) =>
+  nom
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+/** Les collections de la boutique, de la plus récente à la plus ancienne, avec leur photo de couverture. */
+export function collectionsDe(modeles: ModeleCouture[]) {
+  const vues = new Map<string, { nom: string; slug: string; photo: string | null; nombre: number }>();
+  for (const m of [...modeles].sort((a, b) => b.ordre - a.ordre)) {
+    if (!m.collection) continue;
+    const slug = slugCollection(m.collection);
+    const c = vues.get(slug) ?? { nom: m.collection, slug, photo: null, nombre: 0 };
+    c.nombre++;
+    c.photo ??= m.photos[0] ?? null;
+    vues.set(slug, c);
+  }
+  return [...vues.values()];
+}
+
 /** Tailles proposées par défaut ; la direction choisit celles de chaque modèle. */
 export const TAILLES = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Sur mesure"] as const;
 export const TAILLES_DEFAUT = ["S", "M", "L", "XL", "XXL", "Sur mesure"];
@@ -26,6 +49,8 @@ export type ModeleCouture = {
   photos: string[];
   tailles: string[];
   couleurs: string[];
+  /** Collection (ex. « Power », « Teranga ») : la boutique regroupe les modèles par collection. */
+  collection: string;
   masque?: boolean;
   /** Pour « Nouveautés » : plus grand = plus récent. */
   ordre: number;

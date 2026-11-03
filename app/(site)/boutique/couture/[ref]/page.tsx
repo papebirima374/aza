@@ -4,8 +4,10 @@ import { notFound } from "next/navigation";
 import { BoutonPanier } from "@/components/boutique/BoutonPanier";
 import { AjoutCouture } from "@/components/couture/AjoutCouture";
 import { Collection } from "@/components/couture/Collection";
+import { Coeur } from "@/components/couture/Coeur";
 import { GalerieModele } from "@/components/couture/GalerieModele";
 import { formatPrix } from "@/lib/catalogue";
+import { slugCollection } from "@/lib/couture";
 import { INSTITUT } from "@/lib/institut";
 import { boutiqueOuverte, livraisonInternationale } from "@/lib/serveur/boutique";
 import { guideDesTailles, modelesCouture } from "@/lib/serveur/collection";
@@ -17,7 +19,10 @@ export const dynamic = "force-dynamic";
 async function charger(ref: string) {
   const modeles = await modelesCouture();
   const m = modeles.find((x) => x.ref === ref.toUpperCase());
-  return m ? { m, autres: modeles.filter((x) => x.id !== m.id).slice(0, 4) } : null;
+  if (!m) return null;
+  // « Vous aimerez aussi » : d'abord les modèles de la même collection.
+  const autres = modeles.filter((x) => x.id !== m.id).sort((a, b) => Number(b.collection === m.collection && !!m.collection) - Number(a.collection === m.collection && !!m.collection));
+  return { m, autres: autres.slice(0, 4) };
 }
 
 export async function generateMetadata({ params }: PageProps<"/boutique/couture/[ref]">): Promise<Metadata> {
@@ -51,13 +56,27 @@ export default async function PageModele({ params }: PageProps<"/boutique/coutur
   return (
     <div className="mx-auto max-w-6xl px-4 pt-6 pb-32 md:pt-10">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(donnees).replace(/</g, "\\u003c") }} />
-      <Link href="/boutique/couture" className="text-sm text-doux hover:text-encre inline-block py-2">
-        ← Anna Zen Couture
-      </Link>
+      <nav className="flex flex-wrap items-center gap-x-2 text-sm text-doux" aria-label="Fil d'Ariane">
+        <Link href="/boutique/couture" className="inline-block py-2 hover:text-encre">
+          ← Anna Zen Couture
+        </Link>
+        {m.collection && (
+          <>
+            <span aria-hidden>/</span>
+            <Link href={`/boutique/couture?collection=${slugCollection(m.collection)}#modeles`} className="inline-block py-2 hover:text-encre">
+              Collection {m.collection}
+            </Link>
+          </>
+        )}
+      </nav>
       <div className="mt-4 grid gap-8 md:grid-cols-[1.35fr_1fr] md:gap-12">
         <GalerieModele photos={m.photos} nom={m.nom} />
         <div className="md:sticky md:top-24 md:self-start">
-          <h1 className="font-serif text-3xl tracking-[0.08em] text-encre uppercase md:text-4xl">{m.nom}</h1>
+          <div className="flex items-start justify-between gap-3">
+            <h1 className="font-serif text-4xl leading-tight text-encre md:text-5xl">{m.nom}</h1>
+            <Coeur modele={m.ref} nom={m.nom} className="shrink-0 border border-bordure" />
+          </div>
+          {m.collection && <p className="mt-1 text-xs tracking-[0.2em] text-or uppercase">Collection {m.collection}</p>}
           <p className="prix mt-2 text-lg text-encre">{formatPrix(m.prix)}</p>
           <p className="mt-1 text-xs text-doux">Frais de livraison calculés à la commande · Fait sur commande · Réf. {m.ref}</p>
           <AjoutCouture modele={m.ref} nom={m.nom} tailles={m.tailles} couleurs={m.couleurs} ouverte={ouverte} />
@@ -85,7 +104,7 @@ export default async function PageModele({ params }: PageProps<"/boutique/coutur
       </div>
       {autres.length > 0 && (
         <section className="mt-16">
-          <h2 className="mb-6 text-center font-serif text-2xl tracking-[0.12em] text-encre uppercase">Vous aimerez aussi</h2>
+          <h2 className="mb-6 font-serif text-4xl text-encre">Vous aimerez aussi</h2>
           <Collection modeles={autres} />
         </section>
       )}

@@ -15,7 +15,7 @@ import { TAILLES, TAILLES_DEFAUT, type ModeleCouture } from "@/lib/couture";
 // sa propre page (/gestion/collection/C-07), le nouveau modèle sur /gestion/collection/nouveau.
 
 type Modele = ModeleCouture & { photoIds: string[] };
-type Brouillon = { nom: string; prix: string; description: string; tailles: string[]; couleurs: string };
+type Brouillon = { nom: string; prix: string; description: string; tailles: string[]; couleurs: string; collection: string };
 type Message = { ok: boolean; texte: string } | null;
 
 const bouton = "min-h-12 rounded-full px-5 font-bold disabled:opacity-40";
@@ -64,7 +64,9 @@ function useCollection() {
       return null;
     }
   };
-  return { liste, agir, message, setMessage, direction: compte.role === "direction" };
+  // Les collections déjà utilisées, proposées à la saisie (même orthographe partout).
+  const collections = [...new Set((liste?.modeles ?? []).map((m) => m.collection).filter(Boolean))].sort((a, b) => a.localeCompare(b, "fr"));
+  return { liste, agir, message, setMessage, collections, direction: compte.role === "direction" };
 }
 
 function Bandeau({ message }: { message: Message }) {
@@ -96,7 +98,7 @@ export function GestionCollection() {
     tous.filter((m) => (f === "en-vente" ? !m.masque : f === "masques" ? m.masque : f === "sans-photo" ? m.photoIds.length === 0 : true)).length;
   const visibles = tous
     .filter((m) => (filtre === "en-vente" ? !m.masque : filtre === "masques" ? m.masque : filtre === "sans-photo" ? m.photoIds.length === 0 : true))
-    .filter((m) => !recherche.trim() || `${m.nom} ${m.ref}`.toLowerCase().includes(recherche.trim().toLowerCase()))
+    .filter((m) => !recherche.trim() || `${m.nom} ${m.ref} ${m.collection}`.toLowerCase().includes(recherche.trim().toLowerCase()))
     .sort((a, b) => (tri === "prix" ? a.prix - b.prix : tri === "nom" ? a.nom.localeCompare(b.nom) : b.ordre - a.ordre));
 
   return (
@@ -175,6 +177,7 @@ export function GestionCollection() {
                 <span className="mt-1 block truncate text-sm font-semibold group-hover:text-aza">{m.nom}</span>
                 <span className="prix block text-xs text-doux">
                   {m.ref} · {formatPrix(m.prix)}
+                  {m.collection ? ` · ${m.collection}` : ""}
                 </span>
               </Link>
             </li>
@@ -188,7 +191,7 @@ export function GestionCollection() {
 
 /** Page d'un modèle : photos, fiche, retrait de la boutique. */
 export function EditeurModele({ reference }: { reference: string }) {
-  const { liste, agir, message, direction } = useCollection();
+  const { liste, agir, message, collections, direction } = useCollection();
   const router = useRouter();
   const m = liste?.modeles.find((x) => x.ref === reference.toUpperCase());
   const i = liste && m ? liste.modeles.indexOf(m) : -1;
@@ -237,7 +240,8 @@ export function EditeurModele({ reference }: { reference: string }) {
           <Fiche
             key={m.id}
             titre=""
-            depart={{ nom: m.nom, prix: String(m.prix), description: m.description, tailles: m.tailles, couleurs: m.couleurs.join(", ") }}
+            depart={{ nom: m.nom, prix: String(m.prix), description: m.description, tailles: m.tailles, couleurs: m.couleurs.join(", "), collection: m.collection }}
+            collections={collections}
             prixModifiable={direction}
             annuler={() => router.push("/gestion/collection")}
             enregistrer={(b) => agir({ action: "modifier", id: m.id, ...corps(b, direction) }, `${m.ref} enregistré.`).then(() => undefined)}
@@ -258,7 +262,7 @@ export function EditeurModele({ reference }: { reference: string }) {
 
 /** Nouveau modèle : la fiche, puis la page du modèle pour ajouter les photos. */
 export function NouveauModele() {
-  const { agir, message, setMessage, direction } = useCollection();
+  const { agir, message, setMessage, collections, direction } = useCollection();
   const router = useRouter();
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
@@ -272,7 +276,8 @@ export function NouveauModele() {
           <Bandeau message={message} />
           <Fiche
             titre="Nouveau modèle"
-            depart={{ nom: "", prix: "", description: "", tailles: TAILLES_DEFAUT, couleurs: "" }}
+            depart={{ nom: "", prix: "", description: "", tailles: TAILLES_DEFAUT, couleurs: "", collection: "" }}
+            collections={collections}
             prixModifiable
             annuler={() => router.push("/gestion/collection")}
             enregistrer={async (b) => {
@@ -297,10 +302,11 @@ function corps(b: Brouillon, avecPrix = true) {
     description: b.description,
     tailles: b.tailles,
     couleurs: b.couleurs.split(",").map((c) => c.trim()).filter(Boolean),
+    collection: b.collection,
   };
 }
 
-function Fiche(props: { titre: string; depart: Brouillon; prixModifiable: boolean; annuler: () => void; enregistrer: (b: Brouillon) => Promise<void> }) {
+function Fiche(props: { titre: string; depart: Brouillon; collections: string[]; prixModifiable: boolean; annuler: () => void; enregistrer: (b: Brouillon) => Promise<void> }) {
   const [b, setB] = useState(props.depart);
   const [envoi, setEnvoi] = useState(false);
   const pret = b.nom.trim().length >= 2 && b.tailles.length > 0 && (!props.prixModifiable || Number(b.prix.replace(/\s/g, "")) > 0) && !envoi;
@@ -336,6 +342,15 @@ function Fiche(props: { titre: string; depart: Brouillon; prixModifiable: boolea
           })}
         </div>
       </fieldset>
+      <label className="mt-3 block text-sm font-semibold">
+        Collection <span className="font-normal text-doux">(facultatif : la boutique regroupe les modèles par collection)</span>
+        <input value={b.collection} onChange={(e) => setB({ ...b, collection: e.target.value })} list="collections-couture" maxLength={40} placeholder="ex. Power, Teranga" className={champ} />
+        <datalist id="collections-couture">
+          {props.collections.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
+      </label>
       <label className="mt-3 block text-sm font-semibold">
         Couleurs <span className="font-normal text-doux">(facultatif, séparées par des virgules)</span>
         <input value={b.couleurs} onChange={(e) => setB({ ...b, couleurs: e.target.value })} placeholder="ex. Chartreuse, Noir, Bordeaux" className={champ} />

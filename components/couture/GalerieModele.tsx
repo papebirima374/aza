@@ -33,12 +33,12 @@ export function GalerieModele({ photos, nom }: { photos: string[]; nom: string }
           const b = e.currentTarget;
           if (b.clientWidth) setActive(Math.round(b.scrollLeft / b.clientWidth));
         }}
-        className="flex snap-x snap-mandatory overflow-x-auto md:block md:overflow-visible"
+        className="flex snap-x snap-mandatory overflow-x-auto rounded-3xl md:block md:overflow-visible md:rounded-none"
         style={{ scrollbarWidth: "none" }}
       >
         {photos.map((p, i) => (
           <div key={p} id={`photo-${i}`} className="w-full shrink-0 snap-center md:mb-4 md:scroll-mt-24">
-            <Image src={p} alt={i === 0 ? nom : ""} width={720} height={1080} sizes="(min-width: 768px) 55vw, 100vw" priority={i === 0} className="aspect-[2/3] w-full bg-creme object-cover" />
+            <Image src={p} alt={i === 0 ? nom : ""} width={720} height={1080} sizes="(min-width: 768px) 55vw, 100vw" priority={i === 0} className="aspect-[2/3] w-full bg-creme object-cover md:rounded-3xl" />
           </div>
         ))}
       </div>
@@ -46,7 +46,7 @@ export function GalerieModele({ photos, nom }: { photos: string[]; nom: string }
         <ul className="mt-3 flex gap-2 overflow-x-auto md:hidden">
           {photos.map((p, i) => (
             <li key={p} className="w-14 shrink-0">
-              <button onClick={() => aller(i)} aria-label={`Photo ${i + 1}`} className={`block w-full border-2 ${i === active ? "border-encre" : "border-transparent"}`}>
+              <button onClick={() => aller(i)} aria-label={`Photo ${i + 1}`} className={`block w-full overflow-hidden rounded-lg border-2 ${i === active ? "border-encre" : "border-transparent"}`}>
                 <Image src={p} alt="" width={120} height={180} className="aspect-[2/3] w-full object-cover" />
               </button>
             </li>

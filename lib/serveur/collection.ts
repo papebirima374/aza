@@ -14,7 +14,7 @@ import { db, firebaseConfigure } from "@/lib/serveur/firebase";
 import { ErreurReservation } from "@/lib/serveur/reservations";
 
 const Erreur = ErreurReservation;
-type Fiche = { ref?: string; nom?: string; description?: string; photos?: string[]; tailles?: string[]; couleurs?: string[]; ordre?: number };
+type Fiche = { ref?: string; nom?: string; description?: string; photos?: string[]; tailles?: string[]; couleurs?: string[]; collection?: string; ordre?: number };
 
 let memoire: { le: number; fiches: Record<string, Fiche>; guide: string } | null = null;
 
@@ -48,6 +48,7 @@ export async function modelesCouture(avecMasques = false): Promise<ModeleCouture
         photos: f.photos?.length ? f.photos.map((x) => `/api/boutique/photo/${x}`) : origine ? [origine.src] : [],
         tailles: f.tailles?.length ? f.tailles : TAILLES_DEFAUT,
         couleurs: f.couleurs ?? [],
+        collection: f.collection ?? "",
         ...("masque" in p && p.masque ? { masque: true } : {}),
         ordre: f.ordre ?? origine?.ordre ?? 0,
       };
@@ -76,6 +77,7 @@ export async function modifierCollection(membre: Membre, c: Record<string, unkno
     description: String(c.description ?? "").trim().slice(0, 2000),
     tailles: listeOptions(c.tailles, 12),
     couleurs: listeOptions(c.couleurs, 12),
+    collection: String(c.collection ?? "").trim().replace(/\s+/g, " ").slice(0, 40),
   });
   let resultat: Record<string, unknown> = { ok: true };
   switch (c.action) {
