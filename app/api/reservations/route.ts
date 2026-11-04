@@ -9,6 +9,8 @@ export async function POST(request: Request) {
   try {
     const corps = await request.json().catch(() => null);
     if (!corps || typeof corps !== "object") throw new ErreurReservation("Demande invalide.", 400);
+    // Champ piège invisible : rempli seulement par les robots.
+    if (corps.site) throw new ErreurReservation("Demande refusée.", 400);
     const rdv = await creerReservation({
       date: String(corps.date ?? ""),
       debut: Number(corps.debut),

@@ -68,6 +68,8 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
   const [remarque, setRemarque] = useState("");
+  // Champ piège invisible : rempli seulement par les robots (la réservation est alors refusée).
+  const [piege, setPiege] = useState("");
   const [creneau, setCreneau] = useState<number | null>(null);
   const [dispo, setDispo] = useState<Dispo | null>(null);
   const [chargement, setChargement] = useState(false);
@@ -112,7 +114,7 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
       const r = await fetch("/api/reservations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date, debut: creneau, prestations: choix, nom, telephone, remarque }),
+        body: JSON.stringify({ date, debut: creneau, prestations: choix, nom, telephone, remarque, site: piege }),
       });
       const corps = await r.json();
       if (r.ok) setConfirmation(corps);
@@ -356,6 +358,7 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
 
       {etape === 2 && (
         <div className="space-y-4">
+          <input value={piege} onChange={(e) => setPiege(e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden className="hidden" name="site" />
           <label className="block">
             <span className="font-semibold">Votre nom</span>
             <input

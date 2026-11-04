@@ -266,9 +266,19 @@ async function enregistrer(e: Enregistrement) {
 }
 
 /** Réservation en ligne par la cliente (délai minimum, prestations paramétrées seulement). */
+// Au plus 3 rendez-vous en ligne à venir par numéro : personne ne peut bloquer l'agenda
+// en réservant des dizaines de créneaux. Au-delà, la cliente appelle l'institut.
+const MAX_EN_LIGNE_A_VENIR = 3;
+
 export async function creerReservation(r: NouvelleReservation) {
-  controlerCliente(r.nom, r.telephone);
+  const { tel } = controlerCliente(r.nom, r.telephone);
   verifierEnLigne(await lireReglages());
+  const aujourdhui = maintenantDakar().date;
+  const siens = await db().collection("rendezVous").where("cliente.id", "==", tel).get();
+  const aVenir = siens.docs.filter((d) => d.get("source") === "site" && d.get("date") >= aujourdhui && ["reserve", "confirme"].includes(d.get("statut"))).length;
+  if (aVenir >= MAX_EN_LIGNE_A_VENIR) {
+    throw new ErreurReservation(`Vous avez déjà ${aVenir} rendez-vous à venir réservés en ligne. Pour en prendre un autre, appelez-nous ou écrivez-nous sur WhatsApp.`, 429);
+  }
   return enregistrer({
     ...r,
     praticienne: undefined,
