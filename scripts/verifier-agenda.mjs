@@ -86,5 +86,24 @@ ok((await statut(id3, { statut: "annule" }, accueil)).statut === 400, "annuler u
 ok((await statut(id3, { statut: "annule", motif: "Prestation pas faite" }, accueil)).statut === 200, "un rendez-vous terminé mais pas encaissé s'annule");
 ok((await creneaux(DATE, MASSAGE)).creneaux.some((c) => c.debut === 900), "15h est de nouveau proposé");
 
+// Faute de frappe sur la cliente : nom et numéro se corrigent (accueil), pas par une praticienne
+const corriger = (id, corps, tok) =>
+  fetch(`${SITE}/api/gestion/rendez-vous/${id}/cliente`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${tok}` },
+    body: JSON.stringify(corps),
+  }).then(async (r) => ({ statut: r.status, corps: await r.json() }));
+const lireDoc = async (chemin) => (await (await fetch(`${EMU}/${chemin}`, { headers: { Authorization: "Bearer owner" } })).json()).fields ?? {};
+const rdv4 = await reserver({ date: DATE, debut: 960, prestations: [MASSAGE], nom: "Aminta Fal", telephone: "77 888 77 01" });
+const id4 = rdv4.corps.id;
+ok((await corriger(id4, { nom: "Aminata Fall", telephone: "77 888 77 01" }, coiffeuse)).statut === 403, "une praticienne ne corrige pas la cliente");
+ok((await corriger(id4, { nom: "Aminata Fall", telephone: "77 888 77 01" }, accueil)).statut === 200, "l'accueil corrige le nom mal tapé");
+ok((await lireDoc(`rendezVous/${id4}`)).cliente?.mapValue.fields.nom.stringValue === "Aminata Fall", "le rendez-vous porte le bon nom");
+ok((await lireDoc("clientes/778887701")).nom?.stringValue === "Aminata Fall", "la fiche cliente aussi");
+ok((await corriger(id4, { nom: "Aminata Fall", telephone: "77 888 77 02" }, accueil)).statut === 200, "l'accueil corrige le numéro");
+ok((await lireDoc(`rendezVous/${id4}`)).cliente?.mapValue.fields.id.stringValue === "778887702", "le rendez-vous passe sur le bon numéro");
+ok((await lireDoc("clientes/778887702")).nom?.stringValue === "Aminata Fall", "la fiche du bon numéro existe");
+ok((await corriger(id4, { nom: "A", telephone: "77 888 77 02" }, accueil)).statut === 400, "nom trop court : refusé");
+
 console.log(echecs === 0 ? "\nTout est bon." : `\n${echecs} contrôle(s) en échec.`);
 process.exit(echecs === 0 ? 0 : 1);

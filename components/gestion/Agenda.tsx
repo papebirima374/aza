@@ -368,6 +368,7 @@ function Detail({ rdv, equipe, fermer }: { rdv: RendezVous; equipe: { id: string
             <a href={`tel:${rdv.cliente.telephone}`} className="font-semibold text-aza">
               {telephoneAffiche(rdv.cliente.telephone)}
             </a>
+            {ROLES_AGENDA.includes(compte.role) && rdv.statut !== "encaisse" && <CorrigerCliente key={rdv.id} rdv={rdv} />}
           </div>
           <button onClick={fermer} className="rounded-full px-3 py-1 text-2xl text-doux" aria-label="Fermer">
             ×
@@ -807,6 +808,64 @@ function DejaEncaisse({ rdv }: { rdv: RendezVous }) {
       <button onClick={() => setTickets(null)} className="mt-2 text-xs font-semibold text-doux underline">
         Fermer
       </button>
+    </div>
+  );
+}
+
+// Faute de frappe sur le nom ou le numéro au moment de prendre le rendez-vous : on corrige ici.
+function CorrigerCliente({ rdv }: { rdv: RendezVous }) {
+  const compte = useCompte();
+  const [ouvert, setOuvert] = useState(false);
+  const [nom, setNom] = useState(rdv.cliente.nom);
+  const [telephone, setTelephone] = useState(rdv.cliente.telephone);
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState("");
+  if (!ouvert)
+    return (
+      <button onClick={() => setOuvert(true)} className="mt-1 block min-h-11 text-sm font-semibold text-profond underline">
+        ✏️ Corriger le nom ou le numéro
+      </button>
+    );
+  const champ = "mt-1 block w-full rounded-xl border border-bordure px-3 py-2.5";
+  return (
+    <div className="mt-2 rounded-xl border border-bordure p-3">
+      <label className="block text-sm font-semibold">
+        Nom de la cliente
+        <input value={nom} onChange={(e) => setNom(e.target.value)} maxLength={80} className={champ} autoFocus />
+      </label>
+      <label className="mt-2 block text-sm font-semibold">
+        Téléphone
+        <input value={telephone} onChange={(e) => setTelephone(e.target.value)} inputMode="tel" className={champ} />
+      </label>
+      {erreur && <p className="mt-2 text-sm font-semibold text-aza-fonce">{erreur}</p>}
+      <div className="mt-3 flex gap-2">
+        <button
+          disabled={envoi || nom.trim().length < 2}
+          onClick={async () => {
+            setEnvoi(true);
+            setErreur("");
+            try {
+              const r = await fetch(`/api/gestion/rendez-vous/${rdv.id}/cliente`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${await compte.user.getIdToken()}` },
+                body: JSON.stringify({ nom, telephone }),
+              });
+              if (r.ok) setOuvert(false);
+              else setErreur((await r.json()).erreur ?? "Refusé.");
+            } catch {
+              setErreur("Connexion impossible.");
+            } finally {
+              setEnvoi(false);
+            }
+          }}
+          className="min-h-11 rounded-full bg-aza px-5 text-sm font-bold text-white disabled:opacity-40"
+        >
+          Enregistrer
+        </button>
+        <button onClick={() => setOuvert(false)} className="min-h-11 rounded-full border border-bordure px-4 text-sm font-semibold text-profond">
+          Annuler
+        </button>
+      </div>
     </div>
   );
 }

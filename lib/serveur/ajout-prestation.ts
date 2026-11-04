@@ -9,6 +9,7 @@ import type { Membre } from "@/lib/serveur/agenda";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import { db } from "@/lib/serveur/firebase";
 import { ErreurReservation } from "@/lib/serveur/reservations";
+import { telephoneCanonique, telephoneValide } from "@/lib/telephone";
 
 const Erreur = ErreurReservation;
 const MODIFIABLES: Statut[] = ["arrivee", "en-cours", "termine"];
@@ -200,5 +201,61 @@ export async function decalerRendezVous(membre: Membre, rdvId: string, debutBrut
     });
     tx.set(jourRef, { version: ((jour.get("version") as number | undefined) ?? 0) + 1 }, { merge: true });
     return { ok: true, cliente: (rdv.get("cliente") as { nom: string }).nom, avant, apres: debut, inchange: false };
+  });
+}
+
+/**
+ * Corriger le nom ou le numéro de la cliente d'un rendez-vous (faute de frappe à la prise).
+ * La fiche cliente suit : même numéro → son nom est corrigé s'il portait la même faute ;
+ * nouveau numéro → le rendez-vous passe sur la fiche de ce numéro (créée si besoin).
+ * L'ancienne fiche n'est jamais supprimée. Pas après l'encaissement (le ticket porte le nom).
+ */
+export async function corrigerCliente(membre: Membre, rdvId: string, nomBrut: unknown, telephoneBrut: unknown) {
+  if (!ROLES_AGENDA.includes(membre.role)) throw new Erreur("Réservé à l'accueil et à la direction.", 403);
+  const nom = String(nomBrut ?? "").trim().replace(/\s+/g, " ").slice(0, 80);
+  const telephone = String(telephoneBrut ?? "").trim().slice(0, 30);
+  if (nom.length < 2) throw new Erreur("Indiquez le nom de la cliente.", 400);
+  if (!telephoneValide(telephone)) throw new Erreur("Numéro de téléphone invalide.", 400);
+  const nouvelId = telephoneCanonique(telephone);
+  const base = db();
+  const rdvRef = base.doc(`rendezVous/${rdvId}`);
+  return base.runTransaction(async (tx) => {
+    const rdv = await tx.get(rdvRef);
+    if (!rdv.exists) throw new Erreur("Rendez-vous introuvable.", 404);
+    if (rdv.get("statut") === "encaisse") throw new Erreur("Ce rendez-vous est déjà encaissé : le nom est sur le ticket.", 409);
+    const avant = rdv.get("cliente") as { id: string; nom: string; telephone: string };
+    if (avant.nom === nom && avant.id === nouvelId && avant.telephone === telephone) return { inchange: true, avant: avant.nom, apres: nom };
+    const ancienneRef = base.doc(`clientes/${avant.id}`);
+    const nouvelleRef = base.doc(`clientes/${nouvelId}`);
+    const [ancienne, nouvelle] = await Promise.all([tx.get(ancienneRef), nouvelId === avant.id ? Promise.resolve(null) : tx.get(nouvelleRef)]);
+
+    if (nouvelId === avant.id) {
+      // Même cliente : sa fiche avait pris le nom mal tapé ? On le corrige aussi.
+      if (ancienne.exists && ancienne.get("nom") === avant.nom) tx.update(ancienneRef, { nom });
+    } else {
+      if (ancienne.exists && ((ancienne.get("nbRendezVous") as number | undefined) ?? 0) > 0) tx.update(ancienneRef, { nbRendezVous: FieldValue.increment(-1) });
+      tx.set(
+        nouvelleRef,
+        {
+          telephone: nouvelId,
+          nom: nouvelle?.exists ? nouvelle.get("nom") : nom,
+          ...(nouvelle?.exists ? {} : { creeLe: FieldValue.serverTimestamp(), origine: "correction", absences: 0 }),
+          dernierRendezVous: rdvId,
+          nbRendezVous: FieldValue.increment(1),
+        },
+        { merge: true },
+      );
+    }
+    tx.update(rdvRef, {
+      cliente: { id: nouvelId, nom, telephone },
+      historique: FieldValue.arrayUnion({
+        statut: rdv.get("statut"),
+        le: Timestamp.now(),
+        par: membre.uid,
+        nom: membre.nom,
+        motif: `Cliente corrigée : ${avant.nom} (${avant.telephone}) → ${nom} (${telephone})`,
+      }),
+    });
+    return { inchange: false, avant: avant.nom, apres: nom };
   });
 }
