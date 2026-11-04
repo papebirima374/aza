@@ -198,8 +198,8 @@ export function Equipe() {
               <input inputMode="tel" value={telephone} onChange={(e) => setTelephone(e.target.value)} placeholder="77 123 45 67" required className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond" />
             </label>
             <label className="mt-3 block">
-              <span className="text-sm font-semibold">🔑 Mot de passe</span> <span className="text-sm text-doux">(vide : 6 chiffres tirés au sort)</span>
-              <input value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} autoComplete="off" placeholder="au moins 6 caractères" className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond" />
+              <span className="text-sm font-semibold">🔑 Mot de passe</span> <span className="text-sm text-doux">(vide : 8 chiffres tirés au sort)</span>
+              <input value={motDePasse} onChange={(e) => setMotDePasse(e.target.value)} autoComplete="off" placeholder="au moins 8 caractères" className="mt-1 block w-full rounded-xl border border-bordure px-4 py-3 outline-none focus:border-profond" />
             </label>
             <label className="mt-3 block">
               <span className="text-sm font-semibold">Email</span> <span className="text-sm text-doux">(facultatif)</span>
@@ -395,7 +395,7 @@ function Modifier({ m, soiMeme, enregistrer }: { m: Ligne; soiMeme: boolean; enr
           <button
             disabled={envoi}
             onClick={() => {
-              if (window.confirm(`Donner un nouveau mot de passe (6 chiffres) à ${m.nom} ? L'ancien ne marchera plus.`)) envoyer({ motDePasse: true });
+              if (window.confirm(`Donner un nouveau mot de passe (8 chiffres) à ${m.nom} ? L'ancien ne marchera plus.`)) envoyer({ motDePasse: true });
             }}
             className="rounded-full bg-aza px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
           >

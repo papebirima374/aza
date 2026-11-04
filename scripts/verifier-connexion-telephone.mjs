@@ -43,7 +43,7 @@ ok((await post("/api/gestion/equipe", { nom: "Doublon", email: "", telephone: "+
 
 // Mot de passe oublié : la direction en donne un nouveau
 const n = await patch({ uid: cree.corps.uid, motDePasse: true }, direction);
-ok(n.statut === 200 && /^\d{6}$/.test(n.corps.motDePasse), `nouveau mot de passe tiré au sort (${n.corps.motDePasse})`);
+ok(n.statut === 200 && /^\d{8}$/.test(n.corps.motDePasse), `nouveau mot de passe tiré au sort (${n.corps.motDePasse})`);
 ok((await connexion("775551234", "fleur2026")).statut === 401, "…l'ancien ne marche plus");
 const c2 = await connexion("775551234", n.corps.motDePasse);
 ok(c2.statut === 200, "…le nouveau marche");

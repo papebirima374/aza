@@ -46,7 +46,7 @@ export function MonCompte() {
       <section className="mt-8 rounded-2xl border border-bordure p-5">
         <h2 className="font-serif text-2xl font-semibold text-profond">🔑 Changer mon mot de passe</h2>
         <label className="mt-3 block text-sm font-semibold">
-          Nouveau mot de passe (au moins 6 caractères)
+          Nouveau mot de passe (au moins 8 caractères)
           <input type="password" autoComplete="new-password" value={nouveau} onChange={(e) => setNouveau(e.target.value)} className={champ} />
         </label>
         <label className="mt-3 block text-sm font-semibold">
@@ -56,7 +56,7 @@ export function MonCompte() {
         {confirmation && !pareils && <p className="mt-2 text-sm font-semibold text-aza-fonce">Les deux ne sont pas pareils.</p>}
         {message && <p className={`mt-3 text-sm font-semibold ${message.ok ? "text-[#0d6b37]" : "text-aza-fonce"}`}>{message.texte}</p>}
         <button
-          disabled={envoi || nouveau.length < 6 || !pareils}
+          disabled={envoi || nouveau.length < 8 || !pareils}
           onClick={async () => {
             setEnvoi(true);
             setMessage(null);

@@ -19,6 +19,7 @@ import type { Role } from "@/lib/agenda/statuts";
 import type { Membre } from "@/lib/serveur/agenda";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import { db } from "@/lib/serveur/firebase";
+import { imageEnvoyee } from "@/lib/serveur/images";
 import { ErreurReservation } from "@/lib/serveur/reservations";
 import { peut } from "@/lib/acces";
 import { exigerAcces } from "@/lib/serveur/acces";
@@ -256,14 +257,12 @@ export async function modifierStock(membre: Membre, c: Record<string, unknown>) 
     }
     case "photo-ajout": {
       // Photo déjà réduite par l'écran (WebP ~1000 px) : gardée dans la base, servie avec cache.
-      const m = /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/.exec(String(c.image ?? ""));
-      if (!m) throw new Erreur("Image invalide.", 400);
-      if (m[2].length > 900_000) throw new Erreur("Photo trop lourde : réessayez (elle est réduite automatiquement).", 400);
+      const image = imageEnvoyee(c.image, "Photo trop lourde : réessayez (elle est réduite automatiquement).");
       const a = await ref(c.id).get();
       if (!a.exists) throw new Erreur("Article introuvable.", 404);
       const photos = (a.get("boutique.photos") as string[] | undefined) ?? [];
       if (photos.length >= 6) throw new Erreur("6 photos au maximum.", 400);
-      const photo = await base.collection("photosProduits").add({ article: a.id, type: m[1], data: m[2], creeLe: FieldValue.serverTimestamp() });
+      const photo = await base.collection("photosProduits").add({ article: a.id, type: image.type, data: image.data, creeLe: FieldValue.serverTimestamp() });
       await ref(c.id).set({ boutique: { photos: [...photos, photo.id] } }, { merge: true });
       return { ok: true, photo: photo.id };
     }

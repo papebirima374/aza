@@ -1,11 +1,14 @@
 import sharp from "sharp";
 import { srcExemple } from "@/lib/photos-site";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
+import { limiter } from "@/lib/serveur/limiteur";
 import { imagePhotoSite } from "@/lib/serveur/photos-site";
 
 // GET /api/site/apercu/{clé} — la photo en JPEG 1200 px, pour l'aperçu des liens (WhatsApp,
 // Facebook… ne savent pas toujours afficher le WebP). Une photo ne change jamais : cache long.
 export async function GET(request: Request, { params }: RouteContext<"/api/site/apercu/[cle]">) {
+  // Conversion coûteuse (sharp) : une rafale d'un même appareil est arrêtée.
+  if (await limiter(request, "apercu").then(() => false, () => true)) return new Response(null, { status: 429 });
   const { cle } = await params;
   let source: Buffer | null = null;
   const exemple = srcExemple(cle);

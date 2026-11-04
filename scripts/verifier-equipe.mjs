@@ -59,7 +59,7 @@ ok(
   "sans numéro de téléphone : refusé (c'est l'identifiant)",
 );
 const accueil = await api("/api/gestion/equipe", patronne.jeton, "POST", { nom: "Aminata Accueil", email: "aminata@test.aza", telephone: "77 111 00 01", role: "accueil" });
-ok(accueil.statut === 201 && /^\d{6}$/.test(accueil.corps.motDePasse), `compte accueil créé, mot de passe de 6 chiffres (${accueil.corps.motDePasse})`);
+ok(accueil.statut === 201 && /^\d{8}$/.test(accueil.corps.motDePasse), `compte accueil créé, mot de passe de 8 chiffres (${accueil.corps.motDePasse})`);
 ok(
   (await api("/api/gestion/equipe", patronne.jeton, "POST", { nom: "Awa", email: "awa@test.aza", telephone: "77 111 00 02", role: "praticienne" })).statut === 400,
   "une praticienne sans compétence est refusée",

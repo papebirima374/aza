@@ -11,6 +11,7 @@ import { MODELES_BASE, nettoyerOption, TAILLES_DEFAUT, type ModeleCouture } from
 import type { Membre } from "@/lib/serveur/agenda";
 import { catalogueServeur, modifierCatalogue } from "@/lib/serveur/catalogue";
 import { db, firebaseConfigure } from "@/lib/serveur/firebase";
+import { imageEnvoyee } from "@/lib/serveur/images";
 import { ErreurReservation } from "@/lib/serveur/reservations";
 
 const Erreur = ErreurReservation;
@@ -118,13 +119,11 @@ export async function modifierCollection(membre: Membre, c: Record<string, unkno
       const id = String(c.id ?? "");
       const modele = (await modelesCouture(true)).find((m) => m.id === id);
       if (!modele) throw new Erreur("Modèle introuvable.", 404);
-      const m = /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/.exec(String(c.image ?? ""));
-      if (!m) throw new Erreur("Image invalide.", 400);
-      if (m[2].length > 900_000) throw new Erreur("Photo trop lourde : réessayez (elle est réduite automatiquement).", 400);
+      const image = imageEnvoyee(c.image, "Photo trop lourde : réessayez (elle est réduite automatiquement).");
       const fiche = await base.doc(`collection/${id}`).get();
       const photos = (fiche.get("photos") as string[] | undefined) ?? [];
       if (photos.length >= 10) throw new Erreur("10 photos au maximum par modèle.", 400);
-      const photo = await base.collection("photosProduits").add({ modele: id, type: m[1], data: m[2], creeLe: FieldValue.serverTimestamp() });
+      const photo = await base.collection("photosProduits").add({ modele: id, type: image.type, data: image.data, creeLe: FieldValue.serverTimestamp() });
       await base.doc(`collection/${id}`).set({ ref: modele.ref, photos: [...photos, photo.id] }, { merge: true });
       resultat = { ok: true, photo: photo.id };
       break;

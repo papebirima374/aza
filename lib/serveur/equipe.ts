@@ -152,15 +152,15 @@ export type Modification = {
   acces?: Record<string, unknown>;
 };
 
-/** Mot de passe facile à taper sur un téléphone : 6 chiffres. */
+/** Mot de passe facile à taper sur un téléphone : 8 chiffres (100 millions de possibilités). */
 function motDePasseAuHasard(): string {
-  return String(randomInt(0, 1_000_000)).padStart(6, "0");
+  return String(randomInt(0, 100_000_000)).padStart(8, "0");
 }
 
 function motDePasseValide(m?: string | true): string {
   if (m === true || m === undefined || m === "") return motDePasseAuHasard();
   const v = String(m);
-  if (v.length < 6 || v.length > 64) throw new ErreurReservation("Le mot de passe doit faire au moins 6 caractères.", 400);
+  if (v.length < 8 || v.length > 64) throw new ErreurReservation("Le mot de passe doit faire au moins 8 caractères.", 400);
   return v;
 }
 
@@ -325,7 +325,7 @@ export async function creerMembre(membre: Membre, n: NouveauMembre) {
 /** Changer son propre mot de passe (écran « Mon compte »). */
 export async function changerMonMotDePasse(membre: Membre, motDePasse: unknown) {
   const v = String(motDePasse ?? "");
-  if (v.length < 6 || v.length > 64) throw new ErreurReservation("Le mot de passe doit faire au moins 6 caractères.", 400);
+  if (v.length < 8 || v.length > 64) throw new ErreurReservation("Le mot de passe doit faire au moins 8 caractères.", 400);
   await auth().updateUser(membre.uid, { password: v });
   return { ok: true };
 }

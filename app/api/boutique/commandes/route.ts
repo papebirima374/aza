@@ -1,5 +1,6 @@
 import { passerCommande } from "@/lib/serveur/boutique";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
+import { limiter } from "@/lib/serveur/limiteur";
 import { reponseErreur } from "@/lib/serveur/reponses";
 import { ErreurReservation } from "@/lib/serveur/reservations";
 
@@ -7,6 +8,7 @@ import { ErreurReservation } from "@/lib/serveur/reservations";
 export async function POST(request: Request) {
   if (!firebaseConfigure()) return Response.json({ erreur: "Boutique indisponible." }, { status: 503 });
   try {
+    await limiter(request, "commande");
     const c = await request.json().catch(() => null);
     if (!c || typeof c !== "object") throw new ErreurReservation("Demande invalide.", 400);
     // Champ piège invisible : rempli seulement par les robots.

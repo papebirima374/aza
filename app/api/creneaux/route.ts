@@ -1,4 +1,5 @@
 import { firebaseConfigure } from "@/lib/serveur/firebase";
+import { limiter } from "@/lib/serveur/limiteur";
 import { reponseErreur } from "@/lib/serveur/reponses";
 import { chercherCreneaux } from "@/lib/serveur/reservations";
 
@@ -7,6 +8,7 @@ export async function GET(request: Request) {
   if (!firebaseConfigure()) return Response.json({ erreur: "Réservation en ligne indisponible." }, { status: 503 });
   const url = new URL(request.url);
   try {
+    await limiter(request, "creneaux");
     const res = await chercherCreneaux(url.searchParams.get("date") ?? "", url.searchParams.getAll("p"));
     return Response.json(res, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {

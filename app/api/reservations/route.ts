@@ -1,4 +1,5 @@
 import { firebaseConfigure } from "@/lib/serveur/firebase";
+import { limiter } from "@/lib/serveur/limiteur";
 import { reponseErreur } from "@/lib/serveur/reponses";
 import { creerReservation, ErreurReservation } from "@/lib/serveur/reservations";
 
@@ -7,6 +8,7 @@ import { creerReservation, ErreurReservation } from "@/lib/serveur/reservations"
 export async function POST(request: Request) {
   if (!firebaseConfigure()) return Response.json({ erreur: "Réservation en ligne indisponible." }, { status: 503 });
   try {
+    await limiter(request, "reservation");
     const corps = await request.json().catch(() => null);
     if (!corps || typeof corps !== "object") throw new ErreurReservation("Demande invalide.", 400);
     // Champ piège invisible : rempli seulement par les robots.

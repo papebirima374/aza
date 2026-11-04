@@ -11,6 +11,7 @@ import { lireGaleries } from "@/lib/serveur/galeries";
 import { catalogueServeur } from "@/lib/serveur/catalogue";
 import type { Membre } from "@/lib/serveur/agenda";
 import { db, firebaseConfigure } from "@/lib/serveur/firebase";
+import { imageEnvoyee } from "@/lib/serveur/images";
 import { ErreurReservation } from "@/lib/serveur/reservations";
 
 const Erreur = ErreurReservation;
@@ -47,9 +48,7 @@ export async function modifierPhotosSite(membre: Membre, c: Record<string, unkno
     const e = prestation ? { max: 1 } : galerie ? { max: PHOTOS_PAR_GALERIE } : EMPLACEMENTS.find((x) => x.id === emplacement);
     if (!e) throw new Erreur("Emplacement inconnu.", 400);
     if (c.accord !== true) throw new Erreur("Confirmez l'accord des personnes visibles sur la photo.", 400);
-    const m = /^data:(image\/(?:webp|jpeg|png));base64,([A-Za-z0-9+/=]+)$/.exec(String(c.image ?? ""));
-    if (!m) throw new Erreur("Image invalide.", 400);
-    if (m[2].length > 900_000) throw new Erreur("Photo trop lourde.", 400);
+    const image = imageEnvoyee(c.image, "Photo trop lourde.");
     const deja = prestation
       ? await base.collection("photosSite").where("prestation", "==", prestation).get()
       : await base.collection("photosSite").where("emplacement", "==", emplacement).get();
@@ -57,7 +56,7 @@ export async function modifierPhotosSite(membre: Membre, c: Record<string, unkno
     if (e.max === 1) for (const d of deja.docs) await Promise.all([d.ref.delete(), base.doc(`photosSiteData/${d.id}`).delete()]);
     else if (deja.size >= e.max) throw new Erreur(`${e.max} photos au maximum ici.`, 400);
     const ref = base.collection("photosSite").doc();
-    await base.doc(`photosSiteData/${ref.id}`).set({ data: m[2], type: m[1] });
+    await base.doc(`photosSiteData/${ref.id}`).set({ data: image.data, type: image.type });
     await ref.set({
       emplacement,
       ...(prestation ? { prestation } : {}),
