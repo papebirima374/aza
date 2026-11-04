@@ -812,7 +812,9 @@ function DejaEncaisse({ rdv }: { rdv: RendezVous }) {
   );
 }
 
-// Faute de frappe sur le nom ou le numéro au moment de prendre le rendez-vous : on corrige ici.
+// Faute de frappe sur le nom ou le numéro au moment de prendre le rendez-vous : on choisit la
+// bonne cliente dans le fichier (recherche par nom ou numéro), ou on corrige à la main.
+type FicheCliente = { id: string; nom: string; telephone: string };
 function CorrigerCliente({ rdv }: { rdv: RendezVous }) {
   const compte = useCompte();
   const [ouvert, setOuvert] = useState(false);
@@ -820,18 +822,73 @@ function CorrigerCliente({ rdv }: { rdv: RendezVous }) {
   const [telephone, setTelephone] = useState(rdv.cliente.telephone);
   const [envoi, setEnvoi] = useState(false);
   const [erreur, setErreur] = useState("");
+  const [fichier, setFichier] = useState<FicheCliente[] | null>(null);
+  const [recherche, setRecherche] = useState("");
+  const trouvees = useMemo(() => {
+    const q = recherche.trim();
+    const chiffres = q.replace(/\D/g, "");
+    return (fichier ?? []).filter((c) => !q || correspond(c.nom, q) || (chiffres.length >= 3 && c.telephone.replace(/\D/g, "").includes(chiffres))).slice(0, 50);
+  }, [fichier, recherche]);
+
+  async function ouvrir() {
+    setOuvert(true);
+    if (fichier || !peut(compte, "clientes")) return;
+    try {
+      const r = await fetch("/api/gestion/clientes", { headers: { Authorization: `Bearer ${await compte.user.getIdToken()}` } });
+      if (r.ok) setFichier(await r.json());
+    } catch {
+      // hors connexion : correction à la main seulement
+    }
+  }
+
   if (!ouvert)
     return (
-      <button onClick={() => setOuvert(true)} className="mt-1 block min-h-11 text-sm font-semibold text-profond underline">
-        ✏️ Corriger le nom ou le numéro
+      <button onClick={ouvrir} className="mt-1 block min-h-11 text-sm font-semibold text-profond underline">
+        ✏️ Changer de cliente ou corriger
       </button>
     );
   const champ = "mt-1 block w-full rounded-xl border border-bordure px-3 py-2.5";
   return (
     <div className="mt-2 rounded-xl border border-bordure p-3">
+      {fichier && (
+        <div className="mb-3">
+          <label className="block text-sm font-semibold">
+            🔎 Chercher dans le fichier clientes
+            <input
+              type="search"
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              placeholder="Nom ou numéro…"
+              className={champ}
+              autoFocus
+            />
+          </label>
+          <ul className="mt-2 max-h-56 divide-y divide-bordure overflow-y-auto rounded-xl border border-bordure" aria-label="Clientes">
+            {trouvees.map((c) => {
+              const choisie = c.telephone.replace(/\D/g, "").endsWith(telephone.replace(/\D/g, "").slice(-9)) && c.nom === nom;
+              return (
+                <li key={c.id}>
+                  <button
+                    onClick={() => {
+                      setNom(c.nom);
+                      setTelephone(c.telephone);
+                    }}
+                    className={`flex min-h-12 w-full items-center justify-between gap-2 px-3 text-left text-sm ${choisie ? "bg-profond text-white" : "hover:bg-creme"}`}
+                  >
+                    <span className="font-semibold">{c.nom}</span>
+                    <span className={choisie ? "text-white/80" : "text-doux"}>{telephoneAffiche(c.telephone)}</span>
+                  </button>
+                </li>
+              );
+            })}
+            {trouvees.length === 0 && <li className="px-3 py-3 text-sm text-doux">Aucune cliente trouvée : écrivez son nom et son numéro ci-dessous.</li>}
+          </ul>
+          <p className="mt-2 text-xs text-doux">Ou corrigez à la main :</p>
+        </div>
+      )}
       <label className="block text-sm font-semibold">
         Nom de la cliente
-        <input value={nom} onChange={(e) => setNom(e.target.value)} maxLength={80} className={champ} autoFocus />
+        <input value={nom} onChange={(e) => setNom(e.target.value)} maxLength={80} className={champ} />
       </label>
       <label className="mt-2 block text-sm font-semibold">
         Téléphone
