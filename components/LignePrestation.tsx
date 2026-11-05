@@ -20,7 +20,15 @@ export function LignePrestation({ p, sousTitre, photo }: { p: Prestation; sousTi
         {sousTitre && <p className="text-sm text-doux">{sousTitre}</p>}
       </div>
       <div className="flex shrink-0 items-center gap-3">
-        <span className="prix font-bold text-profond">{formatPrix(p.prix)}</span>
+        {p.promo ? (
+          <Link href={`/promo/${p.promo.id}`} className="text-right leading-tight" aria-label={`Promotion : ${p.nom} à ${formatPrix(p.prix)}`}>
+            <span className="block text-[11px] font-bold tracking-wide text-or uppercase">⚡ Promo</span>
+            <span className="prix font-bold text-profond">{formatPrix(p.prix)}</span>
+            {p.prixNormal && <span className="prix block text-xs text-doux line-through">{formatPrix(p.prixNormal)}</span>}
+          </Link>
+        ) : (
+          <span className="prix font-bold text-profond">{formatPrix(p.prix)}</span>
+        )}
         {p.note !== "Produit" && (
           <Link
             href={`/reservation?p=${p.id}`}

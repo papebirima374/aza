@@ -15,7 +15,7 @@ export async function GET(request: Request, { params }: RouteContext<"/api/site/
   if (exemple) {
     const r = await fetch(new URL(exemple, request.url)).catch(() => null);
     if (r?.ok) source = Buffer.from(await r.arrayBuffer());
-  } else if (firebaseConfigure() && /^[A-Za-z0-9]{1,40}$/.test(cle)) {
+  } else if (firebaseConfigure() && /^[A-Za-z0-9-]{1,60}$/.test(cle)) {
     source = (await imagePhotoSite(cle).catch(() => null))?.data ?? null;
   }
   if (!source) return new Response(null, { status: 404 });

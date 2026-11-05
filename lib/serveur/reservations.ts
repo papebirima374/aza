@@ -66,12 +66,13 @@ async function lireReglages(): Promise<Reglages> {
 
 /** Les prestations demandées, avec leurs paramètres de réservation. Refuse celles qui ne
  *  sont pas réservables en ligne (pas encore paramétrées, ou sur devis). */
-export async function prestationsDemandees(ids: string[]): Promise<PrestationEnLigne[]> {
+export async function prestationsDemandees(ids: string[], jour?: string): Promise<PrestationEnLigne[]> {
   if (ids.length === 0 || ids.length > 6) throw new ErreurReservation("Choisissez entre 1 et 6 prestations.", 400);
   const [snaps, postes, cat] = await Promise.all([
     db().getAll(...ids.map((id) => db().doc(`prestationsResa/${id}`))),
     db().collection("postes").get(),
-    catalogueServeur(false, true),
+    // Prix du jour du rendez-vous : une promotion flash de ce jour-là s'applique.
+    catalogueServeur(false, true, jour),
   ]);
   // Un poste demandé mais jamais créé (écran Réglages → Postes) est ignoré, comme au comptoir.
   const typesPresents = new Set(postes.docs.filter((d) => d.get("actif") !== false).map((d) => d.get("type") as string));
@@ -282,7 +283,7 @@ export async function creerReservation(r: NouvelleReservation) {
   return enregistrer({
     ...r,
     praticienne: undefined,
-    prestations: await prestationsDemandees(r.prestations),
+    prestations: await prestationsDemandees(r.prestations, r.date),
     source: "site",
     par: { uid: "site" },
   });

@@ -12,6 +12,9 @@ export type Prestation = {
   /** Durée en minutes — inconnue tant qu'elle n'a pas été relevée à l'institut. */
   duree?: number;
   note?: string;
+  /** Promotion flash en cours : le prix habituel (barré à l'affichage) et la promotion. */
+  prixNormal?: number;
+  promo?: { id: string; au: string; titre: string };
 };
 
 export type Famille = {
@@ -455,7 +458,43 @@ export type ModifCatalogue = {
   famille?: boolean;
   univers?: UniversId;
   boutique?: boolean;
+  /** Ce document est une promotion flash (prix spécial d'une prestation, du … au …). */
+  promo?: PromoFlash;
 };
+
+export type PromoFlash = {
+  prestation: string;
+  prix: number;
+  /** Premier et dernier jour (AAAA-MM-JJ, inclus). */
+  du: string;
+  au: string;
+  titre: string;
+  /** Identifiant de l'affiche (servie par /api/site/photo/{affiche}), si la direction en a mis une. */
+  affiche?: string;
+  actif: boolean;
+};
+
+const jourTexte = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+/** « le vendredi 7 novembre » ou « du lundi 3 au … ». */
+export const periodePromo = (du: string, au: string) => (du === au ? `le ${jourTexte(du)}` : `du ${jourTexte(du)} au ${jourTexte(au)}`);
+
+/** Le jour à Dakar (UTC+0 toute l'année). */
+export const jourDakar = (d = new Date()) => d.toISOString().slice(0, 10);
+
+/** « à venir », « en cours » ou « terminée » (ou « arrêtée » par la direction). */
+export function etatPromo(p: PromoFlash, jour = jourDakar()): "a-venir" | "en-cours" | "terminee" | "arretee" {
+  if (!p.actif) return "arretee";
+  if (jour < p.du) return "a-venir";
+  return jour > p.au ? "terminee" : "en-cours";
+}
+
+/** Les promotions du catalogue (documents « promo »), les plus proches d'abord. */
+export function promosDe(modifs: Record<string, ModifCatalogue>): (PromoFlash & { id: string })[] {
+  return Object.entries(modifs)
+    .filter(([, m]) => m.promo)
+    .map(([id, m]) => ({ id, ...m.promo! }))
+    .sort((a, b) => a.du.localeCompare(b.du));
+}
 
 export type PrestationComplete = Prestation & { famille: string; familleId: string; univers: UniversId; masque?: boolean; ajoute?: boolean; horsSite?: boolean };
 
@@ -470,7 +509,13 @@ export type Catalogue = {
  * La plaquette avec les changements appliqués. `avecMasquees` : pour l'écran Catalogue.
  * `pourLeSite` : sans les lignes que la direction a retirées du site (case « Sur le site »).
  */
-export function construireCatalogue(modifs: Record<string, ModifCatalogue> = {}, avecMasquees = false, pourLeSite = false): Catalogue {
+export function construireCatalogue(modifs: Record<string, ModifCatalogue> = {}, avecMasquees = false, pourLeSite = false, jour = jourDakar()): Catalogue {
+  // Promotions flash en cours ce jour-là : le prix promo remplace le prix habituel partout.
+  const promos = new Map(promosDe(modifs).filter((p) => etatPromo(p, jour) === "en-cours").map((p) => [p.prestation, p]));
+  const enPromo = <T extends Prestation>(p: T): T => {
+    const pr = promos.get(p.id);
+    return pr ? { ...p, prixNormal: p.prix, prix: pr.prix, promo: { id: pr.id, au: pr.au, titre: pr.titre } } : p;
+  };
   // Les familles créées par la direction viennent après celles de la plaquette.
   const creees: Famille[] = Object.entries(modifs)
     .filter(([, m]) => m.famille && m.nom && m.univers && UNIVERS.some((u) => u.id === m.univers))
@@ -495,7 +540,7 @@ export function construireCatalogue(modifs: Record<string, ModifCatalogue> = {},
       .sort((a, b) => a.nom.localeCompare(b.nom, "fr", { numeric: true }));
     return {
       ...f,
-      prestations: [...base, ...ajouts].filter((p) => (avecMasquees || !("masque" in p && p.masque)) && !(pourLeSite && "horsSite" in p && p.horsSite)),
+      prestations: [...base, ...ajouts].filter((p) => (avecMasquees || !("masque" in p && p.masque)) && !(pourLeSite && "horsSite" in p && p.horsSite)).map(enPromo),
     };
   });
   const prestations = familles.flatMap((f) => f.prestations.map((p) => ({ ...p, famille: f.nom, familleId: f.id, univers: f.univers })));

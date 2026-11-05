@@ -13,6 +13,11 @@ import { ErreurReservation } from "@/lib/serveur/reservations";
 let memoire: { le: number; modifs: Record<string, ModifCatalogue> } | null = null;
 const DUREE_MEMOIRE_MS = 15_000;
 
+/** Oublie la copie en mémoire (après un changement fait ailleurs, ex. une promotion). */
+export function oublierCatalogue() {
+  memoire = null;
+}
+
 export async function lireModifs(): Promise<Record<string, ModifCatalogue>> {
   if (!firebaseConfigure()) return {};
   if (memoire && Date.now() - memoire.le < DUREE_MEMOIRE_MS) return memoire.modifs;
@@ -26,6 +31,7 @@ export async function lireModifs(): Promise<Record<string, ModifCatalogue>> {
       ...(x.horsSite ? { horsSite: true } : {}),
       ...(x.ajoute ? { ajoute: true, nom: x.nom, familleId: x.familleId, ...(x.note ? { note: x.note } : {}) } : {}),
       ...(x.famille ? { famille: true, nom: x.nom, univers: x.univers, ...(x.boutique ? { boutique: true } : {}) } : {}),
+      ...(x.promo ? { promo: x.promo } : {}),
     };
   }
   memoire = { le: Date.now(), modifs };
@@ -33,8 +39,8 @@ export async function lireModifs(): Promise<Record<string, ModifCatalogue>> {
 }
 
 /** Le catalogue en vigueur (lignes masquées exclues, sauf demande ; `pourLeSite` : sans les lignes retirées du site). */
-export async function catalogueServeur(avecMasquees = false, pourLeSite = false): Promise<Catalogue> {
-  return construireCatalogue(await lireModifs().catch(() => ({})), avecMasquees, pourLeSite);
+export async function catalogueServeur(avecMasquees = false, pourLeSite = false, jour?: string): Promise<Catalogue> {
+  return construireCatalogue(await lireModifs().catch(() => ({})), avecMasquees, pourLeSite, jour);
 }
 
 const entier = (v: unknown) => Math.round(Number(v));

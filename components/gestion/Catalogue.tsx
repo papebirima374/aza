@@ -108,6 +108,9 @@ export function Catalogue() {
       <div className="mx-auto max-w-3xl px-4 py-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-serif text-4xl font-semibold text-profond">Catalogue et prix</h1>
+          <Link href="/gestion/promos" className="min-h-11 rounded-full border border-bordure px-4 py-2.5 text-sm font-bold text-profond">
+            ⚡ Promos flash
+          </Link>
           <Link href="/gestion/photos" className="min-h-11 rounded-full border border-bordure px-4 py-2.5 text-sm font-bold text-profond">
             🖼️ Photos du site
           </Link>

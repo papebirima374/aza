@@ -219,6 +219,7 @@ function MenuPlus({ compte, chemin }: { compte: Compte; chemin: string }) {
     { href: "/gestion/pointage", libelle: "⏱️ Pointages de l'équipe", visible: peut(compte, "pointage") },
     { href: "/gestion/pointage/borne", libelle: "📺 Borne de pointage", visible: peut(compte, "borne") },
     { href: "/gestion/catalogue", libelle: "📋 Catalogue et prix", visible: peut(compte, "catalogue") },
+    { href: "/gestion/promos", libelle: "⚡ Promos flash", visible: peut(compte, "catalogue") },
     { href: "/gestion/collection", libelle: "👗 Collection Couture", visible: direction },
     { href: "/gestion/cartes", libelle: "🎁 Cartes cadeaux", visible: direction || peut(compte, "caisse") },
     { href: "/gestion/photos", libelle: "🖼️ Photos du site", visible: direction },

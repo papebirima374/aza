@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Petales } from "@/components/Petales";
+import { PromosAccueil } from "@/components/PromosAccueil";
 import { SectionsGalerie } from "@/components/SectionsGalerie";
 import { IconeHorloge, IconeLieu, IconeTelephone, IconeWhatsApp } from "@/components/Icones";
 import { formatPrix, UNIVERS } from "@/lib/catalogue";
@@ -9,6 +10,7 @@ import { type Emplacement, photosEmplacement, urlPhotoSite } from "@/lib/photos-
 import { PHOTOS_GROUPE } from "@/lib/couture";
 import { modelesCouture } from "@/lib/serveur/collection";
 import { lireGaleries } from "@/lib/serveur/galeries";
+import { promosAffichees } from "@/lib/serveur/promos";
 import { photosDuSite } from "@/lib/serveur/photos-site";
 import { avisPublics } from "@/lib/serveur/avis";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
@@ -30,12 +32,13 @@ const PHARES = [
 export const revalidate = 60;
 
 export default async function Accueil() {
-  const [cat, photos, couture, avis, galeries] = await Promise.all([
+  const [cat, photos, couture, avis, galeries, promos] = await Promise.all([
     catalogueServeur(false, true),
     photosDuSite(),
     modelesCouture(),
     firebaseConfigure() ? avisPublics().then((a) => a.avis).catch(() => []) : [],
     lireGaleries(),
+    firebaseConfigure() ? promosAffichees() : [],
   ]);
   // La maison Anna Zen : une photo de groupe, puis les modèles les plus récents.
   const vitrineCouture = [PHOTOS_GROUPE[0], ...couture.flatMap((m) => m.photos.slice(0, 1))].slice(0, 4);
@@ -81,6 +84,8 @@ export default async function Accueil() {
           </div>
         </div>
       </section>
+
+      <PromosAccueil promos={promos} />
 
       {/* Les quatre univers */}
       <section className="mx-auto max-w-6xl px-4 py-16">

@@ -63,7 +63,11 @@ export function TunnelReservation({ enLigne: ouverte = false, idsEnLigne = [] }:
   const [requete, setRequete] = useState("");
   // Une famille à la fois (pose de cils, tresses…) : une liste courte, facile à parcourir.
   const [famille, setFamille] = useState<string | null>(() => construireCatalogue().parId(params.get("p") ?? "")?.familleId ?? null);
-  const [date, setDate] = useState("");
+  // Lien d'une promotion : le jour de la promotion est déjà choisi (?date=AAAA-MM-JJ).
+  const [date, setDate] = useState(() => {
+    const d = params.get("date") ?? "";
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= new Date().toISOString().slice(0, 10) ? d : "";
+  });
   const [moment, setMoment] = useState(MOMENTS[0]);
   const [nom, setNom] = useState("");
   const [telephone, setTelephone] = useState("");
