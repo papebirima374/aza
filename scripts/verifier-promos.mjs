@@ -55,10 +55,24 @@ ok(r2.statut === 201 && r2.corps.total === prixNormal, "un autre jour : prix hab
 // La page de la promotion, avec le lien pour réserver
 const page = await fetch(`${SITE}/promo/${cree.corps.id}`);
 const html = await page.text();
-ok(page.status === 200 && html.includes("Promo Flash du Lundi") && html.includes(`date=${PROMO}`), "la page de la promotion propose de réserver ce jour-là");
+ok(page.status === 200 && html.includes("Promo Flash du Lundi") && html.includes(`date=${PROMO}`), `la page de la promotion propose de réserver ce jour-là (${page.status}, titre ${html.includes("Promo Flash du Lundi")}, date ${html.includes(`date=${PROMO}`)})`);
 ok((await fetch(`${SITE}/promo/promo-inexistante-xx`)).status === 404, "promotion inconnue : page introuvable");
 const liste = await promos(direction);
 ok(liste.corps.some((p) => p.id === cree.corps.id && p.etat === "a-venir"), "l'écran Promotions la montre « à venir »");
+
+// Plusieurs photos : ajoutées une par une, 6 au plus, retirables
+const { readFileSync } = await import("node:fs");
+const photo = (n) => "data:image/webp;base64," + readFileSync(new URL(`../public/images/onglerie/ongles-0${n}.webp`, import.meta.url)).toString("base64");
+const ajout = [];
+for (let i = 1; i <= 7; i++) ajout.push(await promos(direction, { action: "photo-ajout", id: cree.corps.id, image: photo(i) }));
+ok(ajout.slice(0, 6).every((x) => x.statut === 200) && ajout[6].statut === 400, "6 photos acceptées, la 7e refusée");
+ok((await promos(direction, { action: "photo-ajout", id: cree.corps.id, image: "data:image/png;base64,PGh0bWw+" })).statut === 400, "un faux fichier image est refusé");
+ok((await promos(direction, { action: "photo-retrait", id: cree.corps.id, photo: ajout[0].corps.photo })).statut === 200, "une photo se retire");
+const apres = (await promos(direction)).corps.find((p) => p.id === cree.corps.id);
+ok(apres.affiches.length === 5 && apres.affiches[0] === ajout[1].corps.photo, "il reste 5 photos, dans l'ordre");
+await new Promise((x) => setTimeout(x, 16_000));
+const html2 = await (await fetch(`${SITE}/promo/${cree.corps.id}?v=2`)).text();
+ok(/1(<!-- -->)? \/ (<!-- -->)?5/.test(html2) && html2.includes(`/api/site/apercu/${ajout[1].corps.photo}`), "la page montre les 5 photos, la première en aperçu WhatsApp");
 
 ok((await promos(direction, { action: "arreter", id: cree.corps.id })).statut === 200, "la direction arrête la promotion");
 const r3 = await reserver({ date: PROMO, debut: await premier(PROMO, SOIN), prestations: [SOIN], nom: "Cliente promo", telephone: "77 000 33 04" });

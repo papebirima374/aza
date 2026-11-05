@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { IconeWhatsApp } from "@/components/Icones";
-import { formatPrix, jourDakar, periodePromo } from "@/lib/catalogue";
+import { formatPrix, jourDakar, periodePromo, photosPromo } from "@/lib/catalogue";
 import { INSTITUT, lienWhatsApp } from "@/lib/institut";
 import { urlPhotoSite } from "@/lib/photos-site";
 import { lirePromo } from "@/lib/serveur/promos";
@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: PageProps<"/promo/[id]">): Pr
   return {
     title: titre,
     description: `${p.nom} à ${formatPrix(p.prix)} au lieu de ${formatPrix(p.prixNormal)}, ${periodePromo(p.du, p.au)}. Réservez en ligne chez ${INSTITUT.nom}, Point-E, Dakar.`,
-    openGraph: { title: titre, ...(p.affiche ? { images: [{ url: `/api/site/apercu/${p.affiche}`, type: "image/jpeg" }] } : {}) },
+    openGraph: { title: titre, ...(photosPromo(p)[0] ? { images: [{ url: `/api/site/apercu/${photosPromo(p)[0]}`, type: "image/jpeg" }] } : {}) },
   };
 }
 
@@ -28,6 +28,7 @@ export default async function PagePromo({ params }: PageProps<"/promo/[id]">) {
   const p = await lirePromo((await params).id);
   if (!p) notFound();
   const ouverte = p.etat === "en-cours" || p.etat === "a-venir";
+  const photos = photosPromo(p);
   const jour = p.etat === "a-venir" ? p.du : jourDakar();
   const remise = Math.round((1 - p.prix / p.prixNormal) * 100);
   const lien = `${INSTITUT.site}/promo/${p.id}`;
@@ -35,8 +36,16 @@ export default async function PagePromo({ params }: PageProps<"/promo/[id]">) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <p className="text-center text-sm font-bold tracking-[0.3em] text-or uppercase">⚡ {p.titre}</p>
-      {p.affiche && (
-        <Image src={urlPhotoSite(p.affiche)} alt={`${p.titre} : ${p.nom}`} width={1200} height={1200} sizes="(min-width: 672px) 640px, 100vw" priority className="mt-4 h-auto w-full rounded-3xl" />
+      {photos.length > 0 && (
+        // Les photos défilent au doigt (une seule : affichée en entier).
+        <div className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {photos.map((ph, i) => (
+            <div key={ph} className={`relative shrink-0 snap-center ${photos.length > 1 ? "w-[88%]" : "w-full"}`}>
+              <Image src={urlPhotoSite(ph)} alt={i === 0 ? `${p.titre} : ${p.nom}` : ""} width={1200} height={1200} sizes="(min-width: 672px) 600px, 90vw" priority={i === 0} className="h-auto w-full rounded-3xl" />
+              {photos.length > 1 && <span className="absolute top-3 right-3 rounded-full bg-encre/70 px-2.5 py-1 text-xs font-bold text-white">{i + 1} / {photos.length}</span>}
+            </div>
+          ))}
+        </div>
       )}
       <div className="mt-6 rounded-3xl bg-encre p-6 text-center text-white">
         <h1 className="font-serif text-4xl leading-tight">{p.nom}</h1>

@@ -1,11 +1,11 @@
 // Promotions flash (ex. « Massage pierres chaudes à 20 000 F le vendredi ») : un prix spécial
 // sur une prestation, du … au … . Gardées avec les changements du catalogue :
-//   catalogue/promo-{…}       { promo: { prestation, prix, du, au, titre, affiche?, actif } }
-//   photosSiteData/{promo-…}  l'affiche (servie par /api/site/photo/{id})
+//   catalogue/promo-{…}         { promo: { prestation, prix, du, au, titre, affiches[], actif } }
+//   photosSiteData/{promo-…-x}  chaque photo (servie par /api/site/photo/{id}), 6 au plus
 // Pendant ses dates, le prix promo s'applique partout : site, réservation, caisse.
 
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
-import { etatPromo, formatPrix, jourDakar, promosDe, type ModifCatalogue, type PromoFlash } from "@/lib/catalogue";
+import { etatPromo, formatPrix, jourDakar, MAX_PHOTOS_PROMO, photosPromo, promosDe, type PromoFlash } from "@/lib/catalogue";
 import type { Membre } from "@/lib/serveur/agenda";
 import { exigerAcces } from "@/lib/serveur/acces";
 import { catalogueServeur, lireModifs, oublierCatalogue } from "@/lib/serveur/catalogue";
@@ -30,8 +30,9 @@ export async function listerPromos(membre: Membre) {
 /** Une promotion pour sa page publique (même terminée : la page le dit). */
 export async function lirePromo(id: string) {
   if (!/^promo-[a-z0-9-]{4,60}$/.test(id)) return null;
-  const modifs: Record<string, ModifCatalogue> = await lireModifs().catch(() => ({}));
-  const p = modifs[id]?.promo;
+  // Lue directement (pas la copie du catalogue gardée 15 s) : le lien marche dès la création.
+  const doc = await db().doc(`catalogue/${id}`).get().catch(() => null);
+  const p = doc?.get("promo") as PromoFlash | undefined;
   if (!p) return null;
   const cat = await catalogueServeur(false, true, SANS_PROMO);
   const presta = cat.parId(p.prestation);
@@ -71,12 +72,34 @@ export async function modifierPromo(membre: Membre, c: Record<string, unknown>) 
     if (chevauche) throw new Erreur(`« ${presta.nom} » a déjà une promotion du ${chevauche.du} au ${chevauche.au}.`, 409);
     const titre = String(c.titre ?? "").trim().replace(/\s+/g, " ").slice(0, 60) || "Promo Flash";
     const id = `promo-${du}-${Math.random().toString(36).slice(2, 8)}`;
-    const affiche = c.affiche ? imageEnvoyee(c.affiche, "Affiche trop lourde : réessayez (elle est réduite automatiquement).") : null;
-    if (affiche) await base.doc(`photosSiteData/${id}`).set({ data: affiche.data, type: affiche.type });
-    const promo: PromoFlash = { prestation: presta.id, prix, du, au, titre, actif: true, ...(affiche ? { affiche: id } : {}) };
+    // Les photos arrivent ensuite, une par une (« photo-ajout ») : pas d'envoi trop lourd.
+    const promo: PromoFlash = { prestation: presta.id, prix, du, au, titre, actif: true, affiches: [] };
     await base.doc(`catalogue/${id}`).set({ promo, historique: FieldValue.arrayUnion({ action: "promo-creee", ...trace }) });
     oublierCatalogue();
     return { ok: true, id, nom: presta.nom };
+  }
+  if (c.action === "photo-ajout" || c.action === "photo-retrait") {
+    const id = String(c.id ?? "");
+    const ref = base.doc(`catalogue/${id}`);
+    const d = await ref.get();
+    const promo = d.get("promo") as PromoFlash | undefined;
+    if (!d.exists || !promo) throw new Erreur("Promotion introuvable.", 404);
+    const photos = photosPromo(promo);
+    if (c.action === "photo-ajout") {
+      if (photos.length >= MAX_PHOTOS_PROMO) throw new Erreur(`${MAX_PHOTOS_PROMO} photos au plus par promotion.`, 400);
+      const image = imageEnvoyee(c.image, "Photo trop lourde : réessayez (elle est réduite automatiquement).");
+      const photo = `${id}-${Math.random().toString(36).slice(2, 7)}`;
+      await base.doc(`photosSiteData/${photo}`).set({ data: image.data, type: image.type });
+      await ref.update({ "promo.affiches": [...photos, photo], "promo.affiche": FieldValue.delete() });
+      oublierCatalogue();
+      return { ok: true, photo };
+    }
+    const photo = String(c.photo ?? "");
+    if (!photos.includes(photo)) throw new Erreur("Photo introuvable.", 404);
+    await ref.update({ "promo.affiches": photos.filter((p) => p !== photo), "promo.affiche": FieldValue.delete() });
+    await base.doc(`photosSiteData/${photo}`).delete();
+    oublierCatalogue();
+    return { ok: true };
   }
   if (c.action === "arreter") {
     const id = String(c.id ?? "");

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { formatPrix, periodePromo } from "@/lib/catalogue";
+import { formatPrix, periodePromo, photosPromo } from "@/lib/catalogue";
 import { urlPhotoSite } from "@/lib/photos-site";
 import type { promosAffichees } from "@/lib/serveur/promos";
 
@@ -13,8 +13,8 @@ export function PromosAccueil({ promos }: { promos: Awaited<ReturnType<typeof pr
         {promos.map((p) => (
           <li key={p.id} className="w-[88%] max-w-md shrink-0 snap-start">
             <Link href={`/promo/${p.id}`} className="flex items-center gap-4 rounded-3xl bg-encre p-3 pr-5 text-white">
-              {p.affiche ? (
-                <Image src={urlPhotoSite(p.affiche)} alt="" width={200} height={200} sizes="96px" className="h-24 w-24 shrink-0 rounded-2xl object-cover" />
+              {photosPromo(p)[0] ? (
+                <Image src={urlPhotoSite(photosPromo(p)[0])} alt="" width={200} height={200} sizes="96px" className="h-24 w-24 shrink-0 rounded-2xl object-cover" />
               ) : (
                 <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-4xl">⚡</span>
               )}

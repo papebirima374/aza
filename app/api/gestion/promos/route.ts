@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { noter } from "@/lib/serveur/activite";
 import { membreConnecte } from "@/lib/serveur/agenda";
 import { firebaseConfigure } from "@/lib/serveur/firebase";
@@ -21,7 +22,13 @@ export async function POST(request: Request) {
     const membre = await membreConnecte(request);
     const c = (await request.json().catch(() => ({}))) ?? {};
     const r = await modifierPromo(membre, c);
-    await noter(membre, "site", c.action === "creer" ? `Promotion flash créée : ${"nom" in r ? r.nom : ""} à ${c.prix} F, du ${c.du} au ${c.au ?? c.du}` : "Promotion flash arrêtée", "/gestion/promos");
+    const quoi =
+      c.action === "creer" ? `Promotion flash créée : ${"nom" in r ? r.nom : ""} à ${c.prix} F, du ${c.du} au ${c.au ?? c.du}` : c.action === "arreter" ? "Promotion flash arrêtée" : c.action === "photo-ajout" ? "Photo ajoutée à une promotion" : "Photo retirée d'une promotion";
+    await noter(membre, "site", quoi, "/gestion/promos");
+    // Les pages du site montrent tout de suite le changement (sinon : jusqu'à une minute).
+    revalidatePath("/promo/[id]", "page");
+    revalidatePath("/");
+    revalidatePath("/prestations/[univers]", "page");
     return Response.json(r);
   } catch (e) {
     return reponseErreur(e);

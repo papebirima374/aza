@@ -469,7 +469,9 @@ export type PromoFlash = {
   du: string;
   au: string;
   titre: string;
-  /** Identifiant de l'affiche (servie par /api/site/photo/{affiche}), si la direction en a mis une. */
+  /** Les photos (affiches), servies par /api/site/photo/{id}. La première sert d'aperçu. */
+  affiches?: string[];
+  /** Ancienne forme : une seule affiche (promotions créées avant les photos multiples). */
   affiche?: string;
   actif: boolean;
 };
@@ -477,6 +479,10 @@ export type PromoFlash = {
 const jourTexte = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 /** « le vendredi 7 novembre » ou « du lundi 3 au … ». */
 export const periodePromo = (du: string, au: string) => (du === au ? `le ${jourTexte(du)}` : `du ${jourTexte(du)} au ${jourTexte(au)}`);
+
+/** Les photos d'une promotion, dans l'ordre (la première est l'aperçu). */
+export const photosPromo = (p: Pick<PromoFlash, "affiches" | "affiche">) => p.affiches ?? (p.affiche ? [p.affiche] : []);
+export const MAX_PHOTOS_PROMO = 6;
 
 /** Le jour à Dakar (UTC+0 toute l'année). */
 export const jourDakar = (d = new Date()) => d.toISOString().slice(0, 10);

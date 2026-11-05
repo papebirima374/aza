@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useCompte } from "@/components/gestion/EspaceGestion";
 import { peut } from "@/lib/acces";
-import { formatPrix, jourDakar, periodePromo, type PromoFlash } from "@/lib/catalogue";
+import { formatPrix, jourDakar, MAX_PHOTOS_PROMO, periodePromo, photosPromo, type PromoFlash } from "@/lib/catalogue";
 import { reduirePhoto } from "@/lib/client/image";
 import { useCatalogue } from "@/lib/client/catalogue";
 import { correspond } from "@/lib/recherche";
@@ -81,7 +81,26 @@ export function PromosFlash() {
         caisse. Chaque promotion a son lien : envoyez-le, la cliente réserve directement.
       </p>
       {message && <p className={`mt-4 rounded-xl p-3 text-sm font-semibold ${message.ok ? "bg-[#e7f5ec] text-[#0d6b37]" : "bg-aza/10 text-profond"}`}>{message.texte}</p>}
-      <NouvellePromo creer={(c) => agir({ action: "creer", ...c }, "Promotion créée : envoyez son lien aux clientes.")} />
+      <NouvellePromo
+        creer={async (c, photos) => {
+          // La promotion d'abord, puis ses photos une par une (pas d'envoi trop lourd en 3G).
+          try {
+            const r = await appel({ action: "creer", ...c });
+            let n = 0;
+            for (const image of photos) {
+              await appel({ action: "photo-ajout", id: r.id, image });
+              n++;
+            }
+            setMessage({ ok: true, texte: `Promotion créée${n ? ` avec ${n} photo${n > 1 ? "s" : ""}` : ""} : envoyez son lien aux clientes.` });
+            return r;
+          } catch (e) {
+            setMessage({ ok: false, texte: (e as Error).message });
+            return null;
+          } finally {
+            setVersion((v) => v + 1);
+          }
+        }}
+      />
 
       <h2 className="mt-8 font-serif text-2xl font-semibold text-profond">En cours et à venir</h2>
       {!promos ? (
@@ -91,7 +110,13 @@ export function PromosFlash() {
       ) : (
         <ul className="mt-3 space-y-3">
           {actuelles.map((p) => (
-            <CartePromo key={p.id} p={p} arreter={() => window.confirm(`Arrêter la promotion « ${p.nom} » ? Le prix habituel revient tout de suite.`) && agir({ action: "arreter", id: p.id }, "Promotion arrêtée.")} />
+            <CartePromo
+              key={p.id}
+              p={p}
+              arreter={() => window.confirm(`Arrêter la promotion « ${p.nom} » ? Le prix habituel revient tout de suite.`) && agir({ action: "arreter", id: p.id }, "Promotion arrêtée.")}
+              ajouterPhoto={(image) => agir({ action: "photo-ajout", id: p.id, image }, "Photo ajoutée.")}
+              retirerPhoto={(photo) => window.confirm("Retirer cette photo ?") && agir({ action: "photo-retrait", id: p.id, photo }, "Photo retirée.")}
+            />
           ))}
         </ul>
       )}
@@ -109,7 +134,9 @@ export function PromosFlash() {
   );
 }
 
-function CartePromo({ p, arreter }: { p: Promo; arreter?: () => void }) {
+function CartePromo({ p, arreter, ajouterPhoto, retirerPhoto }: { p: Promo; arreter?: () => void; ajouterPhoto?: (image: string) => Promise<unknown>; retirerPhoto?: (photo: string) => void }) {
+  const photos = photosPromo(p);
+  const [envoi, setEnvoi] = useState(false);
   const [copie, setCopie] = useState(false);
   const lien = typeof window === "undefined" ? `/promo/${p.id}` : `${window.location.origin}/promo/${p.id}`;
   const texte = `${p.titre} chez Anna Zen Attitude : ${p.nom} à ${formatPrix(p.prix)}${p.prixNormal ? ` au lieu de ${formatPrix(p.prixNormal)}` : ""}, ${periode(p.du, p.au)}. Réservez ici : ${lien}`;
@@ -117,9 +144,9 @@ function CartePromo({ p, arreter }: { p: Promo; arreter?: () => void }) {
   const outil = "flex min-h-11 items-center rounded-full border border-bordure px-4 text-sm font-semibold text-profond";
   return (
     <li className={`flex gap-3 rounded-2xl border border-bordure p-3 ${arreter ? "" : "opacity-70"}`}>
-      {p.affiche ? (
+      {photos[0] ? (
         /* eslint-disable-next-line @next/next/no-img-element */
-        <img src={urlPhotoSite(p.affiche)} alt="" loading="lazy" className="h-24 w-24 shrink-0 rounded-xl object-cover" />
+        <img src={urlPhotoSite(photos[0])} alt="" loading="lazy" className="h-24 w-24 shrink-0 rounded-xl object-cover" />
       ) : (
         <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl bg-creme text-3xl">⚡</span>
       )}
@@ -130,6 +157,37 @@ function CartePromo({ p, arreter }: { p: Promo; arreter?: () => void }) {
           <b className="prix">{formatPrix(p.prix)}</b>
           {p.prixNormal && <span className="prix ml-2 text-doux line-through">{formatPrix(p.prixNormal)}</span>} · {periode(p.du, p.au)}
         </p>
+        {ajouterPhoto && retirerPhoto && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {photos.map((ph) => (
+              <span key={ph} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={urlPhotoSite(ph)} alt="" loading="lazy" className="h-14 w-14 rounded-lg object-cover" />
+                <button onClick={() => retirerPhoto(ph)} className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-white text-sm shadow" aria-label="Retirer cette photo">
+                  ×
+                </button>
+              </span>
+            ))}
+            {photos.length < MAX_PHOTOS_PROMO && (
+              <label className={`flex h-14 min-w-14 cursor-pointer items-center justify-center rounded-lg border border-dashed border-bordure px-2 text-xs font-semibold text-profond ${envoi ? "pointer-events-none opacity-50" : ""}`}>
+                {envoi ? "⏳" : "📷 +"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="sr-only"
+                  onChange={async (e) => {
+                    const fichiers = [...(e.target.files ?? [])].slice(0, MAX_PHOTOS_PROMO - photos.length);
+                    e.target.value = "";
+                    setEnvoi(true);
+                    for (const f of fichiers) await ajouterPhoto(await reduirePhoto(f, 1200));
+                    setEnvoi(false);
+                  }}
+                />
+              </label>
+            )}
+          </div>
+        )}
         {arreter && (
           <div className="mt-2 flex flex-wrap gap-2">
             <a href={`https://wa.me/?text=${texteWhatsApp(texte)}`} target="_blank" rel="noopener" className="flex min-h-11 items-center rounded-full bg-[#1a7f45] px-4 text-sm font-bold text-white">
@@ -161,7 +219,7 @@ function CartePromo({ p, arreter }: { p: Promo; arreter?: () => void }) {
   );
 }
 
-function NouvellePromo({ creer }: { creer: (c: Record<string, unknown>) => Promise<unknown> }) {
+function NouvellePromo({ creer }: { creer: (c: Record<string, unknown>, photos: string[]) => Promise<unknown> }) {
   const cat = useCatalogue();
   const [ouvert, setOuvert] = useState(false);
   const [recherche, setRecherche] = useState("");
@@ -170,7 +228,7 @@ function NouvellePromo({ creer }: { creer: (c: Record<string, unknown>) => Promi
   const [du, setDu] = useState(jourDakar());
   const [au, setAu] = useState(jourDakar());
   const [titre, setTitre] = useState("Promo Flash");
-  const [affiche, setAffiche] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
   const [envoi, setEnvoi] = useState(false);
   const choisie = cat.parId(prestation);
   const prixHabituel = choisie ? (choisie.prixNormal ?? choisie.prix) : 0;
@@ -246,25 +304,35 @@ function NouvellePromo({ creer }: { creer: (c: Record<string, unknown>) => Promi
         <input value={titre} onChange={(e) => setTitre(e.target.value)} maxLength={60} className={champ} />
       </label>
       <div className="mt-3 text-sm font-semibold">
-        5. L&apos;affiche <span className="font-normal text-doux">(facultatif : celle que vous publiez sur les réseaux)</span>
-        <div className="mt-2 flex items-center gap-3">
-          {affiche && (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={affiche} alt="" className="h-24 w-24 rounded-xl object-cover" />
+        5. Les photos <span className="font-normal text-doux">(facultatif, {MAX_PHOTOS_PROMO} au plus : l&apos;affiche, le soin, l&apos;institut… La première sert d&apos;aperçu sur WhatsApp)</span>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {photos.map((ph, i) => (
+            <span key={i} className="relative">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={ph} alt="" className="h-20 w-20 rounded-xl object-cover" />
+              <button type="button" onClick={() => setPhotos(photos.filter((_, j) => j !== i))} className="absolute -top-2 -right-2 h-7 w-7 rounded-full bg-white text-sm shadow" aria-label="Retirer cette photo">
+                ×
+              </button>
+            </span>
+          ))}
+          {photos.length < MAX_PHOTOS_PROMO && (
+            <label className="flex min-h-12 cursor-pointer items-center rounded-full border border-bordure px-4 font-semibold text-profond">
+              📷 {photos.length ? "Ajouter d'autres photos" : "Ajouter des photos"}
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="sr-only"
+                onChange={async (e) => {
+                  const fichiers = [...(e.target.files ?? [])].slice(0, MAX_PHOTOS_PROMO - photos.length);
+                  e.target.value = "";
+                  const reduites: string[] = [];
+                  for (const f of fichiers) reduites.push(await reduirePhoto(f, 1200));
+                  setPhotos((x) => [...x, ...reduites].slice(0, MAX_PHOTOS_PROMO));
+                }}
+              />
+            </label>
           )}
-          <label className="flex min-h-11 cursor-pointer items-center rounded-full border border-bordure px-4 font-semibold text-profond">
-            📷 {affiche ? "Changer l'affiche" : "Ajouter l'affiche"}
-            <input
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={async (e) => {
-                const f = e.target.files?.[0];
-                e.target.value = "";
-                if (f) setAffiche(await reduirePhoto(f, 1200));
-              }}
-            />
-          </label>
         </div>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
@@ -272,14 +340,14 @@ function NouvellePromo({ creer }: { creer: (c: Record<string, unknown>) => Promi
           disabled={!choisie || !(Number(prix) > 0) || !du || !au || envoi}
           onClick={async () => {
             setEnvoi(true);
-            const r = await creer({ prestation, prix: Number(prix.replace(/\s/g, "")), du, au, titre, ...(affiche ? { affiche } : {}) });
+            const r = await creer({ prestation, prix: Number(prix.replace(/\s/g, "")), du, au, titre }, photos);
             setEnvoi(false);
             if (r) {
               setOuvert(false);
               setPrestation("");
               setRecherche("");
               setPrix("");
-              setAffiche(null);
+              setPhotos([]);
             }
           }}
           className="min-h-12 rounded-full bg-aza px-6 font-bold text-white disabled:opacity-40"
